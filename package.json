@@ -20,7 +20,7 @@
     "quality:all": "pnpm lint && pnpm typecheck && pnpm test && pnpm quality:links && pnpm quality:secrets && pnpm quality:release"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.2.0",
+    "@biomejs/biome": "2.5.14",
     "prisma": "7.9.1",
     "turbo": "^2.10.11"
   },

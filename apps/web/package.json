@@ -60,7 +60,7 @@
     "@types/react-dom": "^19",
     "@types/three": "^0.185.4",
     "tailwindcss": "^4",
-    "tsx": "^4.23.8",
+    "tsx": "^4.23.15",
     "typescript": "^7"
   }
 }

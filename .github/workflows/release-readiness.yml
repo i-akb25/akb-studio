@@ -1,0 +1,40 @@
+name: Release readiness
+
+on:
+  workflow_dispatch:
+    inputs:
+      production_url:
+        description: Optional production origin for the health probe
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.20.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:validate
+        env:
+          DATABASE_URL: postgresql://release:release@127.0.0.1:5432/release
+      - run: pnpm quality:all
+      - run: pnpm --filter @akb-studio/web exec next build --webpack
+        env:
+          NEXT_PUBLIC_SITE_URL: https://release.invalid
+          BETTER_AUTH_URL: https://release.invalid
+          BETTER_AUTH_SECRET: release-readiness-only-release-readiness-only
+      - name: Production health probe
+        if: inputs.production_url != ''
+        run: curl --fail --silent --show-error --max-time 15 "${{ inputs.production_url }}/api/health"

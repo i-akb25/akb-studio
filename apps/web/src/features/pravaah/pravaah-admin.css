@@ -1,0 +1,236 @@
+.akb-admin-header {
+  min-height: 4.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--foreground) 14%, transparent);
+}
+
+.akb-admin-brand {
+  color: var(--foreground);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-decoration: none;
+}
+
+.akb-admin-header nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1.25rem;
+}
+
+.akb-admin-header nav a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-decoration: none;
+}
+
+.akb-admin-header nav a:hover {
+  color: var(--accent-warm);
+}
+
+.pravaah-admin {
+  --pravaah-admin-line: color-mix(in srgb, var(--foreground) 14%, transparent);
+  --pravaah-admin-soft: color-mix(in srgb, var(--foreground) 5%, transparent);
+  --pravaah-admin-accent: var(--accent-warm);
+  padding: 5rem 0 8rem;
+}
+
+.pravaah-admin > output {
+  position: sticky;
+  bottom: 1rem;
+  display: block;
+  width: fit-content;
+  margin: 2rem 0 0 auto;
+  padding: 0.75rem 1rem;
+  color: var(--foreground);
+  background: var(--surface-strong);
+}
+
+.akb-admin-page-header {
+  max-width: 62rem;
+  padding-bottom: 4rem;
+}
+
+.akb-admin-page-header h1 {
+  max-width: 10ch;
+  margin: 0.8rem 0 1.2rem;
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(3.5rem, 7vw, 7rem);
+  font-weight: 500;
+  letter-spacing: -0.06em;
+  line-height: 0.9;
+}
+
+.akb-admin-page-header > p:last-child {
+  max-width: 42rem;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.akb-admin-panel {
+  padding: 3rem 0 4rem;
+  border-top: 1px solid var(--pravaah-admin-line);
+}
+
+.akb-admin-panel > h2 {
+  margin: 1.25rem 0 2rem;
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(2rem, 4vw, 4rem);
+  font-weight: 500;
+  letter-spacing: -0.045em;
+}
+
+.akb-margin-rule {
+  display: flex;
+  justify-content: space-between;
+  gap: 2rem;
+  color: var(--muted);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.13em;
+}
+
+.akb-kicker {
+  color: var(--pravaah-admin-accent);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.64rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.akb-admin-list {
+  display: grid;
+}
+
+.akb-admin-list article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2rem;
+  align-items: center;
+  padding: 1.5rem 0;
+  border-bottom: 1px solid var(--pravaah-admin-line);
+}
+
+.akb-admin-list article h3 {
+  margin: 0.45rem 0;
+  font-size: 1.25rem;
+}
+
+.akb-admin-list article p {
+  max-width: 48rem;
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.akb-admin-list form,
+.akb-admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.akb-admin-list button,
+.akb-admin-actions button {
+  min-height: 44px;
+  padding: 0 1rem;
+  border: 1px solid var(--pravaah-admin-line);
+  color: var(--foreground);
+  background: transparent;
+  cursor: pointer;
+}
+
+.akb-admin-list button:hover,
+.akb-admin-actions button:hover {
+  border-color: var(--pravaah-admin-accent);
+  color: var(--pravaah-admin-accent);
+}
+
+.akb-admin-list button:disabled,
+.akb-admin-actions button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.akb-admin-form {
+  padding: 1.5rem;
+  background: var(--pravaah-admin-soft);
+}
+
+.akb-admin-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem 1.5rem;
+}
+
+.akb-admin-grid label {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.akb-admin-grid label > span {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.akb-admin-grid input,
+.akb-admin-grid select,
+.akb-admin-grid textarea {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.72rem 0.8rem;
+  border: 1px solid var(--pravaah-admin-line);
+  border-radius: 0;
+  color: var(--foreground);
+  background: var(--background);
+}
+
+.akb-admin-grid textarea {
+  min-height: 8rem;
+  resize: vertical;
+}
+
+.akb-admin-span-2 {
+  grid-column: 1 / -1;
+}
+
+.akb-admin-grid .akb-check-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.akb-admin-grid .akb-check-row input {
+  width: 1rem;
+  min-height: 1rem;
+}
+
+.akb-admin-actions {
+  margin-top: 1.5rem;
+  justify-content: flex-end;
+}
+
+@media (max-width: 760px) {
+  .pravaah-admin {
+    padding-top: 3rem;
+  }
+
+  .akb-admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .akb-admin-span-2 {
+    grid-column: auto;
+  }
+
+  .akb-admin-list article {
+    grid-template-columns: 1fr;
+  }
+}

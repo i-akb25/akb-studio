@@ -1,0 +1,351 @@
+.akb-admin-shell {
+  --admin-line: color-mix(in srgb, var(--foreground) 16%, transparent);
+  --admin-soft: color-mix(in srgb, var(--foreground) 5%, transparent);
+  --admin-max: 1280px;
+}
+
+.akb-admin-shell--protected {
+  width: min(100% - 2.5rem, var(--admin-max));
+  margin-inline: auto;
+}
+
+.akb-admin-skip {
+  position: fixed;
+  top: -5rem;
+  left: 1rem;
+  z-index: 100;
+  padding: 0.65rem 1rem;
+  border-radius: 0.375rem;
+  color: var(--background);
+  background: var(--foreground);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.akb-admin-skip:focus {
+  top: 1rem;
+}
+
+.akb-admin-header {
+  min-height: 4.75rem;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1.5rem;
+  border-bottom: 1px solid var(--admin-line);
+}
+
+.akb-admin-brand,
+.akb-admin-exit {
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  color: var(--foreground);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+}
+
+.akb-admin-exit {
+  color: var(--muted);
+}
+
+.akb-admin-header nav {
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.akb-admin-header ul {
+  width: max-content;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0.25rem;
+  list-style: none;
+}
+
+.akb-admin-header nav a {
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  padding-inline: 0.75rem;
+  border-radius: 0.375rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.akb-admin-header a:hover {
+  color: var(--accent-warm);
+}
+
+.akb-admin-main {
+  outline: none;
+}
+
+.akb-admin-page {
+  min-width: 0;
+  padding: clamp(3rem, 7vw, 6.5rem) 0 clamp(5rem, 9vw, 8rem);
+}
+
+.akb-admin-page__header {
+  max-width: 60rem;
+  padding-bottom: clamp(2.5rem, 6vw, 5rem);
+}
+
+.akb-admin-page__header h1,
+.akb-admin-page__header h2 {
+  max-width: 14ch;
+  margin: 0.8rem 0 1.25rem;
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(2.6rem, 7vw, 6.5rem);
+  font-weight: 500;
+  letter-spacing: -0.055em;
+  line-height: 0.96;
+  overflow-wrap: anywhere;
+}
+
+.akb-admin-page__header > p:last-child {
+  max-width: 46rem;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.akb-admin-page > section,
+.akb-admin-operations > section {
+  padding: 2.5rem 0;
+  border-top: 1px solid var(--admin-line);
+}
+
+.akb-admin-page > section > h2,
+.akb-admin-operations > section > h2 {
+  margin: 0 0 1.5rem;
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(1.5rem, 3vw, 2.4rem);
+  letter-spacing: -0.035em;
+}
+
+.akb-admin-page article,
+.akb-admin-page li,
+.akb-admin-page dd,
+.akb-admin-preview {
+  overflow-wrap: anywhere;
+}
+
+.akb-admin-page article {
+  padding: 1.5rem 0;
+  border-top: 1px solid var(--admin-line);
+}
+
+.akb-admin-page dl {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0 0 3rem;
+  background: var(--admin-line);
+}
+
+.akb-admin-page dl > div {
+  min-width: 0;
+  padding: 1.25rem;
+  background: var(--background);
+}
+
+.akb-admin-page dt {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.akb-admin-page dd {
+  margin: 0.5rem 0 0;
+  font-family: var(--font-display), sans-serif;
+  font-size: 1.75rem;
+}
+
+.akb-admin-operations > output,
+.akb-admin-form > output {
+  min-height: 1.5rem;
+  display: block;
+  margin-bottom: 1.25rem;
+  color: var(--muted);
+}
+
+.akb-admin-operations form,
+.akb-admin-login {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem 1.5rem;
+}
+
+.akb-admin-operations label,
+.akb-admin-login label {
+  min-width: 0;
+  display: grid;
+  gap: 0.5rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.akb-admin-operations label:has(input[type="checkbox"]) {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.akb-admin-operations input,
+.akb-admin-operations select,
+.akb-admin-operations textarea,
+.akb-admin-login input,
+.akb-admin-grid input,
+.akb-admin-grid select,
+.akb-admin-grid textarea,
+.akb-admin-vartalap input,
+.akb-admin-vartalap textarea {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--admin-line);
+  border-radius: 0;
+  color: var(--foreground);
+  background: var(--surface);
+}
+
+.akb-admin-operations textarea,
+.akb-admin-grid textarea,
+.akb-admin-vartalap textarea {
+  min-height: 8rem;
+  resize: vertical;
+}
+
+.akb-admin-operations input[type="checkbox"],
+.akb-admin-grid input[type="checkbox"] {
+  width: 1.1rem;
+  min-height: 1.1rem;
+  flex: 0 0 auto;
+}
+
+.akb-admin-operations button,
+.akb-admin-login button,
+.akb-admin-form button,
+.akb-admin-vartalap button {
+  min-height: 2.75rem;
+  width: fit-content;
+  padding: 0.65rem 1rem;
+  border: 1px solid var(--admin-line);
+  color: var(--foreground);
+  background: transparent;
+  cursor: pointer;
+}
+
+.akb-admin-operations button {
+  align-self: end;
+}
+
+.akb-admin-operations button:hover,
+.akb-admin-login button:hover,
+.akb-admin-form button:hover,
+.akb-admin-vartalap button:hover {
+  border-color: var(--accent-warm);
+  color: var(--accent-warm);
+}
+
+.akb-admin-shell--login {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding-block: 2rem;
+}
+
+.akb-admin-login-panel {
+  width: min(100%, 34rem);
+  padding: clamp(1.5rem, 5vw, 3rem);
+  border: 1px solid var(--admin-line);
+  background: var(--surface);
+}
+
+.akb-admin-login-panel h1 {
+  margin: 0.75rem 0 1rem;
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(2.25rem, 8vw, 4.5rem);
+  line-height: 0.96;
+  letter-spacing: -0.05em;
+}
+
+.akb-admin-login-panel > p {
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.akb-admin-login {
+  grid-template-columns: 1fr;
+  margin-top: 2rem;
+}
+
+.akb-admin-preview {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  border: 1px solid var(--admin-line);
+  background: var(--admin-soft);
+}
+
+.akb-admin-preview pre {
+  max-width: 100%;
+  max-height: 32rem;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 980px) {
+  .akb-admin-header {
+    grid-template-columns: 1fr auto;
+    gap: 0.5rem 1rem;
+    padding-block: 0.75rem;
+  }
+
+  .akb-admin-header nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    margin-inline: -0.25rem;
+  }
+
+  .akb-admin-page dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .akb-admin-shell--protected,
+  .akb-admin-shell--login {
+    width: min(100% - 1.75rem, var(--admin-max));
+  }
+
+  .akb-admin-brand {
+    font-size: 0.64rem;
+  }
+
+  .akb-admin-exit {
+    font-size: 0.65rem;
+  }
+
+  .akb-admin-page dl,
+  .akb-admin-operations form {
+    grid-template-columns: 1fr;
+  }
+
+  .akb-admin-operations button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .akb-admin-shell * {
+    scroll-behavior: auto;
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+    transition-duration: 0.01ms;
+  }
+}

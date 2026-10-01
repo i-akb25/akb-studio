@@ -1,0 +1,24 @@
+{
+  "name": "Your public name",
+  "headline": "Your concise professional headline",
+  "location": "Optional public location",
+  "summary": "A short, evidence-based professional summary.",
+  "education": {
+    "institution": "Institution name",
+    "qualification": "Qualification",
+    "period": "YYYY — YYYY",
+    "evidenceUrl": "/about"
+  },
+  "experiences": [
+    {
+      "id": "example-role",
+      "period": "Mon YYYY — Mon YYYY",
+      "organization": "Organization",
+      "role": "Role title",
+      "focus": "A concise description limited to claims you can verify.",
+      "location": "Optional public location",
+      "disciplines": ["discipline one", "discipline two"]
+    }
+  ],
+  "canonicalPdf": "/resume/your-resume.pdf"
+}

@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">AKB Studio A mark app icon</title>
+  <desc id="desc">Ivory letter A with a brass flame, enclosed by a brass circular calibration ring on a graphite background.</desc>
+
+  <rect width="1024" height="1024" fill="#0E1114"/>
+
+  <!-- Calibration ring -->
+  <circle
+    cx="512"
+    cy="512"
+    r="344"
+    fill="none"
+    stroke="#C9A96A"
+    stroke-width="7"
+  />
+
+  <!-- Cardinal ticks -->
+  <g stroke="#C9A96A" stroke-width="8" stroke-linecap="square">
+    <line x1="512" y1="104" x2="512" y2="182"/>
+    <line x1="512" y1="842" x2="512" y2="920"/>
+    <line x1="104" y1="512" x2="182" y2="512"/>
+    <line x1="842" y1="512" x2="920" y2="512"/>
+  </g>
+
+  <!-- Flame -->
+  <g fill="#C9A96A">
+    <path d="M509 245
+             C533 275 522 301 502 326
+             C487 345 485 364 500 383
+             C463 358 461 326 475 300
+             C487 278 505 266 509 245Z"/>
+    <path d="M533 302
+             C554 327 555 350 541 370
+             C529 386 523 401 526 420
+             C497 396 497 370 508 351
+             C519 332 530 320 533 302Z"/>
+  </g>
+
+  <!-- Letter A -->
+  <g fill="#F4F1E9">
+    <path d="M512 370
+             L363 740
+             H426
+             L466 636
+             H558
+             L600 740
+             H665
+             L518 370
+             Z
+             M489 574
+             L512 512
+             L536 574
+             Z"/>
+  </g>
+</svg>

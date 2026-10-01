@@ -1,0 +1,29 @@
+name: Scheduled publishing
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.20.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Publish approved scheduled records
+        run: pnpm --filter @akb-studio/web publish:scheduled
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}

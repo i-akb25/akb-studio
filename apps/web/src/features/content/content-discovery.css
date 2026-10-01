@@ -1,0 +1,69 @@
+.akb-content-filters {
+  display: grid;
+  grid-template-columns: minmax(14rem, 1.7fr) repeat(2, minmax(10rem, 1fr)) auto auto;
+  gap: 0.75rem;
+  align-items: end;
+  margin: 2rem 0;
+  padding: 1.25rem;
+  border-block: 1px solid var(--border);
+}
+
+.akb-content-filters label {
+  display: grid;
+  gap: 0.4rem;
+}
+.akb-content-filters label > span {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.akb-content-filters input,
+.akb-content-filters select {
+  min-height: 2.75rem;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--surface);
+  color: inherit;
+  padding: 0.65rem 0.75rem;
+  font: inherit;
+}
+.akb-content-filters button,
+.akb-content-filters > a {
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 1rem;
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+.akb-content-index-vartalap {
+  width: min(100% - 2rem, 72rem);
+  margin: clamp(3rem, 8vw, 7rem) auto;
+}
+.akb-content-index-vartalap .akb-margin-rail {
+  max-width: none;
+}
+
+@media (max-width: 900px) {
+  .akb-content-filters {
+    grid-template-columns: 1fr 1fr;
+  }
+  .akb-content-filters label:first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 620px) {
+  .akb-content-filters {
+    grid-template-columns: 1fr;
+  }
+  .akb-content-filters label:first-child {
+    grid-column: auto;
+  }
+}

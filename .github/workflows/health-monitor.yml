@@ -1,0 +1,19 @@
+name: Production health monitor
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Check production application
+        run: curl --fail --silent --show-error --max-time 15 "${PRODUCTION_HEALTH_URL}"
+        env:
+          PRODUCTION_HEALTH_URL: ${{ secrets.PRODUCTION_HEALTH_URL }}

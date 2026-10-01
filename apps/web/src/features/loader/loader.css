@@ -1,0 +1,179 @@
+.akb-brand-intro,
+.akb-app-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 140;
+  display: none;
+  place-items: center;
+  overflow: clip;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.akb-brand-intro {
+  pointer-events: none;
+}
+
+html[data-akb-brand-intro="visible"] .akb-brand-intro {
+  display: grid;
+  animation: akb-brand-intro-exit 650ms ease-out both;
+}
+
+.akb-app-loader {
+  display: grid;
+}
+
+.akb-app-loader[data-state="exiting"] {
+  pointer-events: none;
+  animation: akb-loader-exit 180ms ease-out forwards;
+}
+
+.akb-construction-mark {
+  position: relative;
+  width: clamp(6.5rem, 12vw, 9.5rem);
+  aspect-ratio: 1;
+}
+
+.akb-construction-mark__geometry,
+.akb-construction-mark__identity {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.akb-construction-mark__geometry {
+  overflow: visible;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.akb-construction-mark__axis,
+.akb-construction-mark__vector,
+.akb-construction-mark__arc,
+.akb-construction-mark__tick {
+  vector-effect: non-scaling-stroke;
+  stroke: color-mix(in srgb, var(--foreground) 32%, transparent);
+  stroke-width: 0.8;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: akb-construction-draw 260ms ease-out forwards;
+}
+
+.akb-construction-mark__vector {
+  animation-delay: 80ms;
+}
+
+.akb-construction-mark__arc {
+  stroke: color-mix(in srgb, var(--accent-warm) 58%, transparent);
+  animation-delay: 150ms;
+}
+
+.akb-construction-mark__arc--lower {
+  animation-delay: 210ms;
+}
+
+.akb-construction-mark__tick {
+  animation-delay: 380ms;
+}
+
+.akb-construction-mark__node {
+  fill: var(--accent-warm);
+  opacity: 0;
+  animation: akb-construction-node 180ms ease-out 210ms forwards;
+}
+
+.akb-construction-mark__identity {
+  display: block;
+  opacity: 0;
+  clip-path: inset(100% 0 0);
+  animation: akb-construction-identity 260ms ease-out 280ms forwards;
+}
+
+.akb-construction-mark__identity img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.akb-construction-mark__origin {
+  position: absolute;
+  top: 49%;
+  left: 49%;
+  width: 0.36rem;
+  height: 0.36rem;
+  border-radius: 50%;
+  background: var(--accent-warm);
+  transform: translate(-50%, -50%);
+  animation: akb-construction-origin 520ms ease-out both;
+}
+
+@keyframes akb-construction-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes akb-construction-node {
+  to {
+    opacity: 0.8;
+  }
+}
+
+@keyframes akb-construction-identity {
+  to {
+    opacity: 1;
+    clip-path: inset(0);
+  }
+}
+
+@keyframes akb-construction-origin {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%);
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.85;
+    transform: translate(2.4rem, 2.2rem);
+  }
+}
+
+@keyframes akb-brand-intro-exit {
+  0%,
+  78% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+@keyframes akb-loader-exit {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-akb-brand-intro="visible"] .akb-brand-intro {
+    display: none;
+    animation: none;
+  }
+
+  .akb-app-loader .akb-construction-mark__geometry,
+  .akb-app-loader .akb-construction-mark__origin {
+    display: none;
+  }
+
+  .akb-app-loader .akb-construction-mark__identity {
+    opacity: 1;
+    clip-path: none;
+    animation: none;
+  }
+}

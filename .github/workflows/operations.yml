@@ -1,0 +1,77 @@
+name: Operational maintenance
+
+on:
+  schedule:
+    - cron: "17 2 * * *"
+    - cron: "41 3 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  retention:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '17 2 * * *'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.20.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Delete expired operational records
+        run: pnpm --filter @akb-studio/web retention:cleanup -- --execute
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CONTACT_EMAIL_ENABLED: ${{ secrets.CONTACT_EMAIL_ENABLED }}
+          GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
+          GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
+          GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
+          GMAIL_SENDER_ADDRESS: ${{ secrets.GMAIL_SENDER_ADDRESS }}
+          CONTACT_PRIMARY_INBOX: ${{ secrets.CONTACT_PRIMARY_INBOX }}
+          CONTACT_GENERAL_INBOX: ${{ secrets.CONTACT_GENERAL_INBOX }}
+          AUDIT_RETENTION_DAYS: "365"
+
+  encrypted-export:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '41 3 * * 0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install --yes postgresql-client
+      - name: Create compressed encrypted export
+        id: export
+        run: echo "file=$(bash scripts/backup/export-database.sh)" >> "$GITHUB_OUTPUT"
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BACKUP_ENCRYPTION_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: encrypted-neon-export
+          path: ${{ steps.export.outputs.file }}
+          retention-days: 30
+          if-no-files-found: error
+
+  restore-drill:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install --yes postgresql-client
+      - name: Export and restore into the isolated test database
+        run: |
+          backup_file="$(bash scripts/backup/export-database.sh)"
+          bash scripts/backup/restore-database.sh "${backup_file}"
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          RESTORE_TARGET_URL: ${{ secrets.RESTORE_TEST_DATABASE_URL }}
+          BACKUP_ENCRYPTION_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}

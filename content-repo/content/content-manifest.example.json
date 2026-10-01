@@ -1,0 +1,36 @@
+{
+  "journal": [
+    {
+      "id": "journal-example",
+      "kind": "journal",
+      "slug": "replace-with-real-published-article",
+      "title": "Replace with a reviewed engineering article",
+      "description": "Example contract only. Do not publish this record.",
+      "status": "draft",
+      "publishedAt": "2026-09-06T00:00:00.000Z",
+      "disciplines": ["software"],
+      "topics": ["architecture"],
+      "tags": ["field-note"],
+      "relations": [],
+      "canonicalPath": "/journal/replace-with-real-published-article",
+      "document": "content/journal/replace-with-real-published-article.md"
+    }
+  ],
+  "knowledge": [
+    {
+      "id": "knowledge-example",
+      "kind": "note",
+      "slug": "replace-with-real-note",
+      "title": "Replace with a reviewed technical note",
+      "description": "Example contract only. Do not publish this record.",
+      "status": "draft",
+      "publishedAt": "2026-09-06T00:00:00.000Z",
+      "disciplines": ["electrical"],
+      "topics": ["control-systems"],
+      "tags": ["reference"],
+      "relations": [],
+      "canonicalPath": "/knowledge/notes/replace-with-real-note",
+      "document": "content/knowledge/notes/replace-with-real-note.md"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "name": "akb-studio",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "pretypecheck": "prisma generate",
+    "typecheck": "turbo typecheck",
+    "postinstall": "prisma generate",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:validate": "prisma validate",
+    "test": "pnpm --filter @akb-studio/web test",
+    "quality:links": "node scripts/quality/check-links.mjs",
+    "quality:secrets": "node scripts/quality/check-secrets.mjs",
+    "quality:release": "node scripts/quality/check-release.mjs",
+    "quality:all": "pnpm lint && pnpm typecheck && pnpm test && pnpm quality:links && pnpm quality:secrets && pnpm quality:release"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.2.0",
+    "prisma": "7.9.1",
+    "turbo": "^2.10.11"
+  },
+  "packageManager": "pnpm@11.20.0"
+}

@@ -1,0 +1,812 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../apps/web/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ContentState {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum AdminRole {
+  OWNER
+  EDITOR
+  MODERATOR
+  VIEWER
+}
+
+enum MediaState {
+  PENDING
+  READY
+  QUARANTINED
+  DELETED
+}
+
+enum ContactState {
+  NEW
+  IN_REVIEW
+  WAITING
+  CLOSED
+  REJECTED
+  PENDING_GUARDIAN
+}
+
+enum EditorialKind {
+  JOURNAL
+  KNOWLEDGE
+  PROJECT_CASE_STUDY
+}
+
+enum EditorialSource {
+  GIT
+  DATABASE
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  PUBLISH
+  ARCHIVE
+  DELETE
+  RESTORE
+  LOGIN
+  LOGOUT
+  ROLE_CHANGE
+}
+
+enum ContactDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum FollowUpState {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum SuggestionState {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AevaMemoryVisibility {
+  PUBLIC_AEVA
+  RESPONSE_POLICY
+  OWNER_ONLY
+  ARCHIVED
+}
+
+enum AevaSourceKind {
+  ABOUT
+  PROJECT
+  JOURNAL
+  KNOWLEDGE
+  PRAVAAH
+  OWNER_URL
+}
+
+enum AevaMessageRole {
+  USER
+  ASSISTANT
+}
+
+enum PrivacyRequestType {
+  ACCESS
+  CORRECTION
+  DELETION
+  CONSENT_WITHDRAWAL
+  GRIEVANCE
+  ACCOUNT_DELETION
+  CONTENT_DELETION
+  NOMINATION
+}
+
+enum PrivacyRequestStatus {
+  RECEIVED
+  VERIFYING
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+}
+
+model User {
+  id               String     @id @default(cuid())
+  name             String
+  email            String     @unique
+  emailVerified    Boolean    @default(false)
+  image            String?
+  role             String     @default("viewer")
+  banned           Boolean    @default(false)
+  banReason        String?
+  banExpires       DateTime?
+  twoFactorEnabled Boolean    @default(false)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  sessions         Session[]
+  accounts         Account[]
+  twoFactor        TwoFactor?
+  auditLogs        AuditLog[] @relation("AuditActor")
+}
+
+model Session {
+  id             String   @id @default(cuid())
+  expiresAt      DateTime
+  token          String   @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  ipAddress      String?
+  userAgent      String?
+  impersonatedBy String?
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@index([expiresAt])
+}
+
+model RateLimit {
+  id          String @id @default(cuid())
+  key         String @unique
+  count       Int
+  lastRequest BigInt
+}
+
+model SecurityRateLimit {
+  key             String   @id
+  scope           String
+  count           Int      @default(1)
+  windowStartedAt DateTime @default(now())
+  expiresAt       DateTime
+
+  @@index([scope, expiresAt])
+  @@index([expiresAt])
+}
+
+model TwoFactor {
+  id                      String    @id @default(cuid())
+  secret                  String
+  backupCodes             String
+  verified                Boolean   @default(false)
+  failedVerificationCount Int       @default(0)
+  lockedUntil             DateTime?
+  userId                  String    @unique
+  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Profile {
+  id          String        @id @default("primary")
+  displayName String
+  headline    String
+  biography   String
+  location    String?
+  email       String?
+  state       ContentState  @default(DRAFT)
+  publishedAt DateTime?
+  scheduledAt DateTime?
+  dpAssetId   String?
+  dpAsset     MediaAsset?   @relation("ProfileDp", fields: [dpAssetId], references: [id], onDelete: SetNull)
+  links       ProfileLink[]
+  updatedAt   DateTime      @updatedAt
+  createdAt   DateTime      @default(now())
+}
+
+model ProfileLink {
+  id        String  @id @default(cuid())
+  profileId String
+  label     String
+  url       String
+  order     Int     @default(0)
+  profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, order])
+}
+
+model Gallery {
+  id          String        @id @default(cuid())
+  slug        String        @unique
+  title       String
+  description String?
+  state       ContentState  @default(DRAFT)
+  order       Int           @default(0)
+  items       GalleryItem[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model GalleryItem {
+  id        String     @id @default(cuid())
+  galleryId String
+  assetId   String
+  caption   String?
+  altText   String
+  order     Int        @default(0)
+  gallery   Gallery    @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  asset     MediaAsset @relation(fields: [assetId], references: [id], onDelete: Restrict)
+
+  @@unique([galleryId, assetId])
+  @@index([galleryId, order])
+}
+
+model Project {
+  id            String              @id @default(cuid())
+  slug          String              @unique
+  title         String
+  shortTitle    String?
+  categoryLabel String
+  summary       String
+  disciplines   String[]            @default([])
+  role          String?
+  period        String?
+  tier          String
+  lifecycle     String
+  state         ContentState        @default(DRAFT)
+  order         Int                 @default(0)
+  homepageOrder Int?
+  featured      Boolean             @default(false)
+  aevaApproved  Boolean             @default(false)
+  publishedAt   DateTime?
+  scheduledAt   DateTime?
+  coverAssetId  String?
+  coverAsset    MediaAsset?         @relation("ProjectCover", fields: [coverAssetId], references: [id], onDelete: SetNull)
+  links         ProjectLink[]
+  technologies  ProjectTechnology[]
+  media         ProjectMedia[]
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@index([state, order])
+  @@index([featured, homepageOrder])
+}
+
+model ProjectLink {
+  id        String  @id @default(cuid())
+  projectId String
+  kind      String
+  label     String
+  url       String?
+  state     String
+  order     Int     @default(0)
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, order])
+}
+
+model ProjectTechnology {
+  id        String  @id @default(cuid())
+  projectId String
+  name      String
+  icon      String
+  order     Int     @default(0)
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, name])
+  @@index([projectId, order])
+}
+
+model ProjectMedia {
+  id        String     @id @default(cuid())
+  projectId String
+  assetId   String
+  altText   String
+  caption   String?
+  order     Int        @default(0)
+  project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  asset     MediaAsset @relation(fields: [assetId], references: [id], onDelete: Restrict)
+
+  @@unique([projectId, assetId])
+  @@index([projectId, order])
+}
+
+model EditorialDocument {
+  id           String              @id @default(cuid())
+  kind         EditorialKind
+  source       EditorialSource     @default(GIT)
+  slug         String
+  title        String
+  description  String
+  state        ContentState        @default(DRAFT)
+  repository   String?
+  documentPath String?
+  commitSha    String?
+  canonicalUrl String?
+  contentHash  String?
+  aevaApproved Boolean             @default(false)
+  scheduledAt  DateTime?
+  publishedAt  DateTime?
+  revisions    EditorialRevision[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@unique([kind, slug])
+  @@index([state, scheduledAt])
+  @@index([aevaApproved, state])
+}
+
+model EditorialRevision {
+  id         String            @id @default(cuid())
+  documentId String
+  commitSha  String?
+  bodyHash   String
+  note       String?
+  createdAt  DateTime          @default(now())
+  document   EditorialDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId, createdAt])
+}
+
+model Reflection {
+  id              String       @id @default(cuid())
+  slug            String       @unique
+  sanskrit        String
+  transliteration String
+  translation     String
+  interpretation  String
+  source          String?
+  state           ContentState @default(DRAFT)
+  reflectionDate  DateTime?
+  scheduledAt     DateTime?
+  publishedAt     DateTime?
+  aevaApproved    Boolean      @default(false)
+  assetId         String?
+  asset           MediaAsset?  @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([state, reflectionDate])
+}
+
+model AvailabilityStatus {
+  id          String       @id @default("current")
+  label       String
+  summary     String
+  available   Boolean      @default(false)
+  state       ContentState @default(DRAFT)
+  validFrom   DateTime?
+  validUntil  DateTime?
+  publishedAt DateTime?
+  updatedAt   DateTime     @updatedAt
+}
+
+model ContactSubmission {
+  id                    String                @id @default(cuid())
+  name                  String
+  email                 String
+  organisation          String?
+  category              String
+  subject               String
+  message               String
+  relevantUrl           String?
+  reference             String                @unique
+  state                 ContactState          @default(NEW)
+  isMinor               Boolean               @default(false)
+  assignedTo            String?
+  retentionUntil        DateTime
+  deliveryStatus        ContactDeliveryStatus @default(PENDING)
+  gmailMessageId        String?
+  deliveryAttemptCount  Int                   @default(0)
+  deliveryLastError     String?
+  deliveryLastAttemptAt DateTime?
+  deliveredAt           DateTime?
+  gmailDispositionAt    DateTime?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  consentRecords        ConsentRecord[]
+  statusEvents          ContactStatusEvent[]
+  moderation            ModerationRecord[]
+  notes                 ContactNote[]
+  meetings              ContactMeeting[]
+  reminders             FollowUpReminder[]
+
+  @@index([state, createdAt])
+  @@index([retentionUntil])
+}
+
+model ContactNote {
+  id           String            @id @default(cuid())
+  submissionId String
+  body         String
+  actorId      String
+  createdAt    DateTime          @default(now())
+  submission   ContactSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([submissionId, createdAt])
+}
+
+model ContactMeeting {
+  id           String            @id @default(cuid())
+  submissionId String
+  occurredAt   DateTime
+  summary      String
+  nextStep     String?
+  actorId      String
+  createdAt    DateTime          @default(now())
+  submission   ContactSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([submissionId, occurredAt])
+}
+
+model FollowUpReminder {
+  id           String            @id @default(cuid())
+  submissionId String
+  dueAt        DateTime
+  note         String
+  state        FollowUpState     @default(PENDING)
+  actorId      String
+  completedAt  DateTime?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  submission   ContactSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([state, dueAt])
+  @@index([submissionId, createdAt])
+}
+
+model AnonymousJourney {
+  id             String   @id @default(cuid())
+  sessionHash    String   @unique
+  categories     String[] @default([])
+  projectSlugs   String[] @default([])
+  pageCount      Int      @default(0)
+  totalSeconds   Int      @default(0)
+  firstSeenAt    DateTime @default(now())
+  lastSeenAt     DateTime @default(now())
+  retentionUntil DateTime
+
+  @@index([lastSeenAt])
+  @@index([retentionUntil])
+}
+
+model StudioSuggestion {
+  id             String          @id @default(cuid())
+  findingId      String
+  title          String
+  rationale      String
+  proposedAction String
+  evidence       Json?
+  state          SuggestionState @default(PENDING)
+  reviewedBy     String?
+  reviewedAt     DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([state, createdAt])
+}
+
+model RecoveryVerification {
+  id              String   @id @default(cuid())
+  backupLabel     String
+  backupCreatedAt DateTime
+  restoreTestedAt DateTime
+  outcome         String
+  notes           String?
+  actorId         String
+  createdAt       DateTime @default(now())
+
+  @@index([restoreTestedAt])
+}
+
+model ConsentRecord {
+  id                    String            @id @default(cuid())
+  submissionId          String
+  policyVersion         String
+  consentType           String
+  purpose               String
+  granted               Boolean
+  evidence              Json?
+  guardianName          String?
+  guardianEmail         String?
+  verificationTokenHash String?           @unique
+  verificationExpiresAt DateTime?
+  verifiedAt            DateTime?
+  withdrawnAt           DateTime?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  submission            ContactSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([submissionId])
+  @@index([verificationExpiresAt])
+}
+
+model ContactStatusEvent {
+  id           String            @id @default(cuid())
+  submissionId String
+  fromState    ContactState?
+  toState      ContactState
+  note         String?
+  actorId      String?
+  createdAt    DateTime          @default(now())
+  submission   ContactSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([submissionId, createdAt])
+}
+
+model MediaAsset {
+  id                String             @id @default(cuid())
+  provider          String             @default("cloudinary")
+  providerId        String             @unique
+  version           String?
+  resourceType      String             @default("image")
+  format            String
+  mimeType          String
+  bytes             Int
+  width             Int?
+  height            Int?
+  checksum          String?            @unique
+  originalName      String?
+  secureUrl         String
+  altText           String
+  state             MediaState         @default(PENDING)
+  deletedAt         DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  profileDp         Profile[]          @relation("ProfileDp")
+  projectCovers     Project[]          @relation("ProjectCover")
+  galleryItems      GalleryItem[]
+  projectMedia      ProjectMedia[]
+  reflections       Reflection[]
+  extraction        MediaExtraction?
+  siteAudioSettings SiteAudioSetting[]
+
+  @@index([state, createdAt])
+  @@index([deletedAt])
+}
+
+model MediaExtraction {
+  id           String     @id @default(cuid())
+  mediaAssetId String     @unique
+  plainText    String
+  contentHash  String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  mediaAsset   MediaAsset @relation(fields: [mediaAssetId], references: [id], onDelete: Cascade)
+
+  @@index([contentHash])
+}
+
+model AevaMemory {
+  id          String               @id @default(cuid())
+  title       String
+  content     String
+  visibility  AevaMemoryVisibility @default(OWNER_ONLY)
+  state       ContentState         @default(DRAFT)
+  sourceLabel String?
+  sourceUrl   String?
+  order       Int                  @default(0)
+  publishedAt DateTime?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@index([visibility, state, order])
+}
+
+model AevaSource {
+  id            String         @id @default(cuid())
+  kind          AevaSourceKind @default(OWNER_URL)
+  title         String
+  url           String         @unique
+  notes         String?
+  enabled       Boolean        @default(true)
+  publicAllowed Boolean        @default(true)
+  lastCheckedAt DateTime?
+  lastError     String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([enabled, publicAllowed])
+}
+
+model AevaConversation {
+  id             String        @id @default(cuid())
+  publicId       String        @unique
+  mode           String        @default("general")
+  shared         Boolean       @default(false)
+  consentVersion String?
+  retentionUntil DateTime
+  endedAt        DateTime?
+  createdAt      DateTime      @default(now())
+  messages       AevaMessage[]
+
+  @@index([retentionUntil])
+}
+
+model AevaMessage {
+  id             String           @id @default(cuid())
+  conversationId String
+  role           AevaMessageRole
+  encryptedBody  String
+  citations      Json?
+  createdAt      DateTime         @default(now())
+  conversation   AevaConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+}
+
+model AevaKnowledgeGap {
+  id                   String    @id @default(cuid())
+  fingerprint          String    @unique
+  encryptedQuestion    String?
+  sampleConsented      Boolean   @default(false)
+  consentVersion       String?
+  sampleRetentionUntil DateTime?
+  occurrences          Int       @default(1)
+  status               String    @default("open")
+  lastSeenAt           DateTime  @default(now())
+  createdAt            DateTime  @default(now())
+
+  @@index([status, lastSeenAt])
+  @@index([sampleRetentionUntil])
+}
+
+model AevaIncident {
+  id          String    @id @default(cuid())
+  kind        String
+  code        String
+  occurrences Int       @default(1)
+  context     Json?
+  firstSeenAt DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now())
+  resolvedAt  DateTime?
+
+  @@unique([kind, code])
+  @@index([resolvedAt, lastSeenAt])
+}
+
+model ModerationRecord {
+  id           String             @id @default(cuid())
+  submissionId String?
+  targetType   String
+  targetId     String
+  decision     String
+  reason       String?
+  actorId      String?
+  createdAt    DateTime           @default(now())
+  submission   ContactSubmission? @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([targetType, targetId])
+}
+
+model AuditLog {
+  id           String      @id @default(cuid())
+  actorId      String?
+  action       AuditAction
+  entityType   String
+  entityId     String?
+  before       Json?
+  after        Json?
+  ipHash       String?
+  userAgent    String?
+  previousHash String?
+  entryHash    String?     @unique
+  createdAt    DateTime    @default(now())
+  actor        User?       @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([actorId, createdAt])
+  @@index([createdAt])
+}
+
+model DeletionRequest {
+  id           String    @id @default(cuid())
+  entityType   String
+  entityId     String
+  requestedBy  String?
+  reason       String?
+  executeAfter DateTime
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([completedAt, executeAfter])
+}
+
+model PrivacyRequest {
+  id                    String                @id @default(cuid())
+  reference             String                @unique
+  name                  String
+  email                 String
+  type                  PrivacyRequestType
+  details               String
+  relatedReference      String?
+  resourceUrl           String?
+  status                PrivacyRequestStatus  @default(RECEIVED)
+  policyVersion         String
+  responseDueAt         DateTime
+  retentionUntil        DateTime
+  verifiedAt            DateTime?
+  closedAt              DateTime?
+  deliveryStatus        ContactDeliveryStatus @default(PENDING)
+  gmailMessageId        String?
+  deliveryAttemptCount  Int                   @default(0)
+  deliveryLastError     String?
+  deliveryLastAttemptAt DateTime?
+  deliveredAt           DateTime?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  @@index([status, responseDueAt])
+  @@index([retentionUntil])
+  @@index([email, createdAt])
+}
+
+model AnalyticsMetric {
+  id         String   @id @default(cuid())
+  capturedOn DateTime @db.Date
+  kind       String
+  target     String   @default("")
+  count      Int      @default(0)
+  totalValue Int      @default(0)
+  failures   Int      @default(0)
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([capturedOn, kind, target])
+  @@index([kind, capturedOn])
+  @@index([capturedOn])
+}
+
+model OperationalHealth {
+  key                 String    @id
+  status              String
+  summary             String?
+  latencyMs           Int?
+  consecutiveFailures Int       @default(0)
+  lastSuccessAt       DateTime?
+  lastFailureAt       DateTime?
+  lastCheckedAt       DateTime  @default(now())
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([status, lastCheckedAt])
+}
+
+model SiteAudioSetting {
+  id        String     @id @default("portfolio")
+  assetId   String     @unique
+  title     String
+  artist    String?
+  enabled   Boolean    @default(false)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  asset     MediaAsset @relation(fields: [assetId], references: [id], onDelete: Restrict)
+}

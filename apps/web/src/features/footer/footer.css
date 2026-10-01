@@ -1,0 +1,280 @@
+.footer-scene {
+  --footer-panorama: url("/footer/footer-home/background-transparent.webp");
+  --footer-train: url("/footer/footer-home/train-warm.webp");
+  --train-sprite-y: 48%;
+  --bridge-rail-y: 65%;
+  --train-start-x: 80vw;
+  --train-end-x: 20vw;
+  position: relative;
+  width: 100%;
+  height: clamp(16rem, 33.3vw, 30rem);
+  overflow: hidden;
+  background: var(--surface);
+  isolation: isolate;
+}
+
+.dark .footer-scene {
+  --footer-panorama: url("/footer/footer-home/moonlit_mountain_journey.webp");
+  --footer-train: url("/footer/footer-home/train-dark.webp");
+  --train-sprite-y: 68%;
+  --bridge-rail-y: 54%;
+}
+
+.footer-scene::before {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background-image: var(--footer-panorama);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% auto;
+  content: "";
+  -webkit-mask-image: linear-gradient(
+    180deg,
+    transparent 0%,
+    #000 4%,
+    #000 94%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    180deg,
+    transparent 0%,
+    #000 4%,
+    #000 94%,
+    transparent 100%
+  );
+}
+
+.footer-scene__edge-blend {
+  position: absolute;
+  z-index: 3;
+  right: 0;
+  left: 0;
+  display: block;
+  pointer-events: none;
+}
+
+.footer-scene__edge-blend--top {
+  top: 0;
+  height: 18%;
+  background: linear-gradient(
+    180deg,
+    var(--surface) 0%,
+    color-mix(in srgb, var(--surface) 72%, transparent) 42%,
+    transparent 100%
+  );
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  -webkit-mask-image: linear-gradient(
+    180deg,
+    #000 0%,
+    #000 48%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(180deg, #000 0%, #000 48%, transparent 100%);
+}
+
+.footer-scene__edge-blend--bottom {
+  bottom: 0;
+  height: 12%;
+  background: linear-gradient(
+    0deg,
+    var(--surface) 0%,
+    color-mix(in srgb, var(--surface) 66%, transparent) 44%,
+    transparent 100%
+  );
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  -webkit-mask-image: linear-gradient(0deg, #000 0%, #000 42%, transparent 100%);
+  mask-image: linear-gradient(0deg, #000 0%, #000 42%, transparent 100%);
+}
+
+.footer-scene__train-track {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    transparent 17%,
+    #000 24%,
+    #000 76%,
+    transparent 83%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    transparent 17%,
+    #000 24%,
+    #000 76%,
+    transparent 83%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+.dark .footer-scene__train-track {
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    transparent 17%,
+    #000 24%,
+    #000 68%,
+    transparent 77%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    transparent 17%,
+    #000 24%,
+    #000 68%,
+    transparent 77%,
+    transparent 100%
+  );
+}
+
+.footer-scene__train-track::before {
+  position: absolute;
+  z-index: 0;
+  top: calc(var(--bridge-rail-y) - 1px);
+  right: 22%;
+  left: 22%;
+  height: 5px;
+  background:
+    linear-gradient(
+      180deg,
+      rgb(91 70 49 / 78%) 0 1px,
+      transparent 1px 3px,
+      rgb(91 70 49 / 68%) 3px 4px,
+      transparent 4px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 9px,
+      rgb(91 70 49 / 52%) 9px 11px,
+      transparent 11px 18px
+    );
+  filter: drop-shadow(0 1px 1px rgb(55 38 24 / 24%));
+  content: "";
+}
+
+.dark .footer-scene__train-track::before {
+  display: none;
+}
+
+.footer-scene__train {
+  position: absolute;
+  z-index: 1;
+  bottom: calc(100% - var(--bridge-rail-y));
+  left: 0;
+  width: clamp(6.75rem, 10.5vw, 10.5rem);
+  aspect-ratio: 8.5 / 1;
+  overflow: hidden;
+  background-image: var(--footer-train);
+  background-position: center var(--train-sprite-y);
+  background-repeat: no-repeat;
+  background-size: 100% auto;
+  animation: footer-train-pass 27s linear 1.4s infinite;
+  animation-play-state: paused;
+  will-change: transform;
+}
+
+.footer-scene[data-active="true"] .footer-scene__train {
+  animation-play-state: running;
+}
+
+@keyframes footer-train-pass {
+  0%,
+  12% {
+    transform: translate3d(var(--train-start-x), 0, 0);
+  }
+
+  80%,
+  100% {
+    transform: translate3d(calc(var(--train-end-x) - 100%), 0, 0);
+  }
+}
+
+@media (min-width: 1441px) {
+  .footer-scene {
+    --bridge-rail-y: calc(15rem + 4.1625vw);
+  }
+
+  .dark .footer-scene {
+    --bridge-rail-y: calc(15rem + 2vw);
+  }
+}
+
+@media (max-width: 639px) {
+  .footer-scene {
+    --train-start-x: 94vw;
+    --train-end-x: 6vw;
+    height: 16rem;
+  }
+
+  .footer-scene::before {
+    background-size: auto 100%;
+  }
+
+  .footer-scene__edge-blend--top {
+    height: 14%;
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+  }
+
+  .footer-scene__train-track {
+    -webkit-mask-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      #000 10%,
+      #000 90%,
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      #000 10%,
+      #000 90%,
+      transparent 100%
+    );
+  }
+
+  .dark .footer-scene__train-track {
+    -webkit-mask-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      #000 10%,
+      #000 67%,
+      transparent 78%,
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      #000 10%,
+      #000 67%,
+      transparent 78%,
+      transparent 100%
+    );
+  }
+
+  .footer-scene__train-track::before {
+    right: 7%;
+    left: 7%;
+  }
+
+  .footer-scene__train {
+    width: 6.75rem;
+    animation-duration: 23s;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .footer-scene__train {
+    animation: none;
+    transform: translate3d(44vw, 0, 0);
+  }
+}

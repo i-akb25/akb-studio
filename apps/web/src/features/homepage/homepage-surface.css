@@ -1,0 +1,108 @@
+.home-collaboration {
+  overflow: clip;
+  padding: clamp(3.5rem, 7vw, 7rem) 0;
+  border-block: 1px solid var(--border);
+  background: var(--background);
+}
+
+.home-collaboration__band {
+  width: 100%;
+  overflow: hidden;
+}
+
+.home-collaboration__track {
+  display: flex;
+  width: max-content;
+  color: color-mix(in srgb, var(--foreground) 55%, transparent);
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: clamp(3.2rem, 6.8vw, 7.6rem);
+  font-weight: 600;
+  line-height: 0.92;
+  letter-spacing: -0.055em;
+  white-space: nowrap;
+  will-change: transform;
+}
+
+.home-collaboration__track span {
+  padding-right: 0.45em;
+}
+
+.home-collaboration__track[data-direction="left"] {
+  animation: home-collaboration-roll-left 34s linear infinite;
+}
+
+.home-collaboration__track[data-direction="right"] {
+  animation: home-collaboration-roll-right 38s linear infinite;
+}
+
+.home-collaboration__cta {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  width: min(100% - 2rem, 58rem);
+  margin: clamp(2.5rem, 5vw, 5rem) auto;
+  text-align: center;
+}
+
+.home-collaboration__cta p {
+  margin: 0;
+  color: var(--muted);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.home-collaboration__cta h2 {
+  margin: 0.8rem 0 1.5rem;
+  color: var(--foreground);
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: clamp(2rem, 5vw, 4.8rem);
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+
+.home-collaboration__cta h2 span {
+  color: var(--accent-warm);
+}
+
+.home-collaboration__cta a {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  border-bottom: 1px solid var(--accent-warm);
+  color: var(--foreground);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+@keyframes home-collaboration-roll-left {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@keyframes home-collaboration-roll-right {
+  from {
+    transform: translate3d(-50%, 0, 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-collaboration__track {
+    animation: none;
+    transform: none;
+  }
+
+  .home-collaboration__track span:nth-child(2) {
+    display: none;
+  }
+}

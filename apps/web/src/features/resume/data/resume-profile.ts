@@ -27,8 +27,7 @@ export const unconfiguredResumeProfile: ResumeProfile = {
   name: "AKB Studio",
   headline: "Interactive resume source not configured",
   location: "",
-  summary:
-    "Added the private local resume source to populate this view.",
+  summary: "Added the private local resume source to populate this view.",
   education: {
     institution: "Not configured",
     qualification: "Local resume source required",

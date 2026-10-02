@@ -11,47 +11,102 @@ type PublishedAudio = {
 };
 
 const VOLUME_KEY = "akb-portfolio-audio-volume";
+const DEFAULT_VOLUME = 0.55;
 
 export function MusicControl() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [track, setTrack] = useState<PublishedAudio | null>();
   const [playing, setPlaying] = useState(false);
+  const [playbackError, setPlaybackError] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch("/api/site-audio", { signal: controller.signal })
-      .then(async (response) =>
-        response.ok && response.status !== 204
-          ? ((await response.json()) as PublishedAudio)
-          : null,
-      )
+
+    fetch("/api/site-audio", {
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok || response.status === 204) {
+          return null;
+        }
+
+        const published = (await response.json()) as PublishedAudio;
+
+        if (
+          !published.url ||
+          !published.title ||
+          !published.mimeType.startsWith("audio/")
+        ) {
+          return null;
+        }
+
+        return published;
+      })
       .then(setTrack)
-      .catch(() => setTrack(null));
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+
+        setTrack(null);
+      });
+
     return () => controller.abort();
   }, []);
 
   useEffect(() => {
-    if (!track) return;
+    if (!track) {
+      return;
+    }
+
     const audio = audioRef.current;
-    if (!audio) return;
-    const stored = Number(window.localStorage.getItem(VOLUME_KEY));
+
+    if (!audio) {
+      return;
+    }
+
+    const storedVolume = Number(window.localStorage.getItem(VOLUME_KEY));
+
     audio.volume =
-      Number.isFinite(stored) && stored >= 0 && stored <= 1 ? stored : 0.55;
+      Number.isFinite(storedVolume) && storedVolume > 0 && storedVolume <= 1
+        ? storedVolume
+        : DEFAULT_VOLUME;
+
+    setPlaying(false);
+    setPlaybackError(false);
+
+    audio.load();
+
+    return () => {
+      audio.pause();
+    };
   }, [track]);
 
   async function toggle() {
     const audio = audioRef.current;
-    if (!audio) return;
-    if (audio.paused) {
-      try {
-        await audio.play();
-        setPlaying(true);
-      } catch {
-        setPlaying(false);
-      }
-    } else {
+
+    if (!audio || !track) {
+      return;
+    }
+
+    setPlaybackError(false);
+
+    if (!audio.currentSrc) {
+      audio.src = track.url;
+      audio.load();
+    }
+
+    if (!audio.paused) {
       audio.pause();
+      return;
+    }
+
+    try {
+      await audio.play();
+    } catch {
       setPlaying(false);
+      setPlaybackError(true);
     }
   }
 
@@ -60,14 +115,17 @@ export function MusicControl() {
       ? `${track.title} by ${track.artist}`
       : track.title
     : null;
+
   const label =
     track === undefined
       ? "Loading portfolio music"
       : track === null
         ? "No portfolio music is published"
-        : playing
-          ? `Pause ${detail}`
-          : `Play ${detail}`;
+        : playbackError
+          ? `Retry ${detail}`
+          : playing
+            ? `Pause ${detail}`
+            : `Play ${detail}`;
 
   return (
     <>
@@ -90,12 +148,33 @@ export function MusicControl() {
           />
         )}
       </button>
+
       {track ? (
-        // biome-ignore lint/a11y/useMediaCaption: this control plays dashboard-supplied music with no spoken content.
-        <audio ref={audioRef} preload="none" onEnded={() => setPlaying(false)}>
-          <source src={track.url} type={track.mimeType} />
-        </audio>
+        // biome-ignore lint/a11y/useMediaCaption: this control plays owner-supplied music with no required spoken information.
+        <audio
+          ref={audioRef}
+          src={track.url}
+          preload="none"
+          onPlay={() => {
+            setPlaying(true);
+            setPlaybackError(false);
+          }}
+          onPause={() => setPlaying(false)}
+          onEnded={() => setPlaying(false)}
+          onError={() => {
+            setPlaying(false);
+            setPlaybackError(true);
+          }}
+        />
       ) : null}
+
+      <span className="sr-only" aria-live="polite">
+        {playbackError
+          ? "Portfolio music could not be played. Activate the control to retry."
+          : playing
+            ? `Now playing ${detail}`
+            : ""}
+      </span>
     </>
   );
 }

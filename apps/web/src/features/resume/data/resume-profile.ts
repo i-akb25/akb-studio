@@ -25,13 +25,12 @@ export type ResumeProfile = {
 
 export const unconfiguredResumeProfile: ResumeProfile = {
   name: "AKB Studio",
-  headline: "Interactive résumé source not configured",
+  headline: "Interactive resume source not configured",
   location: "",
-  summary:
-    "Add the private local résumé source described in the repository README to populate this view.",
+  summary: "Added the private local resume source to populate this view.",
   education: {
     institution: "Not configured",
-    qualification: "Local résumé source required",
+    qualification: "Local resume source required",
     period: "",
     evidenceUrl: "/about",
   },

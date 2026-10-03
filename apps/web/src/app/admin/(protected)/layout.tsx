@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AdminLogoutButton } from "@/features/admin/components/admin-logout-button";
 import { requireAdmin } from "@/features/admin/server/admin-auth";
 import "@/features/content/content-surface.css";
 
@@ -51,9 +52,12 @@ export default async function AdminLayout({
             </li>
           </ul>
         </nav>
-        <Link href="/" className="akb-admin-exit">
-          View public site
-        </Link>
+        <div className="akb-admin-header__actions">
+          <Link href="/" className="akb-admin-exit">
+            View public site
+          </Link>
+          <AdminLogoutButton />
+        </div>
       </header>
       <div id="admin-main" tabIndex={-1} className="akb-admin-main">
         {children}

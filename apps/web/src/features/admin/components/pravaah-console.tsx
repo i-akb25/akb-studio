@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 
 import {
@@ -21,34 +22,42 @@ export function PravaahConsole({
   discoveries,
   anonymousNoteConfigured,
 }: PravaahConsoleProps) {
+  const router = useRouter();
   const [result, setResult] = useState("");
   const [busy, setBusy] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const form = event.currentTarget;
     setBusy(true);
     setResult("");
 
-    const formData = new FormData(event.currentTarget);
+    const formData = new FormData(form);
     const publishedAt = formData.get("publishedAt");
     if (typeof publishedAt === "string" && publishedAt) {
       formData.set("publishedAt", new Date(publishedAt).toISOString());
     }
 
-    const response = await fetch("/api/admin/pravaah", {
-      method: "POST",
-      body: formData,
-    });
-    const payload = (await response.json()) as { error?: string };
-
-    setBusy(false);
-    setResult(
-      response.ok
-        ? "Pravaah registry updated."
-        : payload.error || "Update failed.",
-    );
-
-    if (response.ok) window.location.reload();
+    try {
+      const response = await fetch("/api/admin/pravaah", {
+        method: "POST",
+        body: formData,
+      });
+      const payload = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      if (!response.ok)
+        throw new Error(payload?.error ?? "The Pravaah update failed.");
+      setResult("Pravaah registry updated.");
+      form.reset();
+      router.refresh();
+    } catch (error) {
+      setResult(
+        error instanceof Error ? error.message : "The Pravaah update failed.",
+      );
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (

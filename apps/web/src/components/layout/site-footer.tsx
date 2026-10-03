@@ -14,7 +14,9 @@ const primaryLinks = [
   { label: "Pravaah", href: "/pravaah" },
   { label: "Journal", href: "/journal" },
   { label: "Knowledge", href: "/knowledge" },
+  { label: "Aeva", href: "/aeva" },
   { label: "About", href: "/about" },
+  { label: "Contact", href: "/contact" },
 ] as const;
 
 const resourceLinks = [
@@ -24,6 +26,9 @@ const resourceLinks = [
   { label: "Cookies", href: "/cookies" },
   { label: "Data Policy", href: "/data-policy" },
   { label: "Privacy requests", href: "/privacy/requests" },
+  { label: "Interactive résumé", href: "/resume" },
+  { label: "Engineering lab", href: "/lab" },
+  { label: "Offline workspace", href: "/offline" },
 ] as const;
 
 const socialLinks = PROFILE_LINKS.filter(

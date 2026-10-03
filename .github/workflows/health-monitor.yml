@@ -1,8 +1,6 @@
 name: Production health monitor
 
 on:
-  schedule:
-    - cron: "*/30 * * * *"
   workflow_dispatch:
 
 permissions:

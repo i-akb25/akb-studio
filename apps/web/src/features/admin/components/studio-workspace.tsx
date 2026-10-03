@@ -39,10 +39,12 @@ export function StudioWorkspace({
     ) => Record<string, unknown>,
   ) {
     event.preventDefault();
+    const form = event.currentTarget;
+    const values = data(form);
     setStatus("Saving…");
     try {
-      await submit(build(data(event.currentTarget)));
-      event.currentTarget.reset();
+      await submit(build(values));
+      form.reset();
       setStatus("Saved and added to the audit log.");
       router.refresh();
     } catch (error) {

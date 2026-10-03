@@ -4,10 +4,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { cache } from "react";
 import { z } from "zod";
-import {
-  type ResumeProfile,
-  unconfiguredResumeProfile,
-} from "../data/resume-profile";
+import { type ResumeProfile, safeResumeProfile } from "../data/resume-profile";
 
 const resumeProfileSchema = z
   .object({
@@ -46,22 +43,19 @@ const resumeProfileSchema = z
   })
   .strict();
 
-const localSource = path.join(
+const publicSource = path.join(
   process.cwd(),
   "content",
-  "private",
-  "resume-profile.local.json",
+  "public",
+  "resume-profile.json",
 );
 
 export const getResumeProfile = cache(async (): Promise<ResumeProfile> => {
   try {
-    const source = await readFile(localSource, "utf8");
+    const source = await readFile(publicSource, "utf8");
     return resumeProfileSchema.parse(JSON.parse(source));
   } catch (error) {
-    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
-      return unconfiguredResumeProfile;
-    }
-    console.error("Invalid local résumé profile source", error);
-    return unconfiguredResumeProfile;
+    console.error("Invalid public résumé profile source", error);
+    return safeResumeProfile;
   }
 });

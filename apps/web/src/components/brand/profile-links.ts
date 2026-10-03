@@ -19,7 +19,7 @@ export const PROFILE_LINKS = [
   },
   {
     label: "Instagram",
-    href: "https://www.instagram.com/ace_akb/",
+    href: "https://www.instagram.com/urr_anurag.akb/",
     platform: "instagram",
     external: true,
   },

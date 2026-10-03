@@ -1,0 +1,41 @@
+{
+  "name": "Anurag Kumar Bharti",
+  "headline": "Software Engineer · Electrical & Automation Engineer",
+  "location": "Bihar, India",
+  "summary": "Electrical Engineering graduate working across software, industrial systems, automation and robotics, with experience building and operating hardware-software systems.",
+  "education": {
+    "institution": "National Institute of Technology Patna",
+    "qualification": "Bachelor of Technology in Electrical Engineering",
+    "period": "December 2021 — June 2025",
+    "evidenceUrl": "/about"
+  },
+  "experiences": [
+    {
+      "id": "jsw-steel-get",
+      "period": "August 2025 — December 2025",
+      "organization": "JSW Steel Limited",
+      "role": "Graduate Engineer Trainee — Electrical and Automation",
+      "focus": "Monitored plant power networks, maintained structured operational records, supported electrical testing and participated in safety audits during an active expansion phase.",
+      "location": "Dolvi, Maharashtra",
+      "disciplines": [
+        "electrical systems",
+        "automation",
+        "industrial operations"
+      ]
+    },
+    {
+      "id": "nbpdcl-industrial-trainee",
+      "period": "June 2023 — July 2023",
+      "organization": "North Bihar Power Distribution Company Limited",
+      "role": "Industrial Trainee",
+      "focus": "Studied the operation and maintenance of 33/11 kV distribution systems, protective relays and substation control equipment.",
+      "location": "Bettiah, Bihar",
+      "disciplines": [
+        "power distribution",
+        "protection",
+        "substation operations"
+      ]
+    }
+  ],
+  "canonicalPdf": "/resume/anurag-kumar-bharti-resume.pdf"
+}

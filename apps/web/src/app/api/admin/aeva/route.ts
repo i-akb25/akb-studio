@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { adminErrorResponse } from "@/features/admin/server/admin-api-response";
 import {
   assertSameOrigin,
   getAdminSession,
@@ -8,6 +9,7 @@ import { readJsonBody } from "@/server/security/request";
 
 const memory = z.object({
   resource: z.literal("memory"),
+  id: z.string().cuid().optional(),
   title: z.string().trim().min(2).max(140),
   content: z.string().trim().min(3).max(8_000),
   visibility: z.enum([
@@ -33,6 +35,7 @@ const memory = z.object({
 });
 const source = z.object({
   resource: z.literal("source"),
+  id: z.string().cuid().optional(),
   title: z.string().trim().min(2).max(140),
   url: z
     .string()
@@ -61,20 +64,33 @@ export async function POST(request: Request) {
     if (input.resource === "memory") {
       const item = await runAuditedMutation(
         (tx) =>
-          tx.aevaMemory.create({
-            data: {
-              title: input.title,
-              content: input.content,
-              visibility: input.visibility,
-              state: input.state,
-              sourceLabel: input.sourceLabel,
-              sourceUrl: input.sourceUrl,
-              publishedAt: input.state === "PUBLISHED" ? new Date() : null,
-            },
-          }),
+          input.id
+            ? tx.aevaMemory.update({
+                where: { id: input.id },
+                data: {
+                  title: input.title,
+                  content: input.content,
+                  visibility: input.visibility,
+                  state: input.state,
+                  sourceLabel: input.sourceLabel,
+                  sourceUrl: input.sourceUrl,
+                  publishedAt: input.state === "PUBLISHED" ? new Date() : null,
+                },
+              })
+            : tx.aevaMemory.create({
+                data: {
+                  title: input.title,
+                  content: input.content,
+                  visibility: input.visibility,
+                  state: input.state,
+                  sourceLabel: input.sourceLabel,
+                  sourceUrl: input.sourceUrl,
+                  publishedAt: input.state === "PUBLISHED" ? new Date() : null,
+                },
+              }),
         (saved) => ({
           actorId: session.user.id,
-          action: "CREATE",
+          action: input.id ? "UPDATE" : "CREATE",
           entityType: "AevaMemory",
           entityId: saved.id,
         }),
@@ -83,33 +99,43 @@ export async function POST(request: Request) {
     }
     const item = await runAuditedMutation(
       (tx) =>
-        tx.aevaSource.upsert({
-          where: { url: input.url },
-          create: { title: input.title, url: input.url, notes: input.notes },
-          update: {
-            title: input.title,
-            notes: input.notes,
-            enabled: true,
-            publicAllowed: true,
-          },
-        }),
+        input.id
+          ? tx.aevaSource.update({
+              where: { id: input.id },
+              data: {
+                title: input.title,
+                url: input.url,
+                notes: input.notes,
+                enabled: true,
+                publicAllowed: true,
+              },
+            })
+          : tx.aevaSource.upsert({
+              where: { url: input.url },
+              create: {
+                title: input.title,
+                url: input.url,
+                notes: input.notes,
+              },
+              update: {
+                title: input.title,
+                notes: input.notes,
+                enabled: true,
+                publicAllowed: true,
+              },
+            }),
       (saved) => ({
         actorId: session.user.id,
-        action: "UPDATE",
+        action: input.id ? "UPDATE" : "CREATE",
         entityType: "AevaSource",
         entityId: saved.id,
       }),
     );
     return Response.json({ ok: true, item });
   } catch (error) {
-    return Response.json(
-      {
-        error:
-          error instanceof z.ZodError
-            ? "Invalid Aeva entry"
-            : "The entry could not be saved",
-      },
-      { status: 400 },
-    );
+    return adminErrorResponse(error, {
+      event: "admin_aeva_save_failed",
+      fallback: "The Aeva entry could not be saved. Refresh and try again.",
+    });
   }
 }

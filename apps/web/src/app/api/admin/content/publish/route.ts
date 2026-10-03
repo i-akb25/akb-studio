@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-
+import { adminErrorResponse } from "@/features/admin/server/admin-api-response";
 import { assertSameOrigin, canAdmin } from "@/features/admin/server/admin-auth";
 import { extractDocumentText } from "@/features/admin/server/document-parser";
 import { publishEditorial } from "@/features/admin/server/github-publisher";
@@ -103,8 +103,9 @@ export async function POST(request: Request) {
       attachments: String(form.get("attachments") ?? "").trim(),
     });
 
+    let warning: string | undefined;
     if (form.get("notificationRequested") === "on") {
-      await callPublishingService("publication_event", {
+      const notification = await callPublishingService("publication_event", {
         publicationId: result.id,
         contentType: kind,
         slug,
@@ -113,13 +114,21 @@ export async function POST(request: Request) {
         notificationRequested: true,
         scheduledAt: String(form.get("scheduledAt") ?? "").trim() || undefined,
       });
+      if (!notification.ok)
+        warning =
+          "The content was published, but its notification could not be queued.";
     }
 
-    return NextResponse.json({ ok: true, canonicalPath: result.canonicalPath });
-  } catch {
-    return NextResponse.json(
-      { error: "Invalid publication payload" },
-      { status: 400 },
-    );
+    return NextResponse.json({
+      ok: true,
+      canonicalPath: result.canonicalPath,
+      warning,
+    });
+  } catch (error) {
+    return adminErrorResponse(error, {
+      event: "admin_content_publish_failed",
+      fallback:
+        "The content could not be published. Check the document, repository access and required metadata.",
+    });
   }
 }

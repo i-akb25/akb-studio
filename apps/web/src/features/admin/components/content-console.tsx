@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
+import type { AdminContentEntry } from "@/features/content/server/content-source";
 
 type Preview = {
   title: string;
@@ -12,11 +13,13 @@ type Preview = {
   body: string;
 };
 
-export function ContentConsole() {
+export function ContentConsole({ entries }: { entries: AdminContentEntry[] }) {
   const router = useRouter();
   const [preview, setPreview] = useState<Preview | null>(null);
   const [result, setResult] = useState("");
   const [busy, setBusy] = useState(false);
+  const [entryId, setEntryId] = useState("");
+  const selectedEntry = entries.find((entry) => entry.id === entryId);
 
   function buildPreview(form: HTMLFormElement) {
     const data = new FormData(form);
@@ -51,10 +54,15 @@ export function ContentConsole() {
       const data = (await response.json().catch(() => null)) as {
         error?: string;
         canonicalPath?: string;
+        warning?: string;
       } | null;
       if (!response.ok) throw new Error(data?.error ?? "Publication failed.");
 
-      setResult(`Published: ${data?.canonicalPath ?? "content updated"}`);
+      setResult(
+        data?.warning
+          ? `Published: ${data.canonicalPath ?? "content updated"}. ${data.warning}`
+          : `Published: ${data?.canonicalPath ?? "content updated"}`,
+      );
       setPreview(null);
       form.reset();
       router.refresh();
@@ -68,14 +76,36 @@ export function ContentConsole() {
   return (
     <div className="akb-admin-publisher">
       <form
+        key={selectedEntry?.id ?? "new-content"}
         className="akb-admin-form"
         onSubmit={submit}
         onChange={() => preview && setPreview(null)}
       >
+        <label>
+          <span>Edit published content or create a new entry</span>
+          <select
+            value={entryId}
+            onChange={(event) => {
+              setEntryId(event.target.value);
+              setPreview(null);
+              setResult("");
+            }}
+          >
+            <option value="">Create new content</option>
+            {entries.map((entry) => (
+              <option key={entry.id} value={entry.id}>
+                {entry.title} ({entry.contentType})
+              </option>
+            ))}
+          </select>
+        </label>
         <div className="akb-admin-grid">
           <label>
             <span>Type</span>
-            <select name="kind" defaultValue="journal">
+            <select
+              name="kind"
+              defaultValue={selectedEntry?.contentType ?? "journal"}
+            >
               <option value="journal">Engineering Journal</option>
               <option value="knowledge">Knowledge Hub</option>
             </select>
@@ -83,7 +113,10 @@ export function ContentConsole() {
 
           <label>
             <span>Knowledge subtype</span>
-            <select name="knowledgeKind" defaultValue="note">
+            <select
+              name="knowledgeKind"
+              defaultValue={selectedEntry?.knowledgeKind ?? "note"}
+            >
               <option value="note">Note</option>
               <option value="research">Research</option>
               <option value="reading">Reading</option>
@@ -94,28 +127,49 @@ export function ContentConsole() {
 
           <label>
             <span>Title</span>
-            <input name="title" maxLength={180} required />
+            <input
+              name="title"
+              defaultValue={selectedEntry?.title}
+              maxLength={180}
+              required
+            />
           </label>
 
           <label>
             <span>Slug</span>
-            <input name="slug" pattern="[a-z0-9-]{2,160}" required />
+            <input
+              name="slug"
+              defaultValue={selectedEntry?.slug}
+              pattern="[a-z0-9-]{2,160}"
+              required
+            />
           </label>
 
           <label className="akb-admin-span-2">
             <span>Description</span>
-            <textarea name="description" maxLength={500} required />
+            <textarea
+              name="description"
+              defaultValue={selectedEntry?.description}
+              maxLength={500}
+              required
+            />
           </label>
 
           <label>
             <span>Disciplines</span>
-            <input name="disciplines" placeholder="software,ai" required />
+            <input
+              name="disciplines"
+              defaultValue={selectedEntry?.disciplines.join(",")}
+              placeholder="software,ai"
+              required
+            />
           </label>
 
           <label>
             <span>Source label</span>
             <input
               name="sourceLabel"
+              defaultValue={selectedEntry?.source.label}
               placeholder="AKB Studio field note"
               required
             />
@@ -123,7 +177,10 @@ export function ContentConsole() {
 
           <label>
             <span>Source type</span>
-            <select name="sourceType" defaultValue="original">
+            <select
+              name="sourceType"
+              defaultValue={selectedEntry?.source.type ?? "original"}
+            >
               <option value="original">Original</option>
               <option value="project">Project</option>
               <option value="paper">Paper</option>
@@ -140,6 +197,7 @@ export function ContentConsole() {
             <input
               type="url"
               name="sourceUrl"
+              defaultValue={selectedEntry?.source.url ?? ""}
               inputMode="url"
               placeholder="https://www.linkedin.com/posts/..."
             />
@@ -147,12 +205,20 @@ export function ContentConsole() {
 
           <label>
             <span>Topics</span>
-            <input name="topics" placeholder="security,architecture" />
+            <input
+              name="topics"
+              defaultValue={selectedEntry?.topics.join(",")}
+              placeholder="security,architecture"
+            />
           </label>
 
           <label>
             <span>Tags</span>
-            <input name="tags" placeholder="postmortem,decision" />
+            <input
+              name="tags"
+              defaultValue={selectedEntry?.tags.join(",")}
+              placeholder="postmortem,decision"
+            />
           </label>
 
           <label className="akb-admin-span-2">
@@ -162,13 +228,22 @@ export function ContentConsole() {
 
           <label className="akb-admin-span-2">
             <span>Or paste Markdown / text</span>
-            <textarea className="akb-admin-editor" name="markdown" />
+            <textarea
+              className="akb-admin-editor"
+              name="markdown"
+              defaultValue={selectedEntry?.body}
+            />
           </label>
 
           <label className="akb-admin-span-2">
             <span>Evidence JSON</span>
             <textarea
               name="attachments"
+              defaultValue={
+                selectedEntry?.attachments.length
+                  ? JSON.stringify(selectedEntry.attachments, null, 2)
+                  : ""
+              }
               placeholder='[{"id":"pdf-01","kind":"pdf","title":"Report","storage":"google-drive","fileId":"..."}]'
             />
           </label>

@@ -26,7 +26,7 @@ test("primary navigation and hero expose the contact and profile routes", async 
 
   assert.match(header, /label: "Contact", href: "\/contact"/);
   assert.match(profileLinks, /mailto:anuragbhartiee25@gmail\.com/);
-  assert.match(profileLinks, /instagram\.com\/ace_akb/);
+  assert.match(profileLinks, /instagram\.com\/urr_anurag\.akb/);
   assert.match(hero, /<HeroSocialLinks \/>/);
 });
 

@@ -3,8 +3,7 @@ import {
   assertSameOrigin,
   getAdminSession,
 } from "@/features/admin/server/admin-auth";
-import { recordAudit } from "@/features/admin/server/audit";
-import { prisma } from "@/server/db/prisma";
+import { runAuditedMutation } from "@/features/admin/server/audit";
 import { readJsonBody } from "@/server/security/request";
 
 const memory = z.object({
@@ -60,41 +59,47 @@ export async function POST(request: Request) {
     assertSameOrigin(request);
     const input = inputSchema.parse(await readJsonBody(request, 16_384));
     if (input.resource === "memory") {
-      const item = await prisma.aevaMemory.create({
-        data: {
-          title: input.title,
-          content: input.content,
-          visibility: input.visibility,
-          state: input.state,
-          sourceLabel: input.sourceLabel,
-          sourceUrl: input.sourceUrl,
-          publishedAt: input.state === "PUBLISHED" ? new Date() : null,
-        },
-      });
-      await recordAudit({
-        actorId: session.user.id,
-        action: "CREATE",
-        entityType: "AevaMemory",
-        entityId: item.id,
-      });
+      const item = await runAuditedMutation(
+        (tx) =>
+          tx.aevaMemory.create({
+            data: {
+              title: input.title,
+              content: input.content,
+              visibility: input.visibility,
+              state: input.state,
+              sourceLabel: input.sourceLabel,
+              sourceUrl: input.sourceUrl,
+              publishedAt: input.state === "PUBLISHED" ? new Date() : null,
+            },
+          }),
+        (saved) => ({
+          actorId: session.user.id,
+          action: "CREATE",
+          entityType: "AevaMemory",
+          entityId: saved.id,
+        }),
+      );
       return Response.json({ ok: true, item });
     }
-    const item = await prisma.aevaSource.upsert({
-      where: { url: input.url },
-      create: { title: input.title, url: input.url, notes: input.notes },
-      update: {
-        title: input.title,
-        notes: input.notes,
-        enabled: true,
-        publicAllowed: true,
-      },
-    });
-    await recordAudit({
-      actorId: session.user.id,
-      action: "UPDATE",
-      entityType: "AevaSource",
-      entityId: item.id,
-    });
+    const item = await runAuditedMutation(
+      (tx) =>
+        tx.aevaSource.upsert({
+          where: { url: input.url },
+          create: { title: input.title, url: input.url, notes: input.notes },
+          update: {
+            title: input.title,
+            notes: input.notes,
+            enabled: true,
+            publicAllowed: true,
+          },
+        }),
+      (saved) => ({
+        actorId: session.user.id,
+        action: "UPDATE",
+        entityType: "AevaSource",
+        entityId: saved.id,
+      }),
+    );
     return Response.json({ ok: true, item });
   } catch (error) {
     return Response.json(

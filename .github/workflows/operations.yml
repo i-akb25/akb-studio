@@ -1,9 +1,6 @@
 name: Operational maintenance
 
 on:
-  schedule:
-    - cron: "17 2 * * *"
-    - cron: "41 3 * * 0"
   workflow_dispatch:
 
 permissions:
@@ -11,7 +8,6 @@ permissions:
 
 jobs:
   retention:
-    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '17 2 * * *'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -39,7 +35,6 @@ jobs:
           AUDIT_RETENTION_DAYS: "365"
 
   encrypted-export:
-    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '41 3 * * 0'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

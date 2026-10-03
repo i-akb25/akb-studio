@@ -207,7 +207,7 @@ export function AevaExperience() {
         <aside className="relative min-h-[34rem] overflow-hidden border-b border-border lg:min-h-full lg:border-r lg:border-b-0">
           <Image
             src="/images/aeva/aeva-identity.webp"
-            alt="AI-generated fictional portrait representing Aeva"
+            alt="Fictional portrait representing Aeva"
             fill
             priority
             sizes="(min-width: 1024px) 36vw, 100vw"
@@ -223,7 +223,8 @@ export function AevaExperience() {
             </h1>
             <p className="mt-4 max-w-md text-sm leading-7 text-foreground/75">
               Aeva is an AI portfolio assistant, not a real person. Her portrait
-              approved public sources and cited live web results.
+              is fictional. Her answers draw from approved public sources and
+              cited live web results.
             </p>
           </div>
         </aside>

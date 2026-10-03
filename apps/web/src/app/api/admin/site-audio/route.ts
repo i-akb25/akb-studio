@@ -5,8 +5,9 @@ import {
   canAdmin,
   getAdminSession,
 } from "@/features/admin/server/admin-auth";
-import { recordAudit } from "@/features/admin/server/audit";
+import { runAuditedMutation } from "@/features/admin/server/audit";
 import { prisma } from "@/server/db/prisma";
+import { logger, safeErrorFields } from "@/server/logging/logger";
 import { readJsonBody } from "@/server/security/request";
 
 const inputSchema = z
@@ -40,30 +41,37 @@ export async function POST(request: Request) {
         { error: "Choose a ready audio asset from the media library." },
         { status: 409 },
       );
-    const setting = await prisma.siteAudioSetting.upsert({
-      where: { id: "portfolio" },
-      create: {
-        id: "portfolio",
-        assetId: asset.id,
-        title: input.title,
-        artist: input.artist || null,
-        enabled: input.enabled,
-      },
-      update: {
-        assetId: asset.id,
-        title: input.title,
-        artist: input.artist || null,
-        enabled: input.enabled,
-      },
-    });
-    await recordAudit({
-      actorId: session.user.id,
-      action: "UPDATE",
-      entityType: "SiteAudioSetting",
-      entityId: setting.id,
-    });
+    const setting = await runAuditedMutation(
+      (tx) =>
+        tx.siteAudioSetting.upsert({
+          where: { id: "portfolio" },
+          create: {
+            id: "portfolio",
+            assetId: asset.id,
+            title: input.title,
+            artist: input.artist || null,
+            enabled: input.enabled,
+          },
+          update: {
+            assetId: asset.id,
+            title: input.title,
+            artist: input.artist || null,
+            enabled: input.enabled,
+          },
+        }),
+      (result) => ({
+        actorId: session.user.id,
+        action: "UPDATE",
+        entityType: "SiteAudioSetting",
+        entityId: result.id,
+      }),
+    );
     return NextResponse.json({ ok: true, setting });
   } catch (error) {
+    logger.error({
+      event: "admin_site_audio_save_failed",
+      ...safeErrorFields(error),
+    });
     return NextResponse.json(
       {
         error:

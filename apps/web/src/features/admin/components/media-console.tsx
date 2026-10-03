@@ -1,25 +1,39 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 
 export function MediaConsole() {
+  const router = useRouter();
   const [status, setStatus] = useState("");
+  const [busy, setBusy] = useState(false);
   async function upload(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    setBusy(true);
     setStatus("Uploading…");
-    const response = await fetch("/api/admin/media", {
-      method: "POST",
-      body: new FormData(event.currentTarget),
-    });
-    const result = (await response.json()) as {
-      error?: string;
-      asset?: { id: string };
-    };
-    setStatus(
-      response.ok
-        ? `Uploaded. Asset ID: ${result.asset?.id}`
-        : (result.error ?? "Upload failed"),
-    );
+    try {
+      const response = await fetch("/api/admin/media", {
+        method: "POST",
+        body: formData,
+      });
+      const result = (await response.json().catch(() => null)) as {
+        error?: string;
+        asset?: { id: string };
+      } | null;
+      if (!response.ok)
+        throw new Error(result?.error ?? "The media upload failed.");
+      setStatus(`Uploaded. Asset ID: ${result?.asset?.id ?? "available"}`);
+      form.reset();
+      router.refresh();
+    } catch (error) {
+      setStatus(
+        error instanceof Error ? error.message : "The media upload failed.",
+      );
+    } finally {
+      setBusy(false);
+    }
   }
   return (
     <form className="akb-admin-login" onSubmit={upload}>
@@ -54,7 +68,9 @@ export function MediaConsole() {
         <span>Replace existing asset ID (optional)</span>
         <input name="replaceId" />
       </label>
-      <button type="submit">Upload media</button>
+      <button type="submit" disabled={busy}>
+        {busy ? "Uploading…" : "Upload media"}
+      </button>
       <output aria-live="polite">{status}</output>
     </form>
   );

@@ -67,3 +67,17 @@ export async function recordAuditInTransaction(
 ) {
   return appendAudit(tx, input);
 }
+
+export async function runAuditedMutation<T>(
+  mutation: (tx: Prisma.TransactionClient) => Promise<T>,
+  audit: (result: T) => AuditInput,
+) {
+  return prisma.$transaction(
+    async (tx) => {
+      const result = await mutation(tx);
+      await appendAudit(tx, audit(result));
+      return result;
+    },
+    { isolationLevel: "Serializable" },
+  );
+}

@@ -4,8 +4,7 @@ import {
   assertSameOrigin,
   getAdminSession,
 } from "@/features/admin/server/admin-auth";
-import { recordAudit } from "@/features/admin/server/audit";
-import { prisma } from "@/server/db/prisma";
+import { runAuditedMutation } from "@/features/admin/server/audit";
 import { readJsonBody } from "@/server/security/request";
 
 const state = z.enum(["DRAFT", "SCHEDULED", "PUBLISHED", "ARCHIVED"]);
@@ -122,36 +121,39 @@ export async function POST(request: Request) {
   try {
     const input = jsonBody(await readJsonBody(request, 32_768));
     if (input.resource === "profile") {
-      const result = await prisma.profile.upsert({
-        where: { id: "primary" },
-        create: {
-          id: "primary",
-          displayName: input.displayName,
-          headline: input.headline,
-          biography: input.biography,
-          location: input.location,
-          email: input.email,
-          dpAssetId: input.dpAssetId,
-          state: input.state,
-          publishedAt: input.state === "PUBLISHED" ? new Date() : null,
-        },
-        update: {
-          displayName: input.displayName,
-          headline: input.headline,
-          biography: input.biography,
-          location: input.location,
-          email: input.email,
-          dpAssetId: input.dpAssetId || null,
-          state: input.state,
-          publishedAt: input.state === "PUBLISHED" ? new Date() : null,
-        },
-      });
-      await recordAudit({
-        actorId: session.user.id,
-        action: "UPDATE",
-        entityType: "Profile",
-        entityId: result.id,
-      });
+      const result = await runAuditedMutation(
+        (tx) =>
+          tx.profile.upsert({
+            where: { id: "primary" },
+            create: {
+              id: "primary",
+              displayName: input.displayName,
+              headline: input.headline,
+              biography: input.biography,
+              location: input.location,
+              email: input.email,
+              dpAssetId: input.dpAssetId,
+              state: input.state,
+              publishedAt: input.state === "PUBLISHED" ? new Date() : null,
+            },
+            update: {
+              displayName: input.displayName,
+              headline: input.headline,
+              biography: input.biography,
+              location: input.location,
+              email: input.email,
+              dpAssetId: input.dpAssetId || null,
+              state: input.state,
+              publishedAt: input.state === "PUBLISHED" ? new Date() : null,
+            },
+          }),
+        (saved) => ({
+          actorId: session.user.id,
+          action: "UPDATE",
+          entityType: "Profile",
+          entityId: saved.id,
+        }),
+      );
       return NextResponse.json({ ok: true, result });
     }
     if (input.resource === "availability") {
@@ -161,227 +163,254 @@ export async function POST(request: Request) {
           { error: "Published availability requires a future expiry time" },
           { status: 400 },
         );
-      const result = await prisma.availabilityStatus.upsert({
-        where: { id: "current" },
-        create: {
-          id: "current",
-          label: input.label,
-          summary: input.summary,
-          available: input.available,
-          state: input.state,
-          validFrom: input.state === "PUBLISHED" ? new Date() : null,
-          validUntil,
-          publishedAt: input.state === "PUBLISHED" ? new Date() : null,
-        },
-        update: {
-          label: input.label,
-          summary: input.summary,
-          available: input.available,
-          state: input.state,
-          validFrom: input.state === "PUBLISHED" ? new Date() : null,
-          validUntil,
-          publishedAt: input.state === "PUBLISHED" ? new Date() : null,
-        },
-      });
-      await recordAudit({
-        actorId: session.user.id,
-        action: "UPDATE",
-        entityType: "AvailabilityStatus",
-        entityId: result.id,
-      });
+      const result = await runAuditedMutation(
+        (tx) =>
+          tx.availabilityStatus.upsert({
+            where: { id: "current" },
+            create: {
+              id: "current",
+              label: input.label,
+              summary: input.summary,
+              available: input.available,
+              state: input.state,
+              validFrom: input.state === "PUBLISHED" ? new Date() : null,
+              validUntil,
+              publishedAt: input.state === "PUBLISHED" ? new Date() : null,
+            },
+            update: {
+              label: input.label,
+              summary: input.summary,
+              available: input.available,
+              state: input.state,
+              validFrom: input.state === "PUBLISHED" ? new Date() : null,
+              validUntil,
+              publishedAt: input.state === "PUBLISHED" ? new Date() : null,
+            },
+          }),
+        (saved) => ({
+          actorId: session.user.id,
+          action: "UPDATE",
+          entityType: "AvailabilityStatus",
+          entityId: saved.id,
+        }),
+      );
       return NextResponse.json({ ok: true, result });
     }
     if (input.resource === "reflection") {
-      const result = await prisma.reflection.upsert({
-        where: { slug: input.slug },
-        create: {
-          slug: input.slug,
-          sanskrit: input.sanskrit,
-          transliteration: input.transliteration,
-          translation: input.translation,
-          interpretation: input.interpretation,
-          source: input.source,
-          reflectionDate: input.reflectionDate
-            ? new Date(input.reflectionDate)
-            : null,
-          state: input.state,
-          publishedAt: input.state === "PUBLISHED" ? new Date() : null,
-        },
-        update: {
-          sanskrit: input.sanskrit,
-          transliteration: input.transliteration,
-          translation: input.translation,
-          interpretation: input.interpretation,
-          source: input.source,
-          reflectionDate: input.reflectionDate
-            ? new Date(input.reflectionDate)
-            : null,
-          state: input.state,
-          publishedAt: input.state === "PUBLISHED" ? new Date() : null,
-        },
-      });
-      await recordAudit({
-        actorId: session.user.id,
-        action: "UPDATE",
-        entityType: "Reflection",
-        entityId: result.id,
-      });
+      const result = await runAuditedMutation(
+        (tx) =>
+          tx.reflection.upsert({
+            where: { slug: input.slug },
+            create: {
+              slug: input.slug,
+              sanskrit: input.sanskrit,
+              transliteration: input.transliteration,
+              translation: input.translation,
+              interpretation: input.interpretation,
+              source: input.source,
+              reflectionDate: input.reflectionDate
+                ? new Date(input.reflectionDate)
+                : null,
+              state: input.state,
+              publishedAt: input.state === "PUBLISHED" ? new Date() : null,
+            },
+            update: {
+              sanskrit: input.sanskrit,
+              transliteration: input.transliteration,
+              translation: input.translation,
+              interpretation: input.interpretation,
+              source: input.source,
+              reflectionDate: input.reflectionDate
+                ? new Date(input.reflectionDate)
+                : null,
+              state: input.state,
+              publishedAt: input.state === "PUBLISHED" ? new Date() : null,
+            },
+          }),
+        (saved) => ({
+          actorId: session.user.id,
+          action: "UPDATE",
+          entityType: "Reflection",
+          entityId: saved.id,
+        }),
+      );
       return NextResponse.json({ ok: true, result });
     }
     if (input.resource === "project") {
-      const result = await prisma.$transaction(async (database) => {
-        const saved = await database.project.upsert({
-          where: { slug: input.slug },
-          create: {
-            slug: input.slug,
-            title: input.title,
-            categoryLabel: input.categoryLabel,
-            summary: input.summary,
-            disciplines: input.disciplines,
-            tier: input.tier,
-            lifecycle: input.lifecycle,
-            role: input.role,
-            period: input.period,
-            coverAssetId: input.coverAssetId,
-            order: input.order,
-            featured: input.featured,
-            aevaApproved: input.aevaApproved,
-            state: input.state,
-            publishedAt: input.state === "PUBLISHED" ? new Date() : null,
-          },
-          update: {
-            title: input.title,
-            categoryLabel: input.categoryLabel,
-            summary: input.summary,
-            disciplines: input.disciplines,
-            tier: input.tier,
-            lifecycle: input.lifecycle,
-            role: input.role,
-            period: input.period,
-            coverAssetId: input.coverAssetId || null,
-            order: input.order,
-            featured: input.featured,
-            aevaApproved: input.aevaApproved,
-            state: input.state,
-            publishedAt: input.state === "PUBLISHED" ? new Date() : null,
-          },
-        });
-        await database.projectTechnology.deleteMany({
-          where: { projectId: saved.id },
-        });
-        await database.projectTechnology.createMany({
-          data: input.technologies.map((name, order) => ({
-            projectId: saved.id,
-            name,
-            icon: "tool",
-            order,
-          })),
-        });
-        await database.projectLink.deleteMany({
-          where: { projectId: saved.id },
-        });
-        const links = [
-          { kind: "repository", label: "Repository", url: input.repositoryUrl },
-          { kind: "demo", label: "Live demo", url: input.demoUrl },
-        ]
-          .filter(
-            (item): item is { kind: string; label: string; url: string } =>
-              Boolean(item.url),
-          )
-          .map((item, order) => ({
-            ...item,
-            projectId: saved.id,
-            state: "available",
-            order,
-          }));
-        if (links.length)
-          await database.projectLink.createMany({ data: links });
-        return saved;
-      });
-      await recordAudit({
-        actorId: session.user.id,
-        action: "UPDATE",
-        entityType: "Project",
-        entityId: result.id,
-      });
+      const result = await runAuditedMutation(
+        async (database) => {
+          const saved = await database.project.upsert({
+            where: { slug: input.slug },
+            create: {
+              slug: input.slug,
+              title: input.title,
+              categoryLabel: input.categoryLabel,
+              summary: input.summary,
+              disciplines: input.disciplines,
+              tier: input.tier,
+              lifecycle: input.lifecycle,
+              role: input.role,
+              period: input.period,
+              coverAssetId: input.coverAssetId,
+              order: input.order,
+              featured: input.featured,
+              aevaApproved: input.aevaApproved,
+              state: input.state,
+              publishedAt: input.state === "PUBLISHED" ? new Date() : null,
+            },
+            update: {
+              title: input.title,
+              categoryLabel: input.categoryLabel,
+              summary: input.summary,
+              disciplines: input.disciplines,
+              tier: input.tier,
+              lifecycle: input.lifecycle,
+              role: input.role,
+              period: input.period,
+              coverAssetId: input.coverAssetId || null,
+              order: input.order,
+              featured: input.featured,
+              aevaApproved: input.aevaApproved,
+              state: input.state,
+              publishedAt: input.state === "PUBLISHED" ? new Date() : null,
+            },
+          });
+          await database.projectTechnology.deleteMany({
+            where: { projectId: saved.id },
+          });
+          await database.projectTechnology.createMany({
+            data: input.technologies.map((name, order) => ({
+              projectId: saved.id,
+              name,
+              icon: "tool",
+              order,
+            })),
+          });
+          await database.projectLink.deleteMany({
+            where: { projectId: saved.id },
+          });
+          const links = [
+            {
+              kind: "repository",
+              label: "Repository",
+              url: input.repositoryUrl,
+            },
+            { kind: "demo", label: "Live demo", url: input.demoUrl },
+          ]
+            .filter(
+              (item): item is { kind: string; label: string; url: string } =>
+                Boolean(item.url),
+            )
+            .map((item, order) => ({
+              ...item,
+              projectId: saved.id,
+              state: "available",
+              order,
+            }));
+          if (links.length)
+            await database.projectLink.createMany({ data: links });
+          return saved;
+        },
+        (saved) => ({
+          actorId: session.user.id,
+          action: "UPDATE",
+          entityType: "Project",
+          entityId: saved.id,
+        }),
+      );
       return NextResponse.json({ ok: true, result });
     }
     if (input.resource === "gallery") {
-      const result = await prisma.gallery.upsert({
-        where: { slug: input.slug },
-        create: {
-          slug: input.slug,
-          title: input.title,
-          description: input.description,
-          state: input.state,
-        },
-        update: {
-          title: input.title,
-          description: input.description,
-          state: input.state,
-        },
-      });
-      await recordAudit({
-        actorId: session.user.id,
-        action: "UPDATE",
-        entityType: "Gallery",
-        entityId: result.id,
-      });
+      const result = await runAuditedMutation(
+        (tx) =>
+          tx.gallery.upsert({
+            where: { slug: input.slug },
+            create: {
+              slug: input.slug,
+              title: input.title,
+              description: input.description,
+              state: input.state,
+            },
+            update: {
+              title: input.title,
+              description: input.description,
+              state: input.state,
+            },
+          }),
+        (saved) => ({
+          actorId: session.user.id,
+          action: "UPDATE",
+          entityType: "Gallery",
+          entityId: saved.id,
+        }),
+      );
       return NextResponse.json({ ok: true, result });
     }
     if (input.resource === "gallery-item") {
-      const gallery = await prisma.gallery.findUniqueOrThrow({
-        where: { slug: input.gallerySlug },
-      });
-      const result = await prisma.galleryItem.upsert({
-        where: {
-          galleryId_assetId: { galleryId: gallery.id, assetId: input.assetId },
+      const result = await runAuditedMutation(
+        async (tx) => {
+          const gallery = await tx.gallery.findUniqueOrThrow({
+            where: { slug: input.gallerySlug },
+          });
+          return tx.galleryItem.upsert({
+            where: {
+              galleryId_assetId: {
+                galleryId: gallery.id,
+                assetId: input.assetId,
+              },
+            },
+            create: {
+              galleryId: gallery.id,
+              assetId: input.assetId,
+              altText: input.altText,
+              caption: input.caption,
+              order: input.order,
+            },
+            update: {
+              altText: input.altText,
+              caption: input.caption,
+              order: input.order,
+            },
+          });
         },
-        create: {
-          galleryId: gallery.id,
-          assetId: input.assetId,
-          altText: input.altText,
-          caption: input.caption,
-          order: input.order,
-        },
-        update: {
-          altText: input.altText,
-          caption: input.caption,
-          order: input.order,
-        },
-      });
-      await recordAudit({
-        actorId: session.user.id,
-        action: "UPDATE",
-        entityType: "GalleryItem",
-        entityId: result.id,
-      });
+        (saved) => ({
+          actorId: session.user.id,
+          action: "UPDATE",
+          entityType: "GalleryItem",
+          entityId: saved.id,
+        }),
+      );
       return NextResponse.json({ ok: true, result });
     }
     if (session.role !== "owner" && session.role !== "moderator")
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    const current = await prisma.contactSubmission.findUniqueOrThrow({
-      where: { id: input.id },
-    });
-    const result = await prisma.contactSubmission.update({
-      where: { id: input.id },
-      data: { state: input.state },
-    });
-    await prisma.contactStatusEvent.create({
-      data: {
-        submissionId: result.id,
-        fromState: current.state,
-        toState: result.state,
-        note: input.note,
-        actorId: session.user.id,
+    const result = await runAuditedMutation(
+      async (tx) => {
+        const current = await tx.contactSubmission.findUniqueOrThrow({
+          where: { id: input.id },
+        });
+        const saved = await tx.contactSubmission.update({
+          where: { id: input.id },
+          data: { state: input.state },
+        });
+        await tx.contactStatusEvent.create({
+          data: {
+            submissionId: saved.id,
+            fromState: current.state,
+            toState: saved.state,
+            note: input.note,
+            actorId: session.user.id,
+          },
+        });
+        return saved;
       },
-    });
-    await recordAudit({
-      actorId: session.user.id,
-      action: "UPDATE",
-      entityType: "ContactSubmission",
-      entityId: result.id,
-    });
+      (saved) => ({
+        actorId: session.user.id,
+        action: "UPDATE",
+        entityType: "ContactSubmission",
+        entityId: saved.id,
+      }),
+    );
     return NextResponse.json({ ok: true, result });
   } catch (error) {
     if (error instanceof z.ZodError) {

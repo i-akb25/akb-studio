@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 
 type SiteAudioConsoleProps = {
@@ -13,25 +14,44 @@ type SiteAudioConsoleProps = {
 };
 
 export function SiteAudioConsole({ initial, assets }: SiteAudioConsoleProps) {
+  const router = useRouter();
   const [status, setStatus] = useState("");
+  const [busy, setBusy] = useState(false);
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    setBusy(true);
     setStatus("Saving…");
-    const data = new FormData(event.currentTarget);
-    const response = await fetch("/api/admin/site-audio", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        assetId: String(data.get("assetId") ?? ""),
-        title: String(data.get("title") ?? ""),
-        artist: String(data.get("artist") ?? "") || undefined,
-        enabled: data.get("enabled") === "on",
-      }),
-    });
-    const result = (await response.json()) as { error?: string };
-    setStatus(
-      response.ok ? "Portfolio music saved." : (result.error ?? "Save failed."),
-    );
+    try {
+      const response = await fetch("/api/admin/site-audio", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          assetId: String(data.get("assetId") ?? ""),
+          title: String(data.get("title") ?? ""),
+          artist: String(data.get("artist") ?? "") || undefined,
+          enabled: data.get("enabled") === "on",
+        }),
+      });
+      const result = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      if (!response.ok)
+        throw new Error(
+          result?.error ?? "The music setting could not be saved.",
+        );
+      setStatus("Portfolio music saved.");
+      router.refresh();
+    } catch (error) {
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "The music setting could not be saved.",
+      );
+    } finally {
+      setBusy(false);
+    }
   }
   return (
     <section aria-labelledby="site-audio-heading">
@@ -80,7 +100,9 @@ export function SiteAudioConsole({ initial, assets }: SiteAudioConsoleProps) {
           />
           <span>Show the music control publicly</span>
         </label>
-        <button type="submit">Save music setting</button>
+        <button type="submit" disabled={busy}>
+          {busy ? "Saving…" : "Save music setting"}
+        </button>
         <output aria-live="polite">{status}</output>
       </form>
       {!assets.length ? (

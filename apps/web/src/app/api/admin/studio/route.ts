@@ -4,7 +4,7 @@ import {
   assertSameOrigin,
   getAdminSession,
 } from "@/features/admin/server/admin-auth";
-import { recordAudit } from "@/features/admin/server/audit";
+import { runAuditedMutation } from "@/features/admin/server/audit";
 import { getStudioHealthFindings } from "@/features/admin/server/studio-health";
 import { prisma } from "@/server/db/prisma";
 import { readJsonBody } from "@/server/security/request";
@@ -99,25 +99,43 @@ export async function POST(request: Request) {
     let result: { id: string };
     let entityType: string;
     if (input.action === "add-note") {
-      result = await prisma.contactNote.create({
-        data: {
-          submissionId: input.submissionId,
-          body: input.body,
-          actorId: session.user.id,
-        },
-      });
       entityType = "ContactNote";
-    } else if (input.action === "add-meeting") {
-      result = await prisma.contactMeeting.create({
-        data: {
-          submissionId: input.submissionId,
-          occurredAt: new Date(input.occurredAt),
-          summary: input.summary,
-          nextStep: input.nextStep,
+      result = await runAuditedMutation(
+        (tx) =>
+          tx.contactNote.create({
+            data: {
+              submissionId: input.submissionId,
+              body: input.body,
+              actorId: session.user.id,
+            },
+          }),
+        (saved) => ({
           actorId: session.user.id,
-        },
-      });
+          action: "CREATE",
+          entityType,
+          entityId: saved.id,
+        }),
+      );
+    } else if (input.action === "add-meeting") {
       entityType = "ContactMeeting";
+      result = await runAuditedMutation(
+        (tx) =>
+          tx.contactMeeting.create({
+            data: {
+              submissionId: input.submissionId,
+              occurredAt: new Date(input.occurredAt),
+              summary: input.summary,
+              nextStep: input.nextStep,
+              actorId: session.user.id,
+            },
+          }),
+        (saved) => ({
+          actorId: session.user.id,
+          action: "CREATE",
+          entityType,
+          entityId: saved.id,
+        }),
+      );
     } else if (input.action === "add-reminder") {
       const consent = await prisma.consentRecord.findFirst({
         where: {
@@ -133,24 +151,42 @@ export async function POST(request: Request) {
           { error: "This contact did not grant follow-up consent" },
           { status: 409 },
         );
-      result = await prisma.followUpReminder.create({
-        data: {
-          submissionId: input.submissionId,
-          dueAt: new Date(input.dueAt),
-          note: input.note,
+      entityType = "FollowUpReminder";
+      result = await runAuditedMutation(
+        (tx) =>
+          tx.followUpReminder.create({
+            data: {
+              submissionId: input.submissionId,
+              dueAt: new Date(input.dueAt),
+              note: input.note,
+              actorId: session.user.id,
+            },
+          }),
+        (saved) => ({
           actorId: session.user.id,
-        },
-      });
-      entityType = "FollowUpReminder";
+          action: "CREATE",
+          entityType,
+          entityId: saved.id,
+        }),
+      );
     } else if (input.action === "set-reminder-state") {
-      result = await prisma.followUpReminder.update({
-        where: { id: input.id },
-        data: {
-          state: input.state,
-          completedAt: input.state === "COMPLETED" ? new Date() : null,
-        },
-      });
       entityType = "FollowUpReminder";
+      result = await runAuditedMutation(
+        (tx) =>
+          tx.followUpReminder.update({
+            where: { id: input.id },
+            data: {
+              state: input.state,
+              completedAt: input.state === "COMPLETED" ? new Date() : null,
+            },
+          }),
+        (saved) => ({
+          actorId: session.user.id,
+          action: "UPDATE",
+          entityType,
+          entityId: saved.id,
+        }),
+      );
     } else if (input.action === "queue-suggestion") {
       const finding = (await getStudioHealthFindings()).find(
         (item) => item.id === input.findingId,
@@ -169,54 +205,71 @@ export async function POST(request: Request) {
           { error: "This finding already awaits review" },
           { status: 409 },
         );
-      result = await prisma.studioSuggestion.create({
-        data: {
-          findingId: finding.id,
-          title: finding.title,
-          rationale: finding.detail,
-          proposedAction: finding.proposedAction,
-          evidence: finding.evidence,
-        },
-      });
       entityType = "StudioSuggestion";
+      result = await runAuditedMutation(
+        (tx) =>
+          tx.studioSuggestion.create({
+            data: {
+              findingId: finding.id,
+              title: finding.title,
+              rationale: finding.detail,
+              proposedAction: finding.proposedAction,
+              evidence: finding.evidence,
+            },
+          }),
+        (saved) => ({
+          actorId: session.user.id,
+          action: "CREATE",
+          entityType,
+          entityId: saved.id,
+        }),
+      );
     } else if (input.action === "review-suggestion") {
-      result = await prisma.studioSuggestion.update({
-        where: { id: input.id },
-        data: {
-          state: input.state,
-          reviewedBy: session.user.id,
-          reviewedAt: new Date(),
-        },
-      });
       entityType = "StudioSuggestion";
+      result = await runAuditedMutation(
+        (tx) =>
+          tx.studioSuggestion.update({
+            where: { id: input.id },
+            data: {
+              state: input.state,
+              reviewedBy: session.user.id,
+              reviewedAt: new Date(),
+            },
+          }),
+        (saved) => ({
+          actorId: session.user.id,
+          action: "UPDATE",
+          entityType,
+          entityId: saved.id,
+        }),
+      );
     } else {
       if (new Date(input.restoreTestedAt) < new Date(input.backupCreatedAt))
         return NextResponse.json(
           { error: "Restore test cannot predate the backup" },
           { status: 400 },
         );
-      result = await prisma.recoveryVerification.create({
-        data: {
-          backupLabel: input.backupLabel,
-          backupCreatedAt: new Date(input.backupCreatedAt),
-          restoreTestedAt: new Date(input.restoreTestedAt),
-          outcome: input.outcome,
-          notes: input.notes,
-          actorId: session.user.id,
-        },
-      });
       entityType = "RecoveryVerification";
+      result = await runAuditedMutation(
+        (tx) =>
+          tx.recoveryVerification.create({
+            data: {
+              backupLabel: input.backupLabel,
+              backupCreatedAt: new Date(input.backupCreatedAt),
+              restoreTestedAt: new Date(input.restoreTestedAt),
+              outcome: input.outcome,
+              notes: input.notes,
+              actorId: session.user.id,
+            },
+          }),
+        (saved) => ({
+          actorId: session.user.id,
+          action: "CREATE",
+          entityType,
+          entityId: saved.id,
+        }),
+      );
     }
-    await recordAudit({
-      actorId: session.user.id,
-      action:
-        input.action === "set-reminder-state" ||
-        input.action === "review-suggestion"
-          ? "UPDATE"
-          : "CREATE",
-      entityType,
-      entityId: result.id,
-    });
     return NextResponse.json({ ok: true, result });
   } catch (error) {
     return NextResponse.json(

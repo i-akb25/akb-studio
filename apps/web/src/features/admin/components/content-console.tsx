@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 
 type Preview = {
@@ -12,6 +13,7 @@ type Preview = {
 };
 
 export function ContentConsole() {
+  const router = useRouter();
   const [preview, setPreview] = useState<Preview | null>(null);
   const [result, setResult] = useState("");
   const [busy, setBusy] = useState(false);
@@ -31,32 +33,36 @@ export function ContentConsole() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const form = event.currentTarget;
     if (!preview) {
-      buildPreview(event.currentTarget);
+      buildPreview(form);
       return;
     }
 
     setBusy(true);
     setResult("");
 
-    const response = await fetch("/api/admin/content/publish", {
-      method: "POST",
-      body: new FormData(event.currentTarget),
-    });
+    try {
+      const response = await fetch("/api/admin/content/publish", {
+        method: "POST",
+        body: new FormData(form),
+      });
 
-    const data = (await response.json()) as {
-      error?: string;
-      canonicalPath?: string;
-    };
+      const data = (await response.json().catch(() => null)) as {
+        error?: string;
+        canonicalPath?: string;
+      } | null;
+      if (!response.ok) throw new Error(data?.error ?? "Publication failed.");
 
-    setBusy(false);
-    setResult(
-      response.ok
-        ? `Published: ${data.canonicalPath}`
-        : (data.error ?? "Publication failed."),
-    );
-
-    if (response.ok) setPreview(null);
+      setResult(`Published: ${data?.canonicalPath ?? "content updated"}`);
+      setPreview(null);
+      form.reset();
+      router.refresh();
+    } catch (error) {
+      setResult(error instanceof Error ? error.message : "Publication failed.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (

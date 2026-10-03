@@ -23,17 +23,18 @@ export type ResumeProfile = {
   canonicalPdf: string;
 };
 
-export const unconfiguredResumeProfile: ResumeProfile = {
-  name: "AKB Studio",
-  headline: "Interactive resume source not configured",
-  location: "",
-  summary: "Added the private local resume source to populate this view.",
+export const safeResumeProfile: ResumeProfile = {
+  name: "Anurag Kumar Bharti",
+  headline: "Software Engineer · Electrical & Automation Engineer",
+  location: "Bihar, India",
+  summary:
+    "Electrical Engineering graduate working across software, industrial systems, automation and robotics.",
   education: {
-    institution: "Not configured",
-    qualification: "Local resume source required",
-    period: "",
+    institution: "National Institute of Technology Patna",
+    qualification: "Bachelor of Technology in Electrical Engineering",
+    period: "December 2021 — June 2025",
     evidenceUrl: "/about",
   },
   experiences: [],
-  canonicalPdf: "/contact",
+  canonicalPdf: "/resume/anurag-kumar-bharti-resume.pdf",
 };

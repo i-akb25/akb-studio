@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { assertSameOrigin, canAdmin } from "@/features/admin/server/admin-auth";
+import {
+  assertSameOrigin,
+  canAdmin,
+  getAdminSession,
+} from "@/features/admin/server/admin-auth";
+import { runAuditedMutation } from "@/features/admin/server/audit";
 import { extractDocumentText } from "@/features/admin/server/document-parser";
 import {
   deleteAdminMedia,
@@ -12,6 +17,9 @@ export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   if (!(await canAdmin("media:write")))
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await getAdminSession();
+  if (!session)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   let uploadedProviderId: string | undefined;
   let uploadedResourceType: string | undefined;
@@ -84,26 +92,34 @@ export async function POST(request: Request) {
       altText,
       state: "READY" as const,
     };
-    const asset = await prisma.$transaction(async (tx) => {
-      const stored = replacement
-        ? await tx.mediaAsset.update({
-            where: { id: replacement.id },
-            data,
-          })
-        : await tx.mediaAsset.create({ data });
-      await tx.mediaExtraction.deleteMany({
-        where: { mediaAssetId: stored.id },
-      });
-      if (extractedText)
-        await tx.mediaExtraction.create({
-          data: {
-            mediaAssetId: stored.id,
-            plainText: extractedText,
-            contentHash: prepared.checksum,
-          },
+    const asset = await runAuditedMutation(
+      async (tx) => {
+        const stored = replacement
+          ? await tx.mediaAsset.update({
+              where: { id: replacement.id },
+              data,
+            })
+          : await tx.mediaAsset.create({ data });
+        await tx.mediaExtraction.deleteMany({
+          where: { mediaAssetId: stored.id },
         });
-      return stored;
-    });
+        if (extractedText)
+          await tx.mediaExtraction.create({
+            data: {
+              mediaAssetId: stored.id,
+              plainText: extractedText,
+              contentHash: prepared.checksum,
+            },
+          });
+        return stored;
+      },
+      (stored) => ({
+        actorId: session.user.id,
+        action: replacement ? "UPDATE" : "CREATE",
+        entityType: "MediaAsset",
+        entityId: stored.id,
+      }),
+    );
     uploadedProviderId = undefined;
     uploadedResourceType = undefined;
     if (replacement)
@@ -126,6 +142,9 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   if (!(await canAdmin("media:write")))
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await getAdminSession();
+  if (!session)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
     assertSameOrigin(request);
@@ -159,17 +178,35 @@ export async function DELETE(request: Request) {
       { error: "Replace or detach this asset before deletion" },
       { status: 409 },
     );
-  await prisma.mediaAsset.update({
-    where: { id },
-    data: { state: "DELETED", deletedAt: new Date() },
-  });
+  await runAuditedMutation(
+    (tx) =>
+      tx.mediaAsset.update({
+        where: { id },
+        data: { state: "DELETED", deletedAt: new Date() },
+      }),
+    (stored) => ({
+      actorId: session.user.id,
+      action: "DELETE",
+      entityType: "MediaAsset",
+      entityId: stored.id,
+    }),
+  );
   try {
     await deleteAdminMedia(asset.providerId, asset.resourceType);
   } catch {
-    await prisma.mediaAsset.update({
-      where: { id },
-      data: { state: "QUARANTINED" },
-    });
+    await runAuditedMutation(
+      (tx) =>
+        tx.mediaAsset.update({
+          where: { id },
+          data: { state: "QUARANTINED" },
+        }),
+      (stored) => ({
+        actorId: session.user.id,
+        action: "UPDATE",
+        entityType: "MediaAsset",
+        entityId: stored.id,
+      }),
+    );
     return NextResponse.json(
       {
         error:

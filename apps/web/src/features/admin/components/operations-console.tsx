@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 
 async function send(payload: Record<string, unknown>) {
@@ -31,6 +32,7 @@ function StateSelect() {
 }
 
 export function OperationsConsole() {
+  const router = useRouter();
   const [status, setStatus] = useState("");
   async function run(
     event: FormEvent<HTMLFormElement>,
@@ -39,10 +41,14 @@ export function OperationsConsole() {
     ) => Record<string, unknown>,
   ) {
     event.preventDefault();
+    const form = event.currentTarget;
+    const formValues = values(form);
     setStatus("Saving…");
     try {
-      await send(build(values(event.currentTarget)));
+      await send(build(formValues));
+      form.reset();
       setStatus("Saved and recorded in the audit log.");
+      router.refresh();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Save failed");
     }

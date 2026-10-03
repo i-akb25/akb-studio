@@ -1,5 +1,8 @@
 import { ContentConsole } from "@/features/admin/components/content-console";
-export default function AdminContentPage() {
+import { getAdminContentEntries } from "@/features/content/server/content-source";
+
+export default async function AdminContentPage() {
+  const entries = await getAdminContentEntries();
   return (
     <main className="akb-admin-page">
       <header className="akb-admin-page__header">
@@ -10,7 +13,7 @@ export default function AdminContentPage() {
           behavior and publish.
         </p>
       </header>
-      <ContentConsole />
+      <ContentConsole entries={entries} />
     </main>
   );
 }

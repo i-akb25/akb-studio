@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { ProjectCaseStudy } from "@/features/projects/components/project-case-study";
+import { ProjectOverview } from "@/features/projects/components/project-overview";
 import { getGitHubProjectBySlug } from "@/features/projects/server/github-project-source";
+import { getProjectRegistry } from "@/features/projects/server/resolve-project-registry";
 import { createPageMetadata } from "@/features/seo/site-config";
 import {
   projectStructuredData,
@@ -21,16 +23,30 @@ export async function generateMetadata({
   params,
 }: ProjectCaseStudyPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const document = await getGitHubProjectBySlug(slug);
+  const [document, projects] = await Promise.all([
+    getGitHubProjectBySlug(slug).catch(() => null),
+    getProjectRegistry(),
+  ]);
+  const record = projects.find((project) => project.slug === slug);
 
   if (!document) {
-    return {
-      title: "Project not found",
-      robots: {
-        index: false,
-        follow: false,
-      },
-    };
+    if (!record) {
+      return {
+        title: "Project not found",
+        robots: {
+          index: false,
+          follow: false,
+        },
+      };
+    }
+    return createPageMetadata({
+      title: `${record.title} — Project`,
+      description: record.summary,
+      path: `/projects/${record.slug}`,
+      ...(record.cover
+        ? { image: record.cover.src, imageAlt: record.cover.alt }
+        : {}),
+    });
   }
 
   const { frontmatter, repository } = document;
@@ -73,10 +89,15 @@ export default async function ProjectCaseStudyPage({
   params,
 }: ProjectCaseStudyPageProps) {
   const { slug } = await params;
-  const document = await getGitHubProjectBySlug(slug);
+  const [document, projects] = await Promise.all([
+    getGitHubProjectBySlug(slug).catch(() => null),
+    getProjectRegistry(),
+  ]);
+  const record = projects.find((project) => project.slug === slug);
 
   if (!document) {
-    notFound();
+    if (!record) notFound();
+    return <ProjectOverview project={record} />;
   }
 
   const { frontmatter, repository } = document;

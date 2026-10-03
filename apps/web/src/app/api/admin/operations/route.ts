@@ -1,5 +1,7 @@
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { adminErrorResponse } from "@/features/admin/server/admin-api-response";
 import {
   assertSameOrigin,
   getAdminSession,
@@ -60,6 +62,7 @@ const project = base.extend({
   demoUrl: z.string().url().optional(),
   coverAssetId: z.string().optional(),
   order: z.number().int().min(0).max(1000),
+  homepageOrder: z.number().int().min(1).max(99).nullable(),
   featured: z.boolean(),
   aevaApproved: z.boolean(),
   state,
@@ -120,6 +123,11 @@ export async function POST(request: Request) {
   }
   try {
     const input = jsonBody(await readJsonBody(request, 32_768));
+    if (
+      input.resource !== "contact" &&
+      !["owner", "editor"].includes(session.role)
+    )
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     if (input.resource === "profile") {
       const result = await runAuditedMutation(
         (tx) =>
@@ -154,6 +162,8 @@ export async function POST(request: Request) {
           entityId: saved.id,
         }),
       );
+      revalidatePath("/");
+      revalidatePath("/about");
       return NextResponse.json({ ok: true, result });
     }
     if (input.resource === "availability") {
@@ -194,6 +204,8 @@ export async function POST(request: Request) {
           entityId: saved.id,
         }),
       );
+      revalidatePath("/");
+      revalidatePath("/contact");
       return NextResponse.json({ ok: true, result });
     }
     if (input.resource === "reflection") {
@@ -234,6 +246,7 @@ export async function POST(request: Request) {
           entityId: saved.id,
         }),
       );
+      revalidatePath("/");
       return NextResponse.json({ ok: true, result });
     }
     if (input.resource === "project") {
@@ -253,6 +266,7 @@ export async function POST(request: Request) {
               period: input.period,
               coverAssetId: input.coverAssetId,
               order: input.order,
+              homepageOrder: input.homepageOrder,
               featured: input.featured,
               aevaApproved: input.aevaApproved,
               state: input.state,
@@ -269,6 +283,7 @@ export async function POST(request: Request) {
               period: input.period,
               coverAssetId: input.coverAssetId || null,
               order: input.order,
+              homepageOrder: input.homepageOrder,
               featured: input.featured,
               aevaApproved: input.aevaApproved,
               state: input.state,
@@ -318,6 +333,9 @@ export async function POST(request: Request) {
           entityId: saved.id,
         }),
       );
+      revalidatePath("/");
+      revalidatePath("/projects");
+      revalidatePath(`/projects/${input.slug}`);
       return NextResponse.json({ ok: true, result });
     }
     if (input.resource === "gallery") {
@@ -344,6 +362,7 @@ export async function POST(request: Request) {
           entityId: saved.id,
         }),
       );
+      revalidatePath("/about");
       return NextResponse.json({ ok: true, result });
     }
     if (input.resource === "gallery-item") {
@@ -380,6 +399,7 @@ export async function POST(request: Request) {
           entityId: saved.id,
         }),
       );
+      revalidatePath("/about");
       return NextResponse.json({ ok: true, result });
     }
     if (session.role !== "owner" && session.role !== "moderator")
@@ -413,15 +433,9 @@ export async function POST(request: Request) {
     );
     return NextResponse.json({ ok: true, result });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: "The submitted fields are invalid." },
-        { status: 400 },
-      );
-    }
-    return NextResponse.json(
-      { error: "The operation could not be completed." },
-      { status: 400 },
-    );
+    return adminErrorResponse(error, {
+      event: "admin_operation_failed",
+      fallback: "The change could not be saved. Refresh and try again.",
+    });
   }
 }

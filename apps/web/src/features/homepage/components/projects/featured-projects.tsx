@@ -37,11 +37,7 @@ function HomepageProjectCard({ project }: { project: HomepageProject }) {
       technologies={project.technologies}
       liveUrl={getAvailableLink(project, "demo")}
       repositoryUrl={getAvailableLink(project, "repository")}
-      caseStudyUrl={
-        project.caseStudyState === "published"
-          ? `/projects/${project.slug}`
-          : undefined
-      }
+      caseStudyUrl={`/projects/${project.slug}`}
     />
   );
 }

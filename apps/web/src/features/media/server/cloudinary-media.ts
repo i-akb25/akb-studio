@@ -15,6 +15,7 @@ const IMAGE_TYPES = new Set([
 ]);
 const DOCUMENT_TYPES = new Set([
   "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "text/markdown",
   "text/plain",
 ]);
@@ -59,6 +60,11 @@ function hasExpectedSignature(buffer: Buffer, mimeType: string): boolean {
     );
   if (mimeType === "application/pdf")
     return buffer.toString("ascii", 0, 5) === "%PDF-";
+  if (
+    mimeType ===
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  )
+    return buffer.subarray(0, 4).equals(Buffer.from([0x50, 0x4b, 0x03, 0x04]));
   if (mimeType === "video/mp4")
     return buffer.toString("ascii", 4, 8) === "ftyp";
   if (mimeType === "video/webm")

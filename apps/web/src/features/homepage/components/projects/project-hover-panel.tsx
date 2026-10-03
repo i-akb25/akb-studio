@@ -202,7 +202,7 @@ export function ProjectHoverPanel({
               href={caseStudyUrl}
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-white/24 px-4 py-2 text-xs font-semibold tracking-[0.04em] text-white transition-colors duration-200 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black motion-reduce:transition-none"
             >
-              Read case study
+              View project
               <ArrowUpRight
                 aria-hidden="true"
                 className="size-3.5"

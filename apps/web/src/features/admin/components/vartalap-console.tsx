@@ -17,18 +17,32 @@ type Item = {
 export function VartalapConsole() {
   const [items, setItems] = useState<Item[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [status, setStatus] = useState("");
 
   const refresh = useCallback(async () => {
     const response = await fetch("/api/admin/vartalap", {
       cache: "no-store",
     });
 
-    const result = (await response.json()) as { data?: Item[] };
-    setItems(result.data ?? []);
+    const result = (await response.json().catch(() => null)) as {
+      data?: Item[];
+      error?: string;
+    } | null;
+    if (!response.ok)
+      throw new Error(
+        result?.error ?? "Vartalap submissions could not be loaded.",
+      );
+    setItems(result?.data ?? []);
   }, []);
 
   useEffect(() => {
-    void refresh();
+    void refresh().catch((error: unknown) => {
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "Vartalap submissions could not be loaded.",
+      );
+    });
   }, [refresh]);
 
   async function submit(event: FormEvent<HTMLFormElement>, questionId: string) {
@@ -36,9 +50,10 @@ export function VartalapConsole() {
 
     const data = new FormData(event.currentTarget);
     setBusyId(questionId);
+    setStatus("Saving response…");
 
     try {
-      await fetch("/api/admin/vartalap", {
+      const response = await fetch("/api/admin/vartalap", {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -49,8 +64,22 @@ export function VartalapConsole() {
           public: data.get("public") === "on",
         }),
       });
+      const result = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      if (!response.ok)
+        throw new Error(
+          result?.error ?? "The Vartalap response was not saved.",
+        );
 
       await refresh();
+      setStatus("Vartalap response saved.");
+    } catch (error) {
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "The Vartalap response was not saved.",
+      );
     } finally {
       setBusyId(null);
     }
@@ -58,6 +87,7 @@ export function VartalapConsole() {
 
   return (
     <div className="akb-admin-vartalap">
+      <output aria-live="polite">{status}</output>
       {items.length === 0 ? (
         <section className="akb-admin-empty">
           <span className="akb-folio">VARTALAP INBOX</span>

@@ -3,10 +3,20 @@
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 
-export function MediaConsole() {
+type MediaAsset = {
+  id: string;
+  originalName: string | null;
+  mimeType: string;
+  bytes: number;
+  secureUrl: string;
+  altText: string;
+};
+
+export function MediaConsole({ assets }: { assets: MediaAsset[] }) {
   const router = useRouter();
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   async function upload(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -35,43 +45,117 @@ export function MediaConsole() {
       setBusy(false);
     }
   }
+  async function remove(id: string) {
+    if (!window.confirm("Remove this unused asset from the media library?"))
+      return;
+    setDeletingId(id);
+    setStatus("Removing asset…");
+    try {
+      const response = await fetch(
+        `/api/admin/media?id=${encodeURIComponent(id)}`,
+        { method: "DELETE" },
+      );
+      const result = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      if (!response.ok)
+        throw new Error(result?.error ?? "The asset could not be removed.");
+      setStatus("Asset removed.");
+      router.refresh();
+    } catch (error) {
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "The asset could not be removed.",
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  }
   return (
-    <form className="akb-admin-login" onSubmit={upload}>
-      <label>
-        <span>Image, audio, video or document</span>
-        <input
-          type="file"
-          name="file"
-          accept="image/jpeg,image/png,image/webp,image/avif,video/mp4,video/webm,audio/mpeg,audio/ogg,audio/wav,audio/mp4,application/pdf,text/markdown,text/plain"
-          required
-        />
-      </label>
-      <label>
-        <span>Accessible description</span>
-        <input name="altText" minLength={3} maxLength={240} required />
-      </label>
-      <label>
-        <span>Collection</span>
-        <select name="folder">
-          <option value="profile">Profile</option>
-          <option value="travel">Travel</option>
-          <option value="painting">Painting</option>
-          <option value="photography">Photography</option>
-          <option value="design">Design</option>
-          <option value="projects">Projects</option>
-          <option value="reflections">Reflections</option>
-          <option value="documents">Documents</option>
-          <option value="music">Portfolio music</option>
-        </select>
-      </label>
-      <label>
-        <span>Replace existing asset ID (optional)</span>
-        <input name="replaceId" />
-      </label>
-      <button type="submit" disabled={busy}>
-        {busy ? "Uploading…" : "Upload media"}
-      </button>
-      <output aria-live="polite">{status}</output>
-    </form>
+    <section>
+      <form className="akb-admin-login" onSubmit={upload}>
+        <label>
+          <span>Image, audio, video or document</span>
+          <input
+            type="file"
+            name="file"
+            accept="image/jpeg,image/png,image/webp,image/avif,video/mp4,video/webm,audio/mpeg,audio/ogg,audio/wav,audio/mp4,application/pdf,.docx,text/markdown,text/plain"
+            required
+          />
+        </label>
+        <label>
+          <span>Accessible description</span>
+          <input name="altText" minLength={3} maxLength={240} required />
+        </label>
+        <label>
+          <span>Collection</span>
+          <select name="folder">
+            <option value="profile">Profile</option>
+            <option value="travel">Travel</option>
+            <option value="painting">Painting</option>
+            <option value="photography">Photography</option>
+            <option value="design">Design</option>
+            <option value="projects">Projects</option>
+            <option value="reflections">Reflections</option>
+            <option value="documents">Documents</option>
+            <option value="music">Portfolio music</option>
+          </select>
+        </label>
+        <label>
+          <span>Replace an existing asset (optional)</span>
+          <select name="replaceId" defaultValue="">
+            <option value="">Create a new asset</option>
+            {assets.map((asset) => (
+              <option key={asset.id} value={asset.id}>
+                {asset.originalName ?? asset.id} · {asset.mimeType}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button type="submit" disabled={busy}>
+          {busy ? "Uploading…" : "Upload media"}
+        </button>
+        <output aria-live="polite">{status}</output>
+      </form>
+
+      <div className="akb-admin-list">
+        <h2>Current media assets</h2>
+        {assets.length ? (
+          assets.map((asset) => (
+            <article key={asset.id}>
+              <div>
+                <h3>{asset.originalName ?? "Unnamed asset"}</h3>
+                <p>
+                  {asset.mimeType} · {(asset.bytes / 1024).toFixed(1)} KB
+                </p>
+                <p>{asset.altText}</p>
+                <p>
+                  Asset ID: <code>{asset.id}</code>
+                </p>
+              </div>
+              <div>
+                <a
+                  href={asset.secureUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Open asset
+                </a>
+                <button
+                  type="button"
+                  disabled={deletingId === asset.id}
+                  onClick={() => remove(asset.id)}
+                >
+                  {deletingId === asset.id ? "Removing…" : "Remove"}
+                </button>
+              </div>
+            </article>
+          ))
+        ) : (
+          <p>No media assets have been uploaded.</p>
+        )}
+      </div>
+    </section>
   );
 }

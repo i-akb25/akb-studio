@@ -128,6 +128,7 @@ function ProjectEntry({
 }) {
   const caseStudyHref = `/projects/${project.slug}`;
   const hasPublishedCaseStudy = project.caseStudyState === "published";
+  const hasProjectPage = project.publication === "published";
 
   return (
     <article
@@ -161,7 +162,7 @@ function ProjectEntry({
           </p>
         </div>
 
-        {hasPublishedCaseStudy ? (
+        {hasProjectPage ? (
           <h3
             id={`${project.slug}-title`}
             className="mt-4 text-2xl leading-tight font-semibold tracking-[-0.035em] text-foreground sm:text-3xl"
@@ -268,12 +269,12 @@ function ProjectEntry({
             />
           ))}
 
-          {hasPublishedCaseStudy ? (
+          {hasProjectPage ? (
             <Link
               href={caseStudyHref}
               className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-foreground underline decoration-foreground/25 underline-offset-4 transition-colors duration-200 hover:decoration-foreground/75 focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-4 focus-visible:ring-offset-background motion-reduce:transition-none"
             >
-              {getCaseStudyLabel(project)}
+              {hasPublishedCaseStudy ? "Read case study" : "View project"}
               <ArrowUpRight
                 aria-hidden="true"
                 className="size-3.5"

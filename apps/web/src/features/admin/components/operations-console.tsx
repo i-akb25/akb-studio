@@ -3,6 +3,63 @@
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 
+type ContentState = "DRAFT" | "SCHEDULED" | "PUBLISHED" | "ARCHIVED";
+
+export type OperationsInitialData = {
+  profile: {
+    displayName: string;
+    headline: string;
+    biography: string;
+    location: string | null;
+    email: string | null;
+    dpAssetId: string | null;
+    state: ContentState;
+  } | null;
+  availability: {
+    label: string;
+    summary: string;
+    available: boolean;
+    validUntil: string | null;
+    state: ContentState;
+  } | null;
+  projects: Array<{
+    slug: string;
+    title: string;
+    categoryLabel: string;
+    summary: string;
+    disciplines: string[];
+    tier: string;
+    lifecycle: string;
+    role: string | null;
+    period: string | null;
+    technologies: string[];
+    repositoryUrl: string | null;
+    demoUrl: string | null;
+    coverAssetId: string | null;
+    order: number;
+    homepageOrder: number | null;
+    featured: boolean;
+    aevaApproved: boolean;
+    state: ContentState;
+  }>;
+  reflections: Array<{
+    slug: string;
+    sanskrit: string;
+    transliteration: string;
+    translation: string;
+    interpretation: string;
+    source: string | null;
+    reflectionDate: string | null;
+    state: ContentState;
+  }>;
+  galleries: Array<{
+    slug: string;
+    title: string;
+    description: string | null;
+    state: ContentState;
+  }>;
+};
+
 async function send(payload: Record<string, unknown>) {
   const response = await fetch("/api/admin/operations", {
     method: "POST",
@@ -17,11 +74,11 @@ function values(form: HTMLFormElement) {
   return Object.fromEntries(new FormData(form).entries());
 }
 
-function StateSelect() {
+function StateSelect({ value = "DRAFT" }: { value?: ContentState }) {
   return (
     <label>
       <span>Publishing state</span>
-      <select name="state" defaultValue="DRAFT">
+      <select name="state" defaultValue={value}>
         <option>DRAFT</option>
         <option>SCHEDULED</option>
         <option>PUBLISHED</option>
@@ -31,9 +88,32 @@ function StateSelect() {
   );
 }
 
-export function OperationsConsole() {
+function localDateTime(value: string | null | undefined): string {
+  if (!value) return "";
+  const date = new Date(value);
+  const offset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+}
+
+export function OperationsConsole({
+  initialData,
+}: {
+  initialData: OperationsInitialData;
+}) {
   const router = useRouter();
   const [status, setStatus] = useState("");
+  const [projectSlug, setProjectSlug] = useState("");
+  const [reflectionSlug, setReflectionSlug] = useState("");
+  const [gallerySlug, setGallerySlug] = useState("");
+  const selectedProject = initialData.projects.find(
+    (item) => item.slug === projectSlug,
+  );
+  const selectedReflection = initialData.reflections.find(
+    (item) => item.slug === reflectionSlug,
+  );
+  const selectedGallery = initialData.galleries.find(
+    (item) => item.slug === gallerySlug,
+  );
   async function run(
     event: FormEvent<HTMLFormElement>,
     build: (
@@ -46,7 +126,6 @@ export function OperationsConsole() {
     setStatus("Saving…");
     try {
       await send(build(formValues));
-      form.reset();
       setStatus("Saved and recorded in the audit log.");
       router.refresh();
     } catch (error) {
@@ -74,29 +153,51 @@ export function OperationsConsole() {
         >
           <label>
             <span>Display name</span>
-            <input name="displayName" required />
+            <input
+              name="displayName"
+              defaultValue={initialData.profile?.displayName}
+              required
+            />
           </label>
           <label>
             <span>Headline</span>
-            <input name="headline" required />
+            <input
+              name="headline"
+              defaultValue={initialData.profile?.headline}
+              required
+            />
           </label>
           <label>
             <span>Biography</span>
-            <textarea name="biography" required />
+            <textarea
+              name="biography"
+              defaultValue={initialData.profile?.biography}
+              required
+            />
           </label>
           <label>
             <span>Location</span>
-            <input name="location" />
+            <input
+              name="location"
+              defaultValue={initialData.profile?.location ?? ""}
+            />
           </label>
           <label>
             <span>Public email</span>
-            <input name="email" type="email" />
+            <input
+              name="email"
+              type="email"
+              defaultValue={initialData.profile?.email ?? ""}
+            />
           </label>
           <label>
             <span>DP media asset ID</span>
-            <input name="dpAssetId" />
+            <input
+              name="dpAssetId"
+              defaultValue={initialData.profile?.dpAssetId ?? ""}
+            />
           </label>
-          <StateSelect />
+          <StateSelect value={initialData.profile?.state} />
           <button type="submit">Save profile</button>
         </form>
       </section>
@@ -116,27 +217,59 @@ export function OperationsConsole() {
         >
           <label>
             <span>Status label</span>
-            <input name="label" required />
+            <input
+              name="label"
+              defaultValue={initialData.availability?.label}
+              required
+            />
           </label>
           <label>
             <span>Summary</span>
-            <textarea name="summary" required />
+            <textarea
+              name="summary"
+              defaultValue={initialData.availability?.summary}
+              required
+            />
           </label>
           <label>
-            <input name="available" type="checkbox" /> Available for
-            opportunities
+            <input
+              name="available"
+              type="checkbox"
+              defaultChecked={initialData.availability?.available}
+            />{" "}
+            Available for opportunities
           </label>
           <label>
             <span>Public status expires</span>
-            <input name="validUntil" type="datetime-local" required />
+            <input
+              name="validUntil"
+              type="datetime-local"
+              defaultValue={localDateTime(initialData.availability?.validUntil)}
+              required
+            />
           </label>
-          <StateSelect />
+          <StateSelect value={initialData.availability?.state} />
           <button type="submit">Update availability</button>
         </form>
       </section>
       <section>
         <h2>Project registry</h2>
+        <label>
+          <span>Edit an existing project or create a new one</span>
+          <select
+            value={projectSlug}
+            onChange={(event) => setProjectSlug(event.target.value)}
+          >
+            <option value="">Create a new project</option>
+            {initialData.projects.map((project) => (
+              <option key={project.slug} value={project.slug}>
+                {project.title} ({project.slug})
+              </option>
+            ))}
+          </select>
+        </label>
         <form
+          key={selectedProject?.slug ?? "new-project"}
           onSubmit={(event) =>
             run(event, (d) => ({
               resource: "project",
@@ -160,6 +293,7 @@ export function OperationsConsole() {
               demoUrl: d.demoUrl || undefined,
               coverAssetId: d.coverAssetId || undefined,
               order: Number(d.order),
+              homepageOrder: d.homepageOrder ? Number(d.homepageOrder) : null,
               featured: d.featured === "on",
               aevaApproved: d.aevaApproved === "on",
               state: d.state,
@@ -168,27 +302,44 @@ export function OperationsConsole() {
         >
           <label>
             <span>Slug</span>
-            <input name="slug" required />
+            <input name="slug" defaultValue={selectedProject?.slug} required />
           </label>
           <label>
             <span>Title</span>
-            <input name="title" required />
+            <input
+              name="title"
+              defaultValue={selectedProject?.title}
+              required
+            />
           </label>
           <label>
             <span>Category</span>
-            <input name="categoryLabel" required />
+            <input
+              name="categoryLabel"
+              defaultValue={selectedProject?.categoryLabel}
+              required
+            />
           </label>
           <label>
             <span>Summary</span>
-            <textarea name="summary" required />
+            <textarea
+              name="summary"
+              defaultValue={selectedProject?.summary}
+              required
+            />
           </label>
           <label>
             <span>Disciplines, comma separated</span>
-            <input name="disciplines" placeholder="software, ai" required />
+            <input
+              name="disciplines"
+              placeholder="software, ai"
+              defaultValue={selectedProject?.disciplines.join(", ")}
+              required
+            />
           </label>
           <label>
             <span>Tier</span>
-            <select name="tier">
+            <select name="tier" defaultValue={selectedProject?.tier}>
               <option>flagship</option>
               <option>standard</option>
               <option>compact</option>
@@ -197,49 +348,113 @@ export function OperationsConsole() {
           </label>
           <label>
             <span>Lifecycle</span>
-            <input name="lifecycle" required />
+            <select
+              name="lifecycle"
+              defaultValue={selectedProject?.lifecycle ?? "active"}
+            >
+              <option value="active">Active</option>
+              <option value="completed">Completed</option>
+              <option value="in-progress">In progress</option>
+              <option value="under-review">Under review</option>
+              <option value="archived">Archived</option>
+            </select>
           </label>
           <label>
             <span>Role</span>
-            <input name="role" />
+            <input name="role" defaultValue={selectedProject?.role ?? ""} />
           </label>
           <label>
             <span>Period</span>
-            <input name="period" />
+            <input name="period" defaultValue={selectedProject?.period ?? ""} />
           </label>
           <label>
             <span>Technologies, comma separated</span>
-            <input name="technologies" required />
+            <input
+              name="technologies"
+              defaultValue={selectedProject?.technologies.join(", ")}
+              required
+            />
           </label>
           <label>
             <span>Repository URL</span>
-            <input name="repositoryUrl" type="url" />
+            <input
+              name="repositoryUrl"
+              type="url"
+              defaultValue={selectedProject?.repositoryUrl ?? ""}
+            />
           </label>
           <label>
             <span>Demo URL</span>
-            <input name="demoUrl" type="url" />
+            <input
+              name="demoUrl"
+              type="url"
+              defaultValue={selectedProject?.demoUrl ?? ""}
+            />
           </label>
           <label>
             <span>Cover media asset ID</span>
-            <input name="coverAssetId" />
+            <input
+              name="coverAssetId"
+              defaultValue={selectedProject?.coverAssetId ?? ""}
+            />
           </label>
           <label>
             <span>Order</span>
-            <input name="order" type="number" min="0" defaultValue="0" />
+            <input
+              name="order"
+              type="number"
+              min="0"
+              defaultValue={selectedProject?.order ?? 0}
+            />
           </label>
           <label>
-            <input name="featured" type="checkbox" /> Featured
+            <span>Homepage order (optional)</span>
+            <input
+              name="homepageOrder"
+              type="number"
+              min="1"
+              max="99"
+              defaultValue={selectedProject?.homepageOrder ?? ""}
+            />
           </label>
           <label>
-            <input name="aevaApproved" type="checkbox" /> Approved for Aeva
+            <input
+              name="featured"
+              type="checkbox"
+              defaultChecked={selectedProject?.featured}
+            />{" "}
+            Featured
           </label>
-          <StateSelect />
+          <label>
+            <input
+              name="aevaApproved"
+              type="checkbox"
+              defaultChecked={selectedProject?.aevaApproved}
+            />{" "}
+            Approved for Aeva
+          </label>
+          <StateSelect value={selectedProject?.state} />
           <button type="submit">Save project</button>
         </form>
       </section>
       <section>
         <h2>Daily Sanskrit Reflection</h2>
+        <label>
+          <span>Edit an existing reflection or create a new one</span>
+          <select
+            value={reflectionSlug}
+            onChange={(event) => setReflectionSlug(event.target.value)}
+          >
+            <option value="">Create a new reflection</option>
+            {initialData.reflections.map((reflection) => (
+              <option key={reflection.slug} value={reflection.slug}>
+                {reflection.slug}
+              </option>
+            ))}
+          </select>
+        </label>
         <form
+          key={selectedReflection?.slug ?? "new-reflection"}
           onSubmit={(event) =>
             run(event, (d) => ({
               resource: "reflection",
@@ -258,39 +473,81 @@ export function OperationsConsole() {
         >
           <label>
             <span>Slug</span>
-            <input name="slug" required />
+            <input
+              name="slug"
+              defaultValue={selectedReflection?.slug}
+              required
+            />
           </label>
           <label>
             <span>Sanskrit</span>
-            <textarea name="sanskrit" required />
+            <textarea
+              name="sanskrit"
+              defaultValue={selectedReflection?.sanskrit}
+              required
+            />
           </label>
           <label>
             <span>Transliteration</span>
-            <textarea name="transliteration" required />
+            <textarea
+              name="transliteration"
+              defaultValue={selectedReflection?.transliteration}
+              required
+            />
           </label>
           <label>
             <span>Translation</span>
-            <textarea name="translation" required />
+            <textarea
+              name="translation"
+              defaultValue={selectedReflection?.translation}
+              required
+            />
           </label>
           <label>
             <span>Interpretation</span>
-            <textarea name="interpretation" required />
+            <textarea
+              name="interpretation"
+              defaultValue={selectedReflection?.interpretation}
+              required
+            />
           </label>
           <label>
             <span>Source</span>
-            <input name="source" />
+            <input
+              name="source"
+              defaultValue={selectedReflection?.source ?? ""}
+            />
           </label>
           <label>
             <span>Reflection date</span>
-            <input name="reflectionDate" type="date" />
+            <input
+              name="reflectionDate"
+              type="date"
+              defaultValue={selectedReflection?.reflectionDate?.slice(0, 10)}
+            />
           </label>
-          <StateSelect />
+          <StateSelect value={selectedReflection?.state} />
           <button type="submit">Save reflection</button>
         </form>
       </section>
       <section>
         <h2>Creative gallery</h2>
+        <label>
+          <span>Edit an existing gallery or create a new one</span>
+          <select
+            value={gallerySlug}
+            onChange={(event) => setGallerySlug(event.target.value)}
+          >
+            <option value="">Create a new gallery</option>
+            {initialData.galleries.map((gallery) => (
+              <option key={gallery.slug} value={gallery.slug}>
+                {gallery.title} ({gallery.slug})
+              </option>
+            ))}
+          </select>
+        </label>
         <form
+          key={selectedGallery?.slug ?? "new-gallery"}
           onSubmit={(event) =>
             run(event, (d) => ({
               resource: "gallery",
@@ -303,17 +560,24 @@ export function OperationsConsole() {
         >
           <label>
             <span>Slug, such as travel or painting</span>
-            <input name="slug" required />
+            <input name="slug" defaultValue={selectedGallery?.slug} required />
           </label>
           <label>
             <span>Title</span>
-            <input name="title" required />
+            <input
+              name="title"
+              defaultValue={selectedGallery?.title}
+              required
+            />
           </label>
           <label>
             <span>Description</span>
-            <textarea name="description" />
+            <textarea
+              name="description"
+              defaultValue={selectedGallery?.description ?? ""}
+            />
           </label>
-          <StateSelect />
+          <StateSelect value={selectedGallery?.state} />
           <button type="submit">Save gallery</button>
         </form>
       </section>

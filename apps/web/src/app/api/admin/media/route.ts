@@ -1,4 +1,6 @@
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
+import { adminErrorResponse } from "@/features/admin/server/admin-api-response";
 import {
   assertSameOrigin,
   canAdmin,
@@ -63,7 +65,11 @@ export async function POST(request: Request) {
         asset: existing,
         deduplicated: true,
       });
-    const extractedText = ["text/plain", "text/markdown"].includes(file.type)
+    const extractedText = [
+      "text/plain",
+      "text/markdown",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ].includes(file.type)
       ? await extractDocumentText(file)
       : "";
     const uploaded = await uploadAdminMedia(
@@ -127,16 +133,18 @@ export async function POST(request: Request) {
         replacement.providerId,
         replacement.resourceType,
       ).catch(() => {});
+    revalidatePath("/admin/media");
     return NextResponse.json({ ok: true, asset }, { status: 201 });
-  } catch {
+  } catch (error) {
     if (uploadedProviderId && uploadedResourceType)
       await deleteAdminMedia(uploadedProviderId, uploadedResourceType).catch(
         () => {},
       );
-    return NextResponse.json(
-      { error: "The media file could not be uploaded." },
-      { status: 400 },
-    );
+    return adminErrorResponse(error, {
+      event: "admin_media_upload_failed",
+      fallback:
+        "The media file could not be uploaded. Verify the file type, 4 MB limit and Cloudinary configuration.",
+    });
   }
 }
 

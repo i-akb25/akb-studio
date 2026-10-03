@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { adminErrorResponse } from "@/features/admin/server/admin-api-response";
 import {
   assertSameOrigin,
   getAdminSession,
@@ -272,14 +273,9 @@ export async function POST(request: Request) {
     }
     return NextResponse.json({ ok: true, result });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error:
-          error instanceof z.ZodError
-            ? "The submitted fields are invalid."
-            : "The operation could not be completed.",
-      },
-      { status: 400 },
-    );
+    return adminErrorResponse(error, {
+      event: "admin_studio_operation_failed",
+      fallback: "The Studio change could not be saved. Refresh and try again.",
+    });
   }
 }

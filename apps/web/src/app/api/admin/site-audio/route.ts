@@ -1,5 +1,7 @@
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { adminErrorResponse } from "@/features/admin/server/admin-api-response";
 import {
   assertSameOrigin,
   canAdmin,
@@ -7,7 +9,6 @@ import {
 } from "@/features/admin/server/admin-auth";
 import { runAuditedMutation } from "@/features/admin/server/audit";
 import { prisma } from "@/server/db/prisma";
-import { logger, safeErrorFields } from "@/server/logging/logger";
 import { readJsonBody } from "@/server/security/request";
 
 const inputSchema = z
@@ -66,20 +67,14 @@ export async function POST(request: Request) {
         entityId: result.id,
       }),
     );
+    revalidatePath("/");
+    revalidatePath("/api/site-audio");
     return NextResponse.json({ ok: true, setting });
   } catch (error) {
-    logger.error({
+    return adminErrorResponse(error, {
       event: "admin_site_audio_save_failed",
-      ...safeErrorFields(error),
+      fallback:
+        "The music setting could not be saved. Confirm that the selected audio asset is still available.",
     });
-    return NextResponse.json(
-      {
-        error:
-          error instanceof z.ZodError
-            ? "The audio settings are invalid."
-            : "The audio settings could not be saved.",
-      },
-      { status: 400 },
-    );
   }
 }

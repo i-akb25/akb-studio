@@ -3,7 +3,7 @@ import { SiteAudioConsole } from "@/features/media/components/site-audio-console
 import { prisma } from "@/server/db/prisma";
 
 export default async function MediaPage() {
-  const [audio, audioAssets] = await Promise.all([
+  const [audio, assets] = await Promise.all([
     prisma.siteAudioSetting
       .findUnique({
         where: { id: "portfolio" },
@@ -11,12 +11,22 @@ export default async function MediaPage() {
       })
       .catch(() => null),
     prisma.mediaAsset.findMany({
-      where: { state: "READY", mimeType: { startsWith: "audio/" } },
-      select: { id: true, originalName: true },
+      where: { state: "READY" },
+      select: {
+        id: true,
+        originalName: true,
+        mimeType: true,
+        bytes: true,
+        secureUrl: true,
+        altText: true,
+      },
       orderBy: { createdAt: "desc" },
-      take: 50,
+      take: 100,
     }),
   ]);
+  const audioAssets = assets
+    .filter((asset) => asset.mimeType.startsWith("audio/"))
+    .map(({ id, originalName }) => ({ id, originalName }));
   return (
     <main className="akb-admin-page">
       <header className="akb-admin-page__header">
@@ -27,7 +37,7 @@ export default async function MediaPage() {
           rejected.
         </p>
       </header>
-      <MediaConsole />
+      <MediaConsole assets={assets} />
       <SiteAudioConsole initial={audio ?? undefined} assets={audioAssets} />
     </main>
   );

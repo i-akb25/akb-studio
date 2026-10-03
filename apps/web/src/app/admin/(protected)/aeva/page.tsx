@@ -31,7 +31,23 @@ export default async function AdminAevaPage() {
           sessions and Admin data are excluded.
         </p>
       </header>
-      <AevaMemoryConsole />
+      <AevaMemoryConsole
+        memories={memories.map((item) => ({
+          id: item.id,
+          title: item.title,
+          content: item.content,
+          visibility: item.visibility,
+          state: item.state,
+          sourceLabel: item.sourceLabel,
+          sourceUrl: item.sourceUrl,
+        }))}
+        sources={sources.map((item) => ({
+          id: item.id,
+          title: item.title,
+          url: item.url,
+          notes: item.notes,
+        }))}
+      />
       <section>
         <h2>Current memory entries</h2>
         {memories.length ? (

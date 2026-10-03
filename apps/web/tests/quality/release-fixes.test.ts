@@ -94,3 +94,49 @@ test("Admin logout and secondary public routes are reachable", async () => {
   assert.match(footer, /href: "\/lab"/);
   assert.match(footer, /href: "\/offline"/);
 });
+
+test("Admin editors can load existing records before updating them", async () => {
+  const [operationsPage, operationsConsole, contentConsole, aevaConsole] =
+    await Promise.all([
+      webSource("src/app/admin/(protected)/operations/page.tsx"),
+      webSource("src/features/admin/components/operations-console.tsx"),
+      webSource("src/features/admin/components/content-console.tsx"),
+      webSource("src/features/admin/components/aeva-memory-console.tsx"),
+    ]);
+
+  assert.match(operationsPage, /initialData=\{initialData\}/);
+  assert.match(operationsConsole, /Edit an existing project/);
+  assert.match(operationsConsole, /Edit an existing reflection/);
+  assert.doesNotMatch(operationsConsole, /form\.reset\(\)/);
+  assert.match(contentConsole, /Edit published content/);
+  assert.match(aevaConsole, /Edit an existing entry/);
+});
+
+test("Admin document handling matches the advertised upload formats", async () => {
+  const [parser, media, publisher] = await Promise.all([
+    webSource("src/features/admin/server/document-parser.ts"),
+    webSource("src/features/media/server/cloudinary-media.ts"),
+    webSource("src/features/admin/components/content-console.tsx"),
+  ]);
+
+  assert.match(parser, /mammoth\.extractRawText/);
+  assert.match(media, /openxmlformats-officedocument/);
+  assert.match(publisher, /accept="\.md,\.txt,\.docx"/);
+});
+
+test("published projects retain usable pages when private content is unavailable", async () => {
+  const [registry, route, explorer, homepage] = await Promise.all([
+    webSource("src/features/projects/server/resolve-project-registry.ts"),
+    webSource("src/app/(public)/projects/[slug]/page.tsx"),
+    webSource("src/features/projects/components/projects-explorer.tsx"),
+    webSource(
+      "src/features/homepage/components/projects/featured-projects.tsx",
+    ),
+  ]);
+
+  assert.match(registry, /existing\?\.caseStudyState/);
+  assert.match(route, /ProjectOverview/);
+  assert.match(route, /getGitHubProjectBySlug\(slug\)\.catch/);
+  assert.match(explorer, /View project/);
+  assert.match(homepage, /caseStudyUrl=\{`\/projects\/\$\{project\.slug\}`\}/);
+});

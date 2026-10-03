@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-
+import { adminErrorResponse } from "@/features/admin/server/admin-api-response";
 import { assertSameOrigin, canAdmin } from "@/features/admin/server/admin-auth";
 import {
   FEATURE_RELATIONSHIPS,
@@ -138,10 +138,11 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json(
-      { error: "Invalid Pravaah operation" },
-      { status: 400 },
-    );
+  } catch (error) {
+    return adminErrorResponse(error, {
+      event: "admin_pravaah_operation_failed",
+      fallback:
+        "The Pravaah change could not be saved. Check the submitted URL and publishing repository access.",
+    });
   }
 }

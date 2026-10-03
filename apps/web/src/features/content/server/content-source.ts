@@ -36,6 +36,21 @@ export type ContentManifest = {
   knowledge: RemoteKnowledge[];
 };
 
+export type AdminContentEntry = {
+  id: string;
+  contentType: "journal" | "knowledge";
+  knowledgeKind: KnowledgeKind;
+  title: string;
+  slug: string;
+  description: string;
+  disciplines: ContentDiscipline[];
+  source: PublishedContentRecord["source"];
+  topics: string[];
+  tags: string[];
+  attachments: PublishedContentRecord["attachments"];
+  body: string;
+};
+
 const EMPTY_MANIFEST: ContentManifest = {
   version: 1,
   journal: [],
@@ -305,6 +320,41 @@ export async function getKnowledgeBySlug(
   );
 
   return entry ? hydrateKnowledge(entry) : null;
+}
+
+export async function getAdminContentEntries(): Promise<AdminContentEntry[]> {
+  const manifest = await getContentManifest();
+  const entries = await Promise.all([
+    ...manifest.journal.map(async (entry) => ({
+      id: entry.id,
+      contentType: "journal" as const,
+      knowledgeKind: "note" as const,
+      title: entry.title,
+      slug: entry.slug,
+      description: entry.description,
+      disciplines: entry.disciplines,
+      source: entry.source,
+      topics: entry.topics,
+      tags: entry.tags,
+      attachments: entry.attachments,
+      body: (await fetchRepoText(entry.document, { allowMissing: true })) ?? "",
+    })),
+    ...manifest.knowledge.map(async (entry) => ({
+      id: entry.id,
+      contentType: "knowledge" as const,
+      knowledgeKind: entry.kind,
+      title: entry.title,
+      slug: entry.slug,
+      description: entry.description,
+      disciplines: entry.disciplines,
+      source: entry.source,
+      topics: entry.topics,
+      tags: entry.tags,
+      attachments: entry.attachments,
+      body: (await fetchRepoText(entry.document, { allowMissing: true })) ?? "",
+    })),
+  ]);
+  return entries.sort((left, right) => left.title.localeCompare(right.title));
 }
 
 export async function getRelatedContent(

@@ -15,25 +15,40 @@ type State = {
 export function NotificationConsole() {
   const [state, setState] = useState<State | null>(null);
   const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState("");
 
   const refresh = useCallback(async () => {
     const response = await fetch("/api/admin/notifications", {
       cache: "no-store",
     });
 
-    const result = (await response.json()) as { data?: State };
-    setState(result.data ?? null);
+    const result = (await response.json().catch(() => null)) as {
+      data?: State;
+      error?: string;
+    } | null;
+    if (!response.ok)
+      throw new Error(
+        result?.error ?? "Notification status could not be loaded.",
+      );
+    setState(result?.data ?? null);
   }, []);
 
   useEffect(() => {
-    void refresh();
+    void refresh().catch((error: unknown) => {
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "Notification status could not be loaded.",
+      );
+    });
   }, [refresh]);
 
   async function setting(key: string, value: boolean) {
     setBusy(true);
+    setStatus("Saving…");
 
     try {
-      await fetch("/api/admin/notifications", {
+      const response = await fetch("/api/admin/notifications", {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -44,8 +59,22 @@ export function NotificationConsole() {
           value,
         }),
       });
+      const result = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      if (!response.ok)
+        throw new Error(
+          result?.error ?? "The notification setting was not saved.",
+        );
 
       await refresh();
+      setStatus("Notification setting saved.");
+    } catch (error) {
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "The notification setting was not saved.",
+      );
     } finally {
       setBusy(false);
     }
@@ -53,17 +82,32 @@ export function NotificationConsole() {
 
   async function send() {
     setBusy(true);
+    setStatus("Sending eligible notifications…");
 
     try {
-      await fetch("/api/admin/notifications", {
+      const response = await fetch("/api/admin/notifications", {
         method: "POST",
         headers: {
           "content-type": "application/json",
         },
         body: JSON.stringify({ action: "send" }),
       });
+      const result = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      if (!response.ok)
+        throw new Error(
+          result?.error ?? "The notification batch was not sent.",
+        );
 
       await refresh();
+      setStatus("Eligible notifications processed.");
+    } catch (error) {
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "The notification batch was not sent.",
+      );
     } finally {
       setBusy(false);
     }
@@ -79,6 +123,7 @@ export function NotificationConsole() {
 
   return (
     <div className="akb-admin-ledger">
+      <output aria-live="polite">{status}</output>
       <section className="akb-admin-ledger__status">
         <span className="akb-folio">DELIVERY STATE</span>
         <h2>{state?.globalMailHold ? "All mail held" : "Outbound active"}</h2>

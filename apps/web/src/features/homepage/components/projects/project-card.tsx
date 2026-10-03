@@ -111,10 +111,10 @@ export function ProjectCard({
             {caseStudyUrl ? (
               <Link
                 href={caseStudyUrl}
-                aria-label={`Read ${title} case study`}
+                aria-label={`View ${title} project`}
                 className="inline-flex min-h-11 items-center text-sm font-medium text-foreground underline decoration-foreground/30 underline-offset-4 transition-colors duration-200 hover:decoration-foreground/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-4 focus-visible:ring-offset-background motion-reduce:transition-none"
               >
-                Read case study
+                View project
                 <span aria-hidden="true" className="ml-1.5">
                   ↗
                 </span>

@@ -26,7 +26,7 @@ const resourceLinks = [
   { label: "Cookies", href: "/cookies" },
   { label: "Data Policy", href: "/data-policy" },
   { label: "Privacy requests", href: "/privacy/requests" },
-  { label: "Interactive résumé", href: "/resume" },
+  { label: "Interactive resume", href: "/resume" },
   { label: "Engineering lab", href: "/lab" },
   { label: "Offline workspace", href: "/offline" },
 ] as const;

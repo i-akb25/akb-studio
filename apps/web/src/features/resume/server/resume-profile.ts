@@ -55,7 +55,7 @@ export const getResumeProfile = cache(async (): Promise<ResumeProfile> => {
     const source = await readFile(publicSource, "utf8");
     return resumeProfileSchema.parse(JSON.parse(source));
   } catch (error) {
-    console.error("Invalid public résumé profile source", error);
+    console.error("Invalid public resume profile source", error);
     return safeResumeProfile;
   }
 });

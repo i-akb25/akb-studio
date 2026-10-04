@@ -83,33 +83,69 @@ test("Admin writes use atomic audit mutations", async () => {
 });
 
 test("Admin logout and secondary public routes are reachable", async () => {
-  const [layout, footer] = await Promise.all([
+  const [layout, sidebar, footer] = await Promise.all([
     webSource("src/app/admin/(protected)/layout.tsx"),
+    webSource("src/features/admin/components/admin-sidebar.tsx"),
     webSource("src/components/layout/site-footer.tsx"),
   ]);
 
-  assert.match(layout, /AdminLogoutButton/);
-  assert.match(footer, /Interactive résumé/);
+  assert.match(layout, /AdminSidebar/);
+  assert.match(sidebar, /AdminLogoutButton/);
+  assert.match(sidebar, /aria-current/);
+  assert.match(footer, /Interactive resume/);
   assert.match(footer, /href: "\/resume"/);
   assert.match(footer, /href: "\/lab"/);
   assert.match(footer, /href: "\/offline"/);
 });
 
 test("Admin editors can load existing records before updating them", async () => {
-  const [operationsPage, operationsConsole, contentConsole, aevaConsole] =
-    await Promise.all([
-      webSource("src/app/admin/(protected)/operations/page.tsx"),
-      webSource("src/features/admin/components/operations-console.tsx"),
-      webSource("src/features/admin/components/content-console.tsx"),
-      webSource("src/features/admin/components/aeva-memory-console.tsx"),
-    ]);
+  const [
+    projectsPage,
+    operationsData,
+    operationsConsole,
+    contentConsole,
+    aevaConsole,
+  ] = await Promise.all([
+    webSource("src/app/admin/(protected)/projects/page.tsx"),
+    webSource("src/features/admin/server/operations-data.ts"),
+    webSource("src/features/admin/components/operations-console.tsx"),
+    webSource("src/features/admin/components/content-console.tsx"),
+    webSource("src/features/admin/components/aeva-memory-console.tsx"),
+  ]);
 
-  assert.match(operationsPage, /initialData=\{initialData\}/);
+  assert.match(projectsPage, /section="projects"/);
+  assert.match(operationsData, /prisma\.project\.findMany/);
   assert.match(operationsConsole, /Edit an existing project/);
   assert.match(operationsConsole, /Edit an existing reflection/);
   assert.doesNotMatch(operationsConsole, /form\.reset\(\)/);
   assert.match(contentConsole, /Edit published content/);
   assert.match(aevaConsole, /Edit an existing entry/);
+});
+
+test("Admin uses task-based navigation and separate portfolio editors", async () => {
+  const [sidebar, profile, availability, projects, reflections, galleries] =
+    await Promise.all([
+      webSource("src/features/admin/components/admin-sidebar.tsx"),
+      webSource("src/app/admin/(protected)/profile/page.tsx"),
+      webSource("src/app/admin/(protected)/availability/page.tsx"),
+      webSource("src/app/admin/(protected)/projects/page.tsx"),
+      webSource("src/app/admin/(protected)/reflections/page.tsx"),
+      webSource("src/app/admin/(protected)/galleries/page.tsx"),
+    ]);
+
+  for (const route of [
+    "profile",
+    "availability",
+    "projects",
+    "reflections",
+    "galleries",
+  ])
+    assert.match(sidebar, new RegExp(`/admin/${route}`));
+  assert.match(profile, /section="profile"/);
+  assert.match(availability, /section="availability"/);
+  assert.match(projects, /section="projects"/);
+  assert.match(reflections, /section="reflections"/);
+  assert.match(galleries, /section="galleries"/);
 });
 
 test("Admin document handling matches the advertised upload formats", async () => {

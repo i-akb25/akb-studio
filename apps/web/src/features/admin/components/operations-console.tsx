@@ -60,6 +60,14 @@ export type OperationsInitialData = {
   }>;
 };
 
+export type OperationsSection =
+  | "all"
+  | "profile"
+  | "availability"
+  | "projects"
+  | "reflections"
+  | "galleries";
+
 async function send(payload: Record<string, unknown>) {
   const response = await fetch("/api/admin/operations", {
     method: "POST",
@@ -97,8 +105,10 @@ function localDateTime(value: string | null | undefined): string {
 
 export function OperationsConsole({
   initialData,
+  section = "all",
 }: {
   initialData: OperationsInitialData;
+  section?: OperationsSection;
 }) {
   const router = useRouter();
   const [status, setStatus] = useState("");
@@ -135,7 +145,7 @@ export function OperationsConsole({
   return (
     <div className="akb-admin-operations">
       <output aria-live="polite">{status}</output>
-      <section>
+      <section hidden={section !== "all" && section !== "profile"}>
         <h2>About profile and DP</h2>
         <form
           onSubmit={(event) =>
@@ -201,7 +211,7 @@ export function OperationsConsole({
           <button type="submit">Save profile</button>
         </form>
       </section>
-      <section>
+      <section hidden={section !== "all" && section !== "availability"}>
         <h2>Availability</h2>
         <form
           onSubmit={(event) =>
@@ -252,7 +262,7 @@ export function OperationsConsole({
           <button type="submit">Update availability</button>
         </form>
       </section>
-      <section>
+      <section hidden={section !== "all" && section !== "projects"}>
         <h2>Project registry</h2>
         <label>
           <span>Edit an existing project or create a new one</span>
@@ -437,7 +447,7 @@ export function OperationsConsole({
           <button type="submit">Save project</button>
         </form>
       </section>
-      <section>
+      <section hidden={section !== "all" && section !== "reflections"}>
         <h2>Daily Sanskrit Reflection</h2>
         <label>
           <span>Edit an existing reflection or create a new one</span>
@@ -530,7 +540,7 @@ export function OperationsConsole({
           <button type="submit">Save reflection</button>
         </form>
       </section>
-      <section>
+      <section hidden={section !== "all" && section !== "galleries"}>
         <h2>Creative gallery</h2>
         <label>
           <span>Edit an existing gallery or create a new one</span>
@@ -581,7 +591,7 @@ export function OperationsConsole({
           <button type="submit">Save gallery</button>
         </form>
       </section>
-      <section>
+      <section hidden={section !== "all" && section !== "galleries"}>
         <h2>Add gallery image</h2>
         <form
           onSubmit={(event) =>

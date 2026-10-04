@@ -212,7 +212,7 @@ export function CurrentProject({
                 }
               >
                 How to represent engineering work with depth without turning the
-                experience into a résumé or a collection of cards.
+                experience into a resume or a collection of cards.
               </dd>
             </div>
 

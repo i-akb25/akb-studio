@@ -15,6 +15,7 @@ type MediaAsset = {
 export function MediaConsole({ assets }: { assets: MediaAsset[] }) {
   const router = useRouter();
   const [status, setStatus] = useState("");
+  const [tone, setTone] = useState<"neutral" | "success" | "error">("neutral");
   const [busy, setBusy] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   async function upload(event: FormEvent<HTMLFormElement>) {
@@ -22,6 +23,7 @@ export function MediaConsole({ assets }: { assets: MediaAsset[] }) {
     const form = event.currentTarget;
     const formData = new FormData(form);
     setBusy(true);
+    setTone("neutral");
     setStatus("Uploading…");
     try {
       const response = await fetch("/api/admin/media", {
@@ -35,9 +37,11 @@ export function MediaConsole({ assets }: { assets: MediaAsset[] }) {
       if (!response.ok)
         throw new Error(result?.error ?? "The media upload failed.");
       setStatus(`Uploaded. Asset ID: ${result?.asset?.id ?? "available"}`);
+      setTone("success");
       form.reset();
       router.refresh();
     } catch (error) {
+      setTone("error");
       setStatus(
         error instanceof Error ? error.message : "The media upload failed.",
       );
@@ -49,6 +53,7 @@ export function MediaConsole({ assets }: { assets: MediaAsset[] }) {
     if (!window.confirm("Remove this unused asset from the media library?"))
       return;
     setDeletingId(id);
+    setTone("neutral");
     setStatus("Removing asset…");
     try {
       const response = await fetch(
@@ -61,8 +66,10 @@ export function MediaConsole({ assets }: { assets: MediaAsset[] }) {
       if (!response.ok)
         throw new Error(result?.error ?? "The asset could not be removed.");
       setStatus("Asset removed.");
+      setTone("success");
       router.refresh();
     } catch (error) {
+      setTone("error");
       setStatus(
         error instanceof Error
           ? error.message
@@ -73,8 +80,13 @@ export function MediaConsole({ assets }: { assets: MediaAsset[] }) {
     }
   }
   return (
-    <section>
-      <form className="akb-admin-login" onSubmit={upload}>
+    <section aria-labelledby="upload-media-heading">
+      <h2 id="upload-media-heading">Upload a new asset</h2>
+      <p>
+        Maximum 4 MB. Accepted: JPG, PNG, WebP, AVIF, MP3, OGG, WAV, M4A, MP4,
+        WebM, PDF, DOCX, Markdown and text.
+      </p>
+      <form className="akb-admin-form" onSubmit={upload}>
         <label>
           <span>Image, audio, video or document</span>
           <input
@@ -116,7 +128,13 @@ export function MediaConsole({ assets }: { assets: MediaAsset[] }) {
         <button type="submit" disabled={busy}>
           {busy ? "Uploading…" : "Upload media"}
         </button>
-        <output aria-live="polite">{status}</output>
+        <output
+          className="akb-admin-status"
+          data-tone={tone}
+          aria-live="polite"
+        >
+          {status}
+        </output>
       </form>
 
       <div className="akb-admin-list">
@@ -142,6 +160,12 @@ export function MediaConsole({ assets }: { assets: MediaAsset[] }) {
                 >
                   Open asset
                 </a>
+                <button
+                  type="button"
+                  onClick={() => navigator.clipboard.writeText(asset.id)}
+                >
+                  Copy asset ID
+                </button>
                 <button
                   type="button"
                   disabled={deletingId === asset.id}

@@ -79,6 +79,14 @@ export default async function AnalyticsPage() {
           here.
         </p>
       </header>
+      <div className="akb-admin-guide">
+        <strong>Why visitor totals can be empty</strong>
+        <p>
+          Only consented, aggregate events are stored. An empty report means no
+          eligible events were recorded in this period; it is not silently
+          replaced with guessed traffic.
+        </p>
+      </div>
       <section aria-labelledby="alerts-heading">
         <h2 id="alerts-heading">Alert thresholds</h2>
         <div className="akb-ops-grid">

@@ -16,12 +16,14 @@ type SiteAudioConsoleProps = {
 export function SiteAudioConsole({ initial, assets }: SiteAudioConsoleProps) {
   const router = useRouter();
   const [status, setStatus] = useState("");
+  const [tone, setTone] = useState<"neutral" | "success" | "error">("neutral");
   const [busy, setBusy] = useState(false);
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
     const data = new FormData(form);
     setBusy(true);
+    setTone("neutral");
     setStatus("Saving…");
     try {
       const response = await fetch("/api/admin/site-audio", {
@@ -42,8 +44,10 @@ export function SiteAudioConsole({ initial, assets }: SiteAudioConsoleProps) {
           result?.error ?? "The music setting could not be saved.",
         );
       setStatus("Portfolio music saved.");
+      setTone("success");
       router.refresh();
     } catch (error) {
+      setTone("error");
       setStatus(
         error instanceof Error
           ? error.message
@@ -54,13 +58,13 @@ export function SiteAudioConsole({ initial, assets }: SiteAudioConsoleProps) {
     }
   }
   return (
-    <section aria-labelledby="site-audio-heading">
+    <section id="audio" aria-labelledby="site-audio-heading">
       <h2 id="site-audio-heading">Portfolio music</h2>
       <p>
         Upload an audio file above, then publish its asset ID here. Playback
         always requires a visitor action.
       </p>
-      <form className="akb-admin-login" onSubmit={save}>
+      <form className="akb-admin-form" onSubmit={save}>
         <label>
           <span>Audio asset ID</span>
           <select name="assetId" defaultValue={initial?.assetId} required>
@@ -103,7 +107,13 @@ export function SiteAudioConsole({ initial, assets }: SiteAudioConsoleProps) {
         <button type="submit" disabled={busy}>
           {busy ? "Saving…" : "Save music setting"}
         </button>
-        <output aria-live="polite">{status}</output>
+        <output
+          className="akb-admin-status"
+          data-tone={tone}
+          aria-live="polite"
+        >
+          {status}
+        </output>
       </form>
       {!assets.length ? (
         <p>Upload an MP3, OGG, WAV or M4A file before publishing music.</p>

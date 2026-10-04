@@ -228,7 +228,7 @@ export function InteractiveResume({ profile }: { profile: ResumeProfile }) {
             ))
           ) : (
             <li className="border-b border-border py-6 text-sm text-muted">
-              Add the ignored local résumé source documented in README.md to
+              Add the ignored local resume source documented in README.md to
               populate professional experience.
             </li>
           )}

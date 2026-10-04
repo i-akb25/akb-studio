@@ -29,6 +29,9 @@ const metadataBase = siteOrigin ?? new URL("http://localhost:3000");
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getPublicSiteSettings();
+  const socialCardUrl = siteOrigin
+    ? new URL("/opengraph-image", siteOrigin).href
+    : "/opengraph-image";
   return {
     metadataBase,
     title: {
@@ -47,37 +50,35 @@ export async function generateMetadata(): Promise<Metadata> {
       "Anurag Kumar Bharti",
       "Anurag Aryan",
       "Ace AKB",
+      "Ace-AKB",
       "AKB NITP",
+      "Anurag NITP",
+      "Anurag NIT Patna",
+      "AKB NIT Patna",
       "AKB Studio",
       "software engineer",
       "electrical and automation engineer",
     ],
-    openGraph: settings.socialImageUrl
-      ? {
-          type: "website",
-          siteName: settings.siteName,
-          title: settings.authorName,
-          description: settings.description,
-          images: [
-            {
-              url: settings.socialImageUrl,
-              width: 1200,
-              height: 630,
-              alt: settings.socialImageAlt,
-            },
-          ],
-        }
-      : undefined,
-    twitter: settings.socialImageUrl
-      ? {
-          card: "summary_large_image",
-          title: settings.authorName,
-          description: settings.description,
-          images: [
-            { url: settings.socialImageUrl, alt: settings.socialImageAlt },
-          ],
-        }
-      : undefined,
+    openGraph: {
+      type: "website",
+      siteName: settings.siteName,
+      title: settings.authorName,
+      description: settings.description,
+      images: [
+        {
+          url: socialCardUrl,
+          width: 1200,
+          height: 630,
+          alt: settings.socialImageAlt,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: settings.authorName,
+      description: settings.description,
+      images: [{ url: socialCardUrl, alt: settings.socialImageAlt }],
+    },
     manifest: "/manifest.webmanifest",
     icons: {
       icon: [

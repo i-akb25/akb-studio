@@ -41,11 +41,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ].filter((item): item is SitemapEntry => item !== null);
 
   const projectEntries = projects
-    .filter(
-      (project) =>
-        project.publication === "published" &&
-        project.caseStudyState === "published",
-    )
+    .filter((project) => project.publication === "published")
     .map((project) =>
       entry(`/projects/${project.slug}`, {
         changeFrequency: "monthly",

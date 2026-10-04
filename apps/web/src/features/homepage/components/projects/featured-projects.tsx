@@ -99,7 +99,7 @@ export async function FeaturedProjects() {
 
         <div className="mt-8 grid gap-5 lg:grid-cols-12 lg:grid-rows-2">
           <div className="min-w-0 lg:col-span-7 lg:row-span-2">
-            <CurrentProject />
+            <CurrentProject image="/images/projects/akb-studio/cover.webp" />
           </div>
 
           {displayProjects.slice(0, 2).map((project) => (

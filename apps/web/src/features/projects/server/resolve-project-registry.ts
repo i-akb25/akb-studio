@@ -13,8 +13,16 @@ import { getGitHubProjectRecords } from "./github-project-source";
 
 export type HomepageProject = ProjectRecord & {
   homepageOrder: number;
-  cover: ProjectImage;
+  cover?: ProjectImage;
 };
+
+const HOMEPAGE_PROJECTS = [
+  "veyra",
+  "codevet",
+  "titan-os",
+  "automated-drone-delivery",
+  "adhayan-lms",
+] as const;
 
 function isDiscipline(value: string): value is ProjectDiscipline {
   return ["software", "electrical", "robotics", "automation", "ai"].includes(
@@ -122,13 +130,15 @@ export const getProjectRegistry = cache(
 );
 
 export const getHomepageProjects = cache(
-  async (): Promise<HomepageProject[]> =>
-    (await getProjectRegistry())
-      .filter(
-        (project): project is HomepageProject =>
-          project.publication === "published" &&
-          project.homepageOrder !== undefined &&
-          project.cover !== undefined,
-      )
-      .sort((a, b) => a.homepageOrder - b.homepageOrder),
+  async (): Promise<HomepageProject[]> => {
+    const bySlug = new Map(
+      (await getProjectRegistry()).map((project) => [project.slug, project]),
+    );
+
+    return HOMEPAGE_PROJECTS.flatMap((slug, index) => {
+      const project = bySlug.get(slug);
+      if (!project || project.publication !== "published") return [];
+      return [{ ...project, homepageOrder: index + 1 }];
+    });
+  },
 );

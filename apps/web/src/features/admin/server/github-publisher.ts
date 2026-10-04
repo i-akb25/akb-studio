@@ -116,6 +116,9 @@ export async function publishEditorial(input: PublishInput) {
   const manifest = await getContentManifest();
   const now = new Date().toISOString();
   const id = `${input.kind}_${input.slug}`;
+  const existing = [...manifest.journal, ...manifest.knowledge].find(
+    (entry) => entry.id === id,
+  );
   const document =
     input.kind === "journal"
       ? `content/journal/${input.slug}.md`
@@ -151,6 +154,8 @@ export async function publishEditorial(input: PublishInput) {
     attachments,
     relations: [],
     document,
+    ...(existing?.cover ? { cover: existing.cover } : {}),
+    ...(existing?.seo ? { seo: existing.seo } : {}),
   };
   const next: ContentManifest = structuredClone(manifest);
   let canonicalPath: string;

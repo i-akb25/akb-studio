@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 
@@ -96,7 +96,7 @@ test("Admin logout and secondary public routes are reachable", async () => {
   assert.match(layout, /AdminSidebar/);
   assert.match(sidebar, /AdminLogoutButton/);
   assert.match(sidebar, /aria-current/);
-  assert.match(footer, /Interactive résumé/);
+  assert.match(footer, /Interactive resume/);
   assert.match(footer, /href: "\/resume"/);
   assert.match(footer, /href: "\/lab"/);
   assert.match(footer, /href: "\/offline"/);
@@ -214,4 +214,86 @@ test("published projects retain usable pages when private content is unavailable
   assert.match(route, /getGitHubProjectBySlug\(slug\)\.catch/);
   assert.match(explorer, /View project/);
   assert.match(homepage, /caseStudyUrl=\{`\/projects\/\$\{project\.slug\}`\}/);
+});
+
+test("homepage retains the requested six-project composition", async () => {
+  const [registry, homepage, card, config] = await Promise.all([
+    webSource("src/features/projects/server/resolve-project-registry.ts"),
+    webSource(
+      "src/features/homepage/components/projects/featured-projects.tsx",
+    ),
+    webSource("src/features/homepage/components/projects/project-card.tsx"),
+    webSource("next.config.ts"),
+  ]);
+
+  for (const slug of [
+    "veyra",
+    "codevet",
+    "titan-os",
+    "automated-drone-delivery",
+    "adhayan-lms",
+  ]) {
+    assert.match(registry, new RegExp(`"${slug}"`));
+  }
+  assert.match(homepage, /<CurrentProject/);
+  assert.match(homepage, /project records, and interface studies/);
+  assert.match(card, /Project record/);
+  assert.doesNotMatch(card, /<iframe/);
+  assert.doesNotMatch(config, /https:\/\/veyra-pro\.vercel\.app/);
+});
+
+test("generated project covers are tracked and referenced by the fallback registry", async () => {
+  const registry = await webSource(
+    "src/features/projects/data/project-registry.ts",
+  );
+  const covers = [
+    "codevet",
+    "production-website-fieldbook",
+    "binance-trade-analysis",
+  ];
+
+  for (const slug of covers) {
+    const relativePath = `public/images/projects/${slug}/cover.webp`;
+    assert.match(registry, new RegExp(`/images/projects/${slug}/cover\\.webp`));
+    assert.ok((await stat(path.join(webRoot, relativePath))).size > 0);
+  }
+
+  assert.match(registry, /title: "The Production Website Companion"/);
+  assert.match(registry, /slug: "health-tracker"[\s\S]*?tier: "standard"/);
+  assert.match(registry, /slug: "vecho"[\s\S]*?tier: "compact"/);
+});
+
+test("republishing editorial content preserves established cover metadata", async () => {
+  const publisher = await webSource(
+    "src/features/admin/server/github-publisher.ts",
+  );
+
+  assert.match(publisher, /existing\?\.cover/);
+  assert.match(publisher, /existing\?\.seo/);
+});
+
+test("book evidence can open a Google Drive PDF preview", async () => {
+  const [viewer, config] = await Promise.all([
+    webSource("src/features/content/components/evidence-viewer.tsx"),
+    webSource("next.config.ts"),
+  ]);
+
+  assert.match(viewer, /className="akb-evidence__item"/);
+  assert.match(viewer, /drive\.google\.com\/file\/d/);
+  assert.match(viewer, /Open in new tab/);
+  assert.match(config, /https:\/\/drive\.google\.com/);
+});
+
+test("public source and tests use plain resume spelling", async () => {
+  const files = await Promise.all([
+    webSource("src/app/(public)/resume/page.tsx"),
+    webSource("src/components/layout/site-footer.tsx"),
+    webSource("src/features/contact/components/contact-page.tsx"),
+    webSource("src/features/aeva/components/aeva-experience.tsx"),
+    webSource("src/features/resume/components/interactive-resume.tsx"),
+  ]);
+
+  for (const source of files) assert.doesNotMatch(source, /\u00e9|\u00c9/);
+  assert.match(files.at(-1) ?? "", /Download resume PDF/);
+  assert.doesNotMatch(files.at(-1) ?? "", /Print \/ save PDF|General PDF/);
 });

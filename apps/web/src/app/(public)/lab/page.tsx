@@ -12,15 +12,16 @@ export default function EngineeringLabPage() {
     <main>
       <header className="mx-auto max-w-7xl border-b border-border px-5 pt-28 pb-16 sm:px-8 lg:px-12 lg:pt-40">
         <p className="font-mono text-xs tracking-[0.16em] text-accent-warm uppercase">
-          Engineering lab / reproducible models
+          Engineering demonstrations / reproducible models
         </p>
         <h1 className="mt-6 max-w-5xl text-5xl leading-[0.96] font-semibold tracking-[-0.055em] sm:text-7xl">
           Change the assumptions. Inspect the response.
         </h1>
         <p className="mt-7 max-w-3xl text-lg leading-8 text-muted">
-          These demonstrations expose their limits and reset to documented
-          baselines. They do not manufacture project evidence, hide failure
-          paths or turn estimates into claims.
+          This page lets you explore three bounded demonstrations behind the
+          portfolio: control response, drone assumptions and protected-request
+          behaviour. Each model exposes its limits and resets to a documented
+          baseline. It is not an Admin page and it does not change live data.
         </p>
       </header>
       <EngineeringLab />

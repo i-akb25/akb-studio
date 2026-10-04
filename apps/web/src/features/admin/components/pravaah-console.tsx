@@ -67,9 +67,19 @@ export function PravaahConsole({
         <h1>Public signal control</h1>
         <p>
           Review automatic GitHub discoveries, add external posts and control
-          what becomes public.
+          what becomes public. Every change is written to the private knowledge
+          repository before it appears on the public Pravaah page.
         </p>
       </header>
+
+      <div className="akb-admin-guide">
+        <strong>How this page works</strong>
+        <p>
+          Feature publishes a discovered public repository. Ignore removes it
+          from this inbox. The manual form is for reviewed external posts and
+          AKB Studio announcements. A failed save changes nothing publicly.
+        </p>
+      </div>
 
       <section
         className="akb-admin-panel"
@@ -311,7 +321,9 @@ export function PravaahConsole({
         </p>
       </aside>
 
-      <output aria-live="polite">{result}</output>
+      <output className="akb-admin-status" aria-live="polite">
+        {result}
+      </output>
     </div>
   );
 }

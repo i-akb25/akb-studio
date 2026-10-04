@@ -40,6 +40,42 @@ export const projectRegistry = [
   },
   {
     order: 2,
+    slug: "veyra",
+    title: "VEYRA",
+    categoryLabel: "Job Intelligence · Privacy-first Search",
+    summary:
+      "A privacy-first job-intelligence workspace that searches current public feeds, explains deterministic matches, and keeps candidate data in the browser.",
+    disciplines: ["software", "ai"],
+    tier: "flagship",
+    lifecycle: "active",
+    publication: "published",
+    caseStudyState: "published",
+    period: "2026",
+    role: "Product design and engineering",
+    technologies: [
+      { name: "Next.js", icon: "code" },
+      { name: "TypeScript", icon: "code" },
+      { name: "Public ATS APIs", icon: "network" },
+      { name: "Browser storage", icon: "database" },
+      { name: "GitHub Actions", icon: "tool" },
+    ],
+    links: [
+      {
+        kind: "demo",
+        label: "Live website",
+        state: "available",
+        href: "https://veyra-pro.vercel.app/",
+      },
+      {
+        kind: "repository",
+        label: "Repository",
+        state: "available",
+        href: "https://github.com/i-akb25/VEYRA",
+      },
+    ],
+  },
+  {
+    order: 3,
     slug: "codevet",
     title: "CodeVet",
     categoryLabel: "Developer Security · CLI Tooling",
@@ -52,12 +88,17 @@ export const projectRegistry = [
     caseStudyState: "planned",
     period: "2026",
     role: "Creator and maintainer",
+    cover: {
+      kind: "image",
+      src: "/images/projects/codevet/cover.webp",
+      alt: "CodeVet local-first security analysis workflow",
+    },
     technologies: [
-      { name: "TypeScript", icon: "code" },
-      { name: "Node.js", icon: "server" },
-      { name: "GitHub Actions", icon: "tool" },
+      { name: "Python", icon: "code" },
       { name: "Gitleaks", icon: "tool" },
       { name: "npm audit", icon: "tool" },
+      { name: "pip-audit", icon: "tool" },
+      { name: "Bearer", icon: "tool" },
     ],
     links: [
       {
@@ -69,8 +110,8 @@ export const projectRegistry = [
     ],
   },
   {
-    order: 3,
-    slug: "titan-edge-telemetry",
+    order: 4,
+    slug: "titan-os",
     title: "Titan OS",
     shortTitle: "Titan Edge Telemetry",
     categoryLabel: "Industrial IoT · Telemetry · Predictive Maintenance",
@@ -107,7 +148,7 @@ export const projectRegistry = [
     ],
   },
   {
-    order: 4,
+    order: 5,
     homepageOrder: 1,
     slug: "automated-drone-delivery",
     title: "Automated Drone Delivery",
@@ -142,7 +183,7 @@ export const projectRegistry = [
     ],
   },
   {
-    order: 5,
+    order: 6,
     homepageOrder: 2,
     slug: "adhayan-lms",
     title: "ADHAYAN LMS",
@@ -183,7 +224,47 @@ export const projectRegistry = [
     ],
   },
   {
-    order: 6,
+    order: 7,
+    slug: "production-website-fieldbook",
+    title: "The Production Website Companion",
+    categoryLabel: "Engineering Reference · Release Systems",
+    summary:
+      "A framework-neutral companion repository with reusable controls, operational templates, JSON schemas, validation scripts, and a bounded fictional implementation.",
+    disciplines: ["software", "ai"],
+    tier: "standard",
+    lifecycle: "active",
+    publication: "published",
+    caseStudyState: "planned",
+    period: "2026",
+    role: "Author, systems designer, and maintainer",
+    cover: {
+      kind: "image",
+      src: "/images/projects/production-website-fieldbook/cover.webp",
+      alt: "The Production Website fieldbook and companion engineering artifacts",
+    },
+    technologies: [
+      { name: "Node.js", icon: "server" },
+      { name: "JSON Schema", icon: "code" },
+      { name: "GitHub Actions", icon: "tool" },
+      { name: "Markdown", icon: "code" },
+    ],
+    links: [
+      {
+        kind: "repository",
+        label: "Repository",
+        state: "available",
+        href: "https://github.com/i-akb25/production-website-fieldbook",
+      },
+      {
+        kind: "documentation",
+        label: "Read the book",
+        state: "available",
+        href: "/knowledge/research/the-production-website",
+      },
+    ],
+  },
+  {
+    order: 8,
     slug: "akb-cli",
     title: "AKB CLI",
     categoryLabel: "Python · Command-Line Experience",
@@ -211,7 +292,7 @@ export const projectRegistry = [
     ],
   },
   {
-    order: 7,
+    order: 11,
     homepageOrder: 4,
     slug: "expressify",
     title: "Expressify",
@@ -244,7 +325,7 @@ export const projectRegistry = [
     ],
   },
   {
-    order: 8,
+    order: 14,
     homepageOrder: 3,
     slug: "vecho",
     title: "Vecho",
@@ -252,7 +333,7 @@ export const projectRegistry = [
     summary:
       "A real-time communication project focused on browser-based calling and peer-to-peer connection workflows.",
     disciplines: ["software"],
-    tier: "standard",
+    tier: "compact",
     lifecycle: "completed",
     publication: "published",
     caseStudyState: "planned",
@@ -303,7 +384,7 @@ export const projectRegistry = [
     ],
   },
   {
-    order: 10,
+    order: 90,
     slug: "motor-simulation-study",
     title: "PMSM, BLDC and SRM Simulation Study",
     categoryLabel: "Electrical Machines · MATLAB/Simulink",
@@ -327,7 +408,7 @@ export const projectRegistry = [
     ],
   },
   {
-    order: 11,
+    order: 10,
     homepageOrder: 5,
     slug: "health-tracker",
     title: "Health Tracker",
@@ -335,7 +416,7 @@ export const projectRegistry = [
     summary:
       "A frontend application for recording and presenting health-related activities through a structured Angular interface.",
     disciplines: ["software"],
-    tier: "compact",
+    tier: "standard",
     lifecycle: "completed",
     publication: "published",
     caseStudyState: "planned",
@@ -358,7 +439,7 @@ export const projectRegistry = [
     ],
   },
   {
-    order: 12,
+    order: 91,
     slug: "obstacle-avoiding-robot",
     title: "Obstacle-Avoiding Robot",
     categoryLabel: "Robotics · Autonomous Navigation",
@@ -383,7 +464,7 @@ export const projectRegistry = [
     ],
   },
   {
-    order: 13,
+    order: 92,
     slug: "line-follower-robot",
     title: "Line-Follower Robot",
     categoryLabel: "Robotics · Feedback Control",
@@ -408,7 +489,7 @@ export const projectRegistry = [
     ],
   },
   {
-    order: 14,
+    order: 12,
     slug: "carbon-footprint",
     title: "Carbon Footprint",
     categoryLabel: "Environmental Awareness · Web Application",
@@ -439,15 +520,21 @@ export const projectRegistry = [
     title: "Binance Trade Analysis",
     categoryLabel: "Data Analysis · Financial Metrics",
     summary:
-      "A Python analysis of historical trade data using profitability, risk, drawdown, and win-rate metrics to compare account performance.",
+      "A reproducible Python workflow for comparing historical account results with realised PnL, return-on-notional, drawdown, and trade-level risk metrics.",
     disciplines: ["software"],
     tier: "compact",
     lifecycle: "completed",
     publication: "published",
     caseStudyState: "planned",
+    cover: {
+      kind: "image",
+      src: "/images/projects/binance-trade-analysis/cover.webp",
+      alt: "Binance Trade Analysis historical performance comparison",
+    },
     technologies: [
       { name: "Python", icon: "code" },
-      { name: "Data Analysis", icon: "tool" },
+      { name: "Pandas", icon: "database" },
+      { name: "NumPy", icon: "tool" },
     ],
     links: [
       {
@@ -459,7 +546,7 @@ export const projectRegistry = [
     ],
   },
   {
-    order: 16,
+    order: 13,
     slug: "safar-awaits",
     title: "Safar Awaits",
     categoryLabel: "Travel Interface · React",
@@ -518,7 +605,7 @@ export const projectRegistry = [
   },
   {
     order: 18,
-    slug: "accord-interface-study",
+    slug: "accord",
     title: "Accord",
     categoryLabel: "Zentry-Inspired Interface Study",
     summary:
@@ -549,8 +636,8 @@ export const projectRegistry = [
     ],
   },
   {
-    order: 19,
-    slug: "proposal-experiment",
+    order: 16,
+    slug: "proposal",
     title: "Proposal",
     categoryLabel: "Configurable Web Experiment",
     summary:

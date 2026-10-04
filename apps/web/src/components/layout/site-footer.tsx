@@ -27,9 +27,9 @@ const resourceLinks = [
   { label: "Cookies", href: "/cookies" },
   { label: "Data Policy", href: "/data-policy" },
   { label: "Privacy requests", href: "/privacy/requests" },
-  { label: "Interactive résumé", href: "/resume" },
-  { label: "Engineering lab", href: "/lab" },
-  { label: "Offline workspace", href: "/offline" },
+  { label: "Interactive resume", href: "/resume" },
+  { label: "Engineering demonstrations", href: "/lab" },
+  { label: "Private browser notes", href: "/offline" },
 ] as const;
 
 export async function SiteFooter() {

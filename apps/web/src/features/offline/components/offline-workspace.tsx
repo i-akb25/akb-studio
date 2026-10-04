@@ -11,6 +11,24 @@ import {
 
 const STORAGE_KEY = "akb-offline-workspace-v1";
 
+function safePublicUrl(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:"
+      ? url.href
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function sanitizeRecord(record: OfflineRecord): OfflineRecord {
+  const safeUrl = safePublicUrl(record.url);
+  const { url: _url, ...rest } = record;
+  return safeUrl ? { ...rest, url: safeUrl } : rest;
+}
+
 export function OfflineWorkspace() {
   const [records, setRecords] = useState<OfflineRecord[]>([]);
   const [query, setQuery] = useState("");
@@ -29,8 +47,16 @@ export function OfflineWorkspace() {
   }, []);
 
   function persist(next: OfflineRecord[]) {
-    setRecords(next);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      setRecords(next);
+      return true;
+    } catch {
+      setStatus(
+        "This browser blocked local storage. Export any visible records before leaving the page.",
+      );
+      return false;
+    }
   }
 
   const filtered = useMemo(() => {
@@ -46,20 +72,20 @@ export function OfflineWorkspace() {
 
   function add(form: FormData) {
     const now = new Date().toISOString();
+    const submittedUrl = safePublicUrl(String(form.get("url") ?? "").trim());
     const record: OfflineRecord = {
       id: crypto.randomUUID(),
       kind: String(form.get("kind")) as OfflineRecordKind,
       title: String(form.get("title") ?? "").trim(),
       body: String(form.get("body") ?? "").trim(),
-      ...(String(form.get("url") ?? "").trim()
-        ? { url: String(form.get("url")).trim() }
-        : {}),
+      ...(submittedUrl ? { url: submittedUrl } : {}),
       revision: 1,
       updatedAt: now,
     };
     if (!record.title) return;
-    persist([record, ...records]);
-    setStatus("Saved locally. It will not sync or publish automatically.");
+    if (persist([record, ...records])) {
+      setStatus("Saved locally. It will not sync or publish automatically.");
+    }
   }
 
   function exportRecords() {
@@ -78,7 +104,7 @@ export function OfflineWorkspace() {
     try {
       const value = JSON.parse(await file.text()) as { records?: unknown };
       const incoming = Array.isArray(value.records)
-        ? value.records.filter(isOfflineRecord)
+        ? value.records.filter(isOfflineRecord).map(sanitizeRecord)
         : [];
       persist(mergeOfflineRecords(records, incoming));
       setStatus(
@@ -214,9 +240,11 @@ export function OfflineWorkspace() {
                   {record.body}
                 </p>
               ) : null}
-              {record.url ? (
+              {safePublicUrl(record.url) ? (
                 <a
-                  href={record.url}
+                  href={safePublicUrl(record.url)}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="mt-3 inline-block text-sm text-accent-warm underline"
                 >
                   Open saved link

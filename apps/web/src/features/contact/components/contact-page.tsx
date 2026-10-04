@@ -88,7 +88,7 @@ export function ContactPage({
               <ArrowDownRight aria-hidden="true" />
             </a>
             <a href="/resume">
-              Interactive résumé
+              Interactive resume
               <ArrowUpRight aria-hidden="true" />
             </a>
           </div>
@@ -202,9 +202,9 @@ export function ContactPage({
         </div>
         <div className="contact-resume__copy">
           <p className="contact-kicker">PROFESSIONAL RECORD</p>
-          <h2 id="resume-title">Anurag Kumar Bharti — Résumé</h2>
+          <h2 id="resume-title">Anurag Kumar Bharti — Resume</h2>
           <p>
-            General engineering résumé. Role-specific software/product and
+            General engineering resume. Role-specific software/product and
             electrical/automation versions will follow after final
             reconciliation.
           </p>

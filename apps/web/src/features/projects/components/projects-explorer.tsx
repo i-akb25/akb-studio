@@ -52,7 +52,7 @@ const tierContent: Record<
     index: "C",
     title: "Project records",
     description:
-      "Smaller builds documented for their purpose, implementation, and practical learning.",
+      "Compact builds documented for their purpose, implementation, and practical learning.",
   },
   experiment: {
     index: "D",

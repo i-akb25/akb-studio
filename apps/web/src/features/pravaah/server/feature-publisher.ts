@@ -25,8 +25,35 @@ const TIMEOUT_MS = 12_000;
 
 function writeToken(): string {
   const value = process.env.AKB_KNOWLEDGE_GITHUB_WRITE_TOKEN?.trim();
-  if (!value) throw new Error("Missing feature-registry write token");
+  if (!value)
+    throw new Error(
+      "Pravaah repository write access is not configured for the server.",
+    );
   return value;
+}
+
+function repositoryError(operation: string, status: number): Error {
+  if (status === 401 || status === 403) {
+    return new Error(
+      "Pravaah repository access was denied. The configured token needs Contents: Read and write access to the private knowledge repository.",
+    );
+  }
+  if (status === 404) {
+    return new Error(
+      "Pravaah repository or branch was not found. Confirm that the configured repository and ref still exist.",
+    );
+  }
+  if (status === 409) {
+    return new Error(
+      "Pravaah repository changed while this item was being saved. Refresh the page and submit it again.",
+    );
+  }
+  if (status === 422) {
+    return new Error(
+      "Pravaah repository rejected the update. Confirm that the configured branch accepts content updates.",
+    );
+  }
+  return new Error(`Pravaah repository ${operation} failed (${status}).`);
 }
 
 function headers(): HeadersInit {
@@ -55,7 +82,7 @@ async function writableManifest(): Promise<FeatureManifest> {
   );
 
   if (response.status === 404) return EMPTY_FEATURE_MANIFEST;
-  if (!response.ok) throw new Error("Feature registry read failed");
+  if (!response.ok) throw repositoryError("read", response.status);
 
   const payload = (await response.json()) as {
     type?: unknown;
@@ -97,7 +124,7 @@ async function currentSha(): Promise<string | undefined> {
   );
 
   if (response.status === 404) return undefined;
-  if (!response.ok) throw new Error("Feature registry lookup failed");
+  if (!response.ok) throw repositoryError("lookup", response.status);
 
   const payload = (await response.json()) as { sha?: unknown };
   return typeof payload.sha === "string" ? payload.sha : undefined;
@@ -130,9 +157,7 @@ async function writeManifest(
     },
   );
 
-  if (!response.ok) {
-    throw new Error(`Feature registry publish failed: ${response.status}`);
-  }
+  if (!response.ok) throw repositoryError("publish", response.status);
 
   revalidateTag("pravaah-manifest", "max");
 }

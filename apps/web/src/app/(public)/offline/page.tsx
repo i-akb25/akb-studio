@@ -17,10 +17,10 @@ export default function OfflinePage() {
         Offline workspace
       </h1>
       <p className="mt-5 max-w-3xl text-base leading-7 text-muted">
-        Save public links, collections, personal notes, and a contact-message
-        draft in this browser. Records are never sent to the server, never
-        become CMS edits, and never auto-publish. Export a backup before
-        clearing browser storage.
+        This optional browser notebook lets you save public links, personal
+        notes and a contact-message draft on this device. It does not require an
+        account, does not sync with Admin and cannot change the public
+        portfolio. Export a backup before clearing browser storage.
       </p>
       <div className="mt-12">
         <OfflineWorkspace />

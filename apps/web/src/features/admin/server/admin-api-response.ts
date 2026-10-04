@@ -43,6 +43,7 @@ const safeOperationalMessages = [
   /^GitHub publish failed: /,
   /^Missing knowledge repository write token$/,
   /^HTTPS URL required$/,
+  /^Pravaah repository /,
 ];
 
 function isSafeOperationalMessage(message: string): boolean {

@@ -16,6 +16,7 @@ import { ContactForm } from "@/features/contact/components/contact-form";
 
 type ContactPageProps = {
   turnstileSiteKey?: string;
+  generalEmail: string;
 };
 
 const workRoutes = [
@@ -64,7 +65,10 @@ const socialLinks: ReadonlyArray<{
   },
 ] as const;
 
-export function ContactPage({ turnstileSiteKey }: ContactPageProps) {
+export function ContactPage({
+  turnstileSiteKey,
+  generalEmail,
+}: ContactPageProps) {
   return (
     <main className="contact-page">
       <header className="contact-hero">
@@ -84,7 +88,7 @@ export function ContactPage({ turnstileSiteKey }: ContactPageProps) {
               <ArrowDownRight aria-hidden="true" />
             </a>
             <a href="/resume">
-              Interactive resume
+              Interactive résumé
               <ArrowUpRight aria-hidden="true" />
             </a>
           </div>
@@ -198,9 +202,9 @@ export function ContactPage({ turnstileSiteKey }: ContactPageProps) {
         </div>
         <div className="contact-resume__copy">
           <p className="contact-kicker">PROFESSIONAL RECORD</p>
-          <h2 id="resume-title">Anurag Kumar Bharti — Resume</h2>
+          <h2 id="resume-title">Anurag Kumar Bharti — Résumé</h2>
           <p>
-            General engineering resume. Role-specific software/product and
+            General engineering résumé. Role-specific software/product and
             electrical/automation versions will follow after final
             reconciliation.
           </p>
@@ -250,7 +254,10 @@ export function ContactPage({ turnstileSiteKey }: ContactPageProps) {
           </div>
         </aside>
 
-        <ContactForm turnstileSiteKey={turnstileSiteKey} />
+        <ContactForm
+          turnstileSiteKey={turnstileSiteKey}
+          fallbackEmail={generalEmail}
+        />
       </section>
 
       <section className="contact-direct" aria-labelledby="direct-title">
@@ -262,14 +269,11 @@ export function ContactPage({ turnstileSiteKey }: ContactPageProps) {
             conversation starts from work already published there.
           </p>
         </div>
-        <a
-          className="contact-direct__email"
-          href="mailto:akbstudioofficial@gmail.com"
-        >
+        <a className="contact-direct__email" href={`mailto:${generalEmail}`}>
           <span className="contact-direct__email-label">
             General, feedback and guidance
           </span>
-          <strong>akbstudioofficial@gmail.com</strong>
+          <strong>{generalEmail}</strong>
           <ArrowUpRight aria-hidden="true" />
         </a>
         <nav aria-label="Anurag Kumar Bharti on social platforms">

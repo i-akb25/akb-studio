@@ -3,6 +3,7 @@ import "@/features/contact/contact-surface.css";
 import type { Metadata } from "next";
 
 import { ContactPage } from "@/features/contact/components/contact-page";
+import { getPublicSiteSettings } from "@/features/seo/server/site-settings";
 import { createPageMetadata } from "@/features/seo/site-config";
 
 export const metadata: Metadata = createPageMetadata({
@@ -17,6 +18,12 @@ function turnstileSiteKey(): string | undefined {
   return key || undefined;
 }
 
-export default function ContactRoute() {
-  return <ContactPage turnstileSiteKey={turnstileSiteKey()} />;
+export default async function ContactRoute() {
+  const settings = await getPublicSiteSettings();
+  return (
+    <ContactPage
+      turnstileSiteKey={turnstileSiteKey()}
+      generalEmail={settings.generalEmail}
+    />
+  );
 }

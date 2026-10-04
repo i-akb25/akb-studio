@@ -1,5 +1,3 @@
-import "@/features/pravaah/pravaah-admin.css";
-
 import { PravaahConsole } from "@/features/admin/components/pravaah-console";
 import { getFeatureManifest } from "@/features/pravaah/server/feature-source";
 import { getGitHubDiscoveries } from "@/features/pravaah/server/github-adapter";

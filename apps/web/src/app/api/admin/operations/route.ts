@@ -7,12 +7,23 @@ import {
   getAdminSession,
 } from "@/features/admin/server/admin-auth";
 import { runAuditedMutation } from "@/features/admin/server/audit";
+import { prisma } from "@/server/db/prisma";
 import { readJsonBody } from "@/server/security/request";
 
 const state = z.enum(["DRAFT", "SCHEDULED", "PUBLISHED", "ARCHIVED"]);
 const base = z.object({
   resource: z.string(),
   action: z.string().default("upsert"),
+});
+const siteConfiguration = base.extend({
+  resource: z.literal("site-configuration"),
+  siteName: z.string().trim().min(2).max(80),
+  authorName: z.string().trim().min(2).max(100),
+  description: z.string().trim().min(20).max(500),
+  professionalEmail: z.string().trim().email().max(254),
+  generalEmail: z.string().trim().email().max(254),
+  socialImageAssetId: z.string().optional(),
+  socialImageAlt: z.string().trim().max(240).optional(),
 });
 const profile = base.extend({
   resource: z.literal("profile"),
@@ -96,6 +107,7 @@ const contact = base.extend({
   note: z.string().max(1000).optional(),
 });
 const operation = z.discriminatedUnion("resource", [
+  siteConfiguration,
   profile,
   availability,
   reflection,
@@ -128,6 +140,58 @@ export async function POST(request: Request) {
       !["owner", "editor"].includes(session.role)
     )
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (input.resource === "site-configuration") {
+      if (input.socialImageAssetId) {
+        const image = await prisma.mediaAsset.findFirst({
+          where: {
+            id: input.socialImageAssetId,
+            state: "READY",
+            mimeType: { startsWith: "image/" },
+          },
+          select: { id: true },
+        });
+        if (!image)
+          return NextResponse.json(
+            { error: "Choose a ready image from the media library." },
+            { status: 409 },
+          );
+      }
+      const result = await runAuditedMutation(
+        (tx) =>
+          tx.siteConfiguration.upsert({
+            where: { id: "primary" },
+            create: {
+              id: "primary",
+              siteName: input.siteName,
+              authorName: input.authorName,
+              description: input.description,
+              professionalEmail: input.professionalEmail,
+              generalEmail: input.generalEmail,
+              socialImageAssetId: input.socialImageAssetId,
+              socialImageAlt: input.socialImageAlt,
+            },
+            update: {
+              siteName: input.siteName,
+              authorName: input.authorName,
+              description: input.description,
+              professionalEmail: input.professionalEmail,
+              generalEmail: input.generalEmail,
+              socialImageAssetId: input.socialImageAssetId || null,
+              socialImageAlt: input.socialImageAlt || null,
+            },
+          }),
+        (saved) => ({
+          actorId: session.user.id,
+          action: "UPDATE",
+          entityType: "SiteConfiguration",
+          entityId: saved.id,
+        }),
+      );
+      revalidatePath("/", "layout");
+      revalidatePath("/opengraph-image");
+      revalidatePath("/twitter-image");
+      return NextResponse.json({ ok: true, result });
+    }
     if (input.resource === "profile") {
       const result = await runAuditedMutation(
         (tx) =>

@@ -14,6 +14,7 @@ import {
   Music2,
   NotebookPen,
   ScrollText,
+  Settings2,
   Sparkles,
   UserRound,
 } from "lucide-react";
@@ -34,6 +35,12 @@ const groups: Array<{ label: string; items: NavigationItem[] }> = [
   {
     label: "Overview",
     items: [
+      {
+        href: "/admin/site",
+        label: "Site settings",
+        description: "Email, metadata and previews",
+        icon: Settings2,
+      },
       {
         href: "/admin",
         label: "Dashboard",

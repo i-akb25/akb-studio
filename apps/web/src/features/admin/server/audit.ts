@@ -25,7 +25,6 @@ function canonical(value: unknown): string {
 }
 
 async function appendAudit(tx: Prisma.TransactionClient, input: AuditInput) {
-  await tx.$queryRaw`SELECT pg_advisory_xact_lock(1095451219)`;
   const previous = await tx.auditLog.findFirst({
     where: { entryHash: { not: null } },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -56,9 +55,7 @@ async function appendAudit(tx: Prisma.TransactionClient, input: AuditInput) {
 }
 
 export async function recordAudit(input: AuditInput) {
-  return prisma.$transaction((tx) => appendAudit(tx, input), {
-    isolationLevel: "Serializable",
-  });
+  return prisma.$transaction((tx) => appendAudit(tx, input));
 }
 
 export async function recordAuditInTransaction(
@@ -72,12 +69,9 @@ export async function runAuditedMutation<T>(
   mutation: (tx: Prisma.TransactionClient) => Promise<T>,
   audit: (result: T) => AuditInput,
 ) {
-  return prisma.$transaction(
-    async (tx) => {
-      const result = await mutation(tx);
-      await appendAudit(tx, audit(result));
-      return result;
-    },
-    { isolationLevel: "Serializable" },
-  );
+  return prisma.$transaction(async (tx) => {
+    const result = await mutation(tx);
+    await appendAudit(tx, audit(result));
+    return result;
+  });
 }

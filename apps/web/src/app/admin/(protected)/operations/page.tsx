@@ -3,6 +3,11 @@ import { getDatabaseHealth } from "@/server/db/database-health";
 
 const areas = [
   [
+    "Site settings",
+    "/admin/site",
+    "Change public email addresses, site metadata and the sharing preview image.",
+  ],
+  [
     "Profile",
     "/admin/profile",
     "Change the About identity, biography, public email and profile image.",

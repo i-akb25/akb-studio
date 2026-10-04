@@ -266,7 +266,7 @@ export function AevaExperience() {
                   href="/resume"
                   className="inline-flex items-center gap-1 text-xs font-medium text-accent-warm"
                 >
-                  Open interactive resume
+                  Open interactive résumé
                   <ArrowUpRight className="size-3" aria-hidden="true" />
                 </Link>
               </div>

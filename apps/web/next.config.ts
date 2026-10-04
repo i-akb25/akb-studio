@@ -14,7 +14,7 @@ const contentSecurityPolicy = [
   "media-src 'self' blob: https://res.cloudinary.com",
   "font-src 'self' data:",
   "connect-src 'self' https://challenges.cloudflare.com",
-  "frame-src https://challenges.cloudflare.com",
+  "frame-src https://challenges.cloudflare.com https://drive.google.com",
   "worker-src 'self' blob:",
   "manifest-src 'self'",
   ...(process.env.NODE_ENV === "production"

@@ -27,15 +27,17 @@ function getAvailableLink(
 }
 
 function HomepageProjectCard({ project }: { project: HomepageProject }) {
+  const liveUrl = getAvailableLink(project, "demo");
+
   return (
     <ProjectCard
       index={project.homepageOrder.toString().padStart(2, "0")}
       title={project.title}
       category={project.categoryLabel}
-      image={project.cover.src}
-      imageAlt={project.cover.alt}
+      image={project.cover?.src}
+      imageAlt={project.cover?.alt}
       technologies={project.technologies}
-      liveUrl={getAvailableLink(project, "demo")}
+      liveUrl={liveUrl}
       repositoryUrl={getAvailableLink(project, "repository")}
       caseStudyUrl={`/projects/${project.slug}`}
     />
@@ -138,8 +140,8 @@ export async function FeaturedProjects() {
         <div className="mt-7 flex flex-col gap-5 border-t border-foreground/10 pt-5 sm:flex-row sm:items-end sm:justify-between sm:gap-8">
           <p className="max-w-xl text-sm leading-6 text-foreground/60">
             The complete archive separates flagship systems, focused builds,
-            smaller project records, and interface studies without presenting
-            them as equal work.
+            project records, and interface studies without presenting them as
+            equal work.
           </p>
 
           <div className="flex shrink-0 items-center justify-between gap-7 sm:justify-end">

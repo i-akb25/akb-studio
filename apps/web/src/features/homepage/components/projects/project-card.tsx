@@ -10,8 +10,8 @@ type ProjectCardProps = {
   index: string;
   title: string;
   category: string;
-  image: string;
-  imageAlt: string;
+  image?: string;
+  imageAlt?: string;
   technologies: readonly ProjectTechnology[];
   liveUrl?: string;
   repositoryUrl?: string;
@@ -34,13 +34,26 @@ export function ProjectCard({
   return (
     <article className="group min-w-0">
       <div className="relative aspect-[4/3] min-h-[18rem] overflow-hidden rounded-[1.35rem] border border-foreground/10 bg-foreground/[0.025]">
-        <Image
-          src={image}
-          alt={imageAlt}
-          fill
-          sizes="(max-width: 639px) calc(100vw - 2.5rem), (max-width: 1023px) 50vw, 33vw"
-          className="object-cover object-center transition-transform duration-500 ease-out group-hover:scale-[1.018] group-focus-within:scale-[1.018] motion-reduce:transform-none motion-reduce:transition-none"
-        />
+        {image ? (
+          <Image
+            src={image}
+            alt={imageAlt ?? `${title} project preview`}
+            fill
+            sizes="(max-width: 639px) calc(100vw - 2.5rem), (max-width: 1023px) 50vw, 33vw"
+            className="object-cover object-center transition-transform duration-500 ease-out group-hover:scale-[1.018] group-focus-within:scale-[1.018] motion-reduce:transform-none motion-reduce:transition-none"
+          />
+        ) : (
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 bg-gradient-to-br from-transparent to-foreground/[0.07]"
+          >
+            <div className="absolute top-6 right-6 font-mono text-[0.625rem] tracking-[0.16em] text-foreground/24 uppercase">
+              Project record
+            </div>
+            <div className="absolute top-1/2 left-1/2 size-36 -translate-x-1/2 -translate-y-1/2 rotate-45 border border-foreground/10" />
+            <div className="absolute top-1/2 left-1/2 size-20 -translate-x-1/2 -translate-y-1/2 rotate-45 border border-foreground/15" />
+          </div>
+        )}
 
         <div
           aria-hidden="true"

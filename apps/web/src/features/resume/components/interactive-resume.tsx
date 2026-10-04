@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRight, Download, Printer, Search } from "lucide-react";
+import { ArrowUpRight, Download, Search } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import type { RoleFitAnalysis } from "@/features/recruiter/model";
@@ -74,21 +74,13 @@ export function InteractiveResume({ profile }: { profile: ResumeProfile }) {
             skill, claim or job that is absent from the published portfolio.
           </p>
           <div className="mt-6 flex flex-wrap gap-3 print:hidden">
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="inline-flex items-center gap-2 bg-foreground px-4 py-3 text-sm font-semibold text-background"
-            >
-              <Printer className="size-4" aria-hidden="true" />
-              Print / save PDF
-            </button>
             <a
               href={profile.canonicalPdf}
               download
-              className="inline-flex items-center gap-2 border border-border px-4 py-3 text-sm font-semibold"
+              className="inline-flex items-center gap-2 bg-foreground px-4 py-3 text-sm font-semibold text-background"
             >
               <Download className="size-4" aria-hidden="true" />
-              General PDF
+              Download resume PDF
             </a>
           </div>
         </div>

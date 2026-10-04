@@ -32,3 +32,10 @@ export const PROFILE_LINKS = [
 ] as const;
 
 export type ProfileLink = (typeof PROFILE_LINKS)[number];
+
+export function getProfileLinks(email?: string) {
+  if (!email) return PROFILE_LINKS;
+  return PROFILE_LINKS.map((item) =>
+    item.platform === "email" ? { ...item, href: `mailto:${email}` } : item,
+  );
+}

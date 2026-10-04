@@ -61,8 +61,8 @@ export function PravaahConsole({
   }
 
   return (
-    <main className="pravaah-admin">
-      <header className="akb-admin-page-header">
+    <div className="akb-admin-page pravaah-admin">
+      <header className="akb-admin-page__header">
         <p className="akb-kicker">PRAVAAH / CURATION</p>
         <h1>Public signal control</h1>
         <p>
@@ -312,6 +312,6 @@ export function PravaahConsole({
       </aside>
 
       <output aria-live="polite">{result}</output>
-    </main>
+    </div>
   );
 }

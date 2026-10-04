@@ -1,22 +1,25 @@
 import { Mail } from "lucide-react";
-import { PROFILE_LINKS } from "@/components/brand/profile-links";
+import { getProfileLinks } from "@/components/brand/profile-links";
 import {
   SocialLogo,
   type SocialPlatform,
 } from "@/components/brand/social-logo";
+import { getPublicSiteSettings } from "@/features/seo/server/site-settings";
 
-export function HeroSocialLinks() {
+export async function HeroSocialLinks() {
+  const settings = await getPublicSiteSettings();
+  const profileLinks = getProfileLinks(settings.professionalEmail);
   return (
     <nav aria-label="Professional profiles" className="mt-7">
       <ul className="flex flex-wrap items-center gap-1.5">
-        {PROFILE_LINKS.map((item) => (
+        {profileLinks.map((item) => (
           <li key={item.platform}>
             <a
               href={item.href}
               aria-label={
                 item.external
                   ? `Visit Anurag on ${item.label} (opens in a new tab)`
-                  : `Email Anurag at anuragbhartiee25@gmail.com`
+                  : `Email Anurag at ${settings.professionalEmail}`
               }
               title={item.label}
               target={item.external ? "_blank" : undefined}

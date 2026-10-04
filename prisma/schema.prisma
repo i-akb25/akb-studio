@@ -562,31 +562,32 @@ model ContactStatusEvent {
 }
 
 model MediaAsset {
-  id                String             @id @default(cuid())
-  provider          String             @default("cloudinary")
-  providerId        String             @unique
+  id                String              @id @default(cuid())
+  provider          String              @default("cloudinary")
+  providerId        String              @unique
   version           String?
-  resourceType      String             @default("image")
+  resourceType      String              @default("image")
   format            String
   mimeType          String
   bytes             Int
   width             Int?
   height            Int?
-  checksum          String?            @unique
+  checksum          String?             @unique
   originalName      String?
   secureUrl         String
   altText           String
-  state             MediaState         @default(PENDING)
+  state             MediaState          @default(PENDING)
   deletedAt         DateTime?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  profileDp         Profile[]          @relation("ProfileDp")
-  projectCovers     Project[]          @relation("ProjectCover")
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  profileDp         Profile[]           @relation("ProfileDp")
+  projectCovers     Project[]           @relation("ProjectCover")
   galleryItems      GalleryItem[]
   projectMedia      ProjectMedia[]
   reflections       Reflection[]
   extraction        MediaExtraction?
   siteAudioSettings SiteAudioSetting[]
+  siteSocialImages  SiteConfiguration[] @relation("SiteSocialImage")
 
   @@index([state, createdAt])
   @@index([deletedAt])
@@ -809,4 +810,20 @@ model SiteAudioSetting {
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   asset     MediaAsset @relation(fields: [assetId], references: [id], onDelete: Restrict)
+}
+
+model SiteConfiguration {
+  id                 String      @id @default("primary")
+  siteName           String      @default("AKB Studio")
+  authorName         String      @default("Anurag Kumar Bharti")
+  description        String
+  professionalEmail  String
+  generalEmail       String
+  socialImageAssetId String?
+  socialImageAlt     String?
+  socialImageAsset   MediaAsset? @relation("SiteSocialImage", fields: [socialImageAssetId], references: [id], onDelete: SetNull)
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  @@index([socialImageAssetId])
 }

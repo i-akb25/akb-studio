@@ -2,7 +2,11 @@ import { ImageResponse } from "next/og";
 
 export const SOCIAL_IMAGE_SIZE = { width: 1200, height: 630 } as const;
 
-export function createSocialImage(): ImageResponse {
+export function createSocialImage(input?: {
+  title?: string;
+  description?: string;
+  imageUrl?: string | null;
+}): ImageResponse {
   return new ImageResponse(
     <div
       style={{
@@ -18,6 +22,23 @@ export function createSocialImage(): ImageResponse {
         fontFamily: "sans-serif",
       }}
     >
+      {input?.imageUrl ? (
+        // biome-ignore lint/performance/noImgElement: ImageResponse requires a plain image element.
+        <img
+          src={input.imageUrl}
+          alt=""
+          width="1200"
+          height="630"
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            opacity: 0.28,
+          }}
+        />
+      ) : null}
       <div
         style={{
           position: "absolute",
@@ -76,7 +97,7 @@ export function createSocialImage(): ImageResponse {
             fontWeight: 650,
           }}
         >
-          Anurag Kumar Bharti
+          {input?.title ?? "Anurag Kumar Bharti"}
         </div>
         <div
           style={{
@@ -87,7 +108,8 @@ export function createSocialImage(): ImageResponse {
             color: "rgba(242, 234, 223, 0.68)",
           }}
         >
-          Engineering projects, field notes and technical knowledge.
+          {input?.description ??
+            "Engineering projects, field notes and technical knowledge."}
         </div>
       </div>
       <div

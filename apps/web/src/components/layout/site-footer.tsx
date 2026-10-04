@@ -1,12 +1,13 @@
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
-import { PROFILE_LINKS } from "@/components/brand/profile-links";
+import { getProfileLinks } from "@/components/brand/profile-links";
 import { SiteBrandMark } from "@/components/brand/site-brand-mark";
 import {
   SocialLogo,
   type SocialPlatform,
 } from "@/components/brand/social-logo";
 import { JourneyScene } from "@/features/footer/components/journey-scene";
+import { getPublicSiteSettings } from "@/features/seo/server/site-settings";
 
 const primaryLinks = [
   { label: "Home", href: "/" },
@@ -26,18 +27,18 @@ const resourceLinks = [
   { label: "Cookies", href: "/cookies" },
   { label: "Data Policy", href: "/data-policy" },
   { label: "Privacy requests", href: "/privacy/requests" },
-  { label: "Interactive resume", href: "/resume" },
+  { label: "Interactive résumé", href: "/resume" },
   { label: "Engineering lab", href: "/lab" },
   { label: "Offline workspace", href: "/offline" },
 ] as const;
 
-const socialLinks = PROFILE_LINKS.filter(
-  (item): item is typeof item & { platform: SocialPlatform } =>
-    item.platform !== "email",
-);
-
-export function SiteFooter() {
+export async function SiteFooter() {
   const currentYear = new Date().getFullYear();
+  const settings = await getPublicSiteSettings();
+  const socialLinks = getProfileLinks(settings.professionalEmail).filter(
+    (item): item is typeof item & { platform: SocialPlatform } =>
+      item.platform !== "email",
+  );
 
   return (
     <footer className="relative overflow-hidden bg-surface">

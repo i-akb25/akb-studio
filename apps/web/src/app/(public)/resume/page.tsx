@@ -3,9 +3,9 @@ import { getResumeProfile } from "@/features/resume/server/resume-profile";
 import { createPageMetadata } from "@/features/seo/site-config";
 
 export const metadata = createPageMetadata({
-  title: "Interactive Resume",
+  title: "Interactive Résumé",
   description:
-    "A truth-preserving, evidence-linked resume for Anurag Kumar Bharti that can adapt its emphasis to a supplied engineering role.",
+    "A truth-preserving, evidence-linked résumé for Anurag Kumar Bharti that can adapt its emphasis to a supplied engineering role.",
   path: "/resume",
 });
 

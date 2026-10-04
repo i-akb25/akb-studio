@@ -80,6 +80,10 @@ test("Admin writes use atomic audit mutations", async () => {
     assert.match(route, /runAuditedMutation/);
     assert.doesNotMatch(route, /await recordAudit\(/);
   }
+
+  const audit = await webSource("src/features/admin/server/audit.ts");
+  assert.doesNotMatch(audit, /pg_advisory_xact_lock/);
+  assert.doesNotMatch(audit, /isolationLevel/);
 });
 
 test("Admin logout and secondary public routes are reachable", async () => {
@@ -92,7 +96,7 @@ test("Admin logout and secondary public routes are reachable", async () => {
   assert.match(layout, /AdminSidebar/);
   assert.match(sidebar, /AdminLogoutButton/);
   assert.match(sidebar, /aria-current/);
-  assert.match(footer, /Interactive resume/);
+  assert.match(footer, /Interactive résumé/);
   assert.match(footer, /href: "\/resume"/);
   assert.match(footer, /href: "\/lab"/);
   assert.match(footer, /href: "\/offline"/);
@@ -123,17 +127,26 @@ test("Admin editors can load existing records before updating them", async () =>
 });
 
 test("Admin uses task-based navigation and separate portfolio editors", async () => {
-  const [sidebar, profile, availability, projects, reflections, galleries] =
-    await Promise.all([
-      webSource("src/features/admin/components/admin-sidebar.tsx"),
-      webSource("src/app/admin/(protected)/profile/page.tsx"),
-      webSource("src/app/admin/(protected)/availability/page.tsx"),
-      webSource("src/app/admin/(protected)/projects/page.tsx"),
-      webSource("src/app/admin/(protected)/reflections/page.tsx"),
-      webSource("src/app/admin/(protected)/galleries/page.tsx"),
-    ]);
+  const [
+    sidebar,
+    site,
+    profile,
+    availability,
+    projects,
+    reflections,
+    galleries,
+  ] = await Promise.all([
+    webSource("src/features/admin/components/admin-sidebar.tsx"),
+    webSource("src/app/admin/(protected)/site/page.tsx"),
+    webSource("src/app/admin/(protected)/profile/page.tsx"),
+    webSource("src/app/admin/(protected)/availability/page.tsx"),
+    webSource("src/app/admin/(protected)/projects/page.tsx"),
+    webSource("src/app/admin/(protected)/reflections/page.tsx"),
+    webSource("src/app/admin/(protected)/galleries/page.tsx"),
+  ]);
 
   for (const route of [
+    "site",
     "profile",
     "availability",
     "projects",
@@ -141,11 +154,37 @@ test("Admin uses task-based navigation and separate portfolio editors", async ()
     "galleries",
   ])
     assert.match(sidebar, new RegExp(`/admin/${route}`));
+  assert.match(site, /section="site"/);
   assert.match(profile, /section="profile"/);
   assert.match(availability, /section="availability"/);
   assert.match(projects, /section="projects"/);
   assert.match(reflections, /section="reflections"/);
   assert.match(galleries, /section="galleries"/);
+});
+
+test("protected Admin pages do not load conflicting public or legacy styles", async () => {
+  const [layout, pravaahPage, shell] = await Promise.all([
+    webSource("src/app/admin/(protected)/layout.tsx"),
+    webSource("src/app/admin/(protected)/pravaah/page.tsx"),
+    webSource("src/features/admin/admin-shell.css"),
+  ]);
+
+  assert.doesNotMatch(layout, /content-surface\.css/);
+  assert.doesNotMatch(pravaahPage, /pravaah-admin\.css/);
+  assert.match(shell, /\.akb-admin-publisher/);
+  assert.match(shell, /\.akb-admin-editor/);
+});
+
+test("Admin can override tracked projects and select managed media", async () => {
+  const [operationsData, operationsConsole] = await Promise.all([
+    webSource("src/features/admin/server/operations-data.ts"),
+    webSource("src/features/admin/components/operations-console.tsx"),
+  ]);
+
+  assert.match(operationsData, /publishedProjects/);
+  assert.match(operationsData, /mediaAsset\.findMany/);
+  assert.match(operationsConsole, /MediaSelect/);
+  assert.match(operationsConsole, /Site identity and sharing preview/);
 });
 
 test("Admin document handling matches the advertised upload formats", async () => {

@@ -3,12 +3,8 @@ import { Inter, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import Script from "next/script";
 import { FirstSessionBrandIntro } from "@/features/loader/components/first-session-brand-intro";
 import { createBrandIntroBootstrapScript } from "@/features/loader/loader-config";
-import {
-  AUTHOR_NAME,
-  DEFAULT_DESCRIPTION,
-  getSiteOrigin,
-  SITE_NAME,
-} from "@/features/seo/site-config";
+import { getPublicSiteSettings } from "@/features/seo/server/site-settings";
+import { getSiteOrigin } from "@/features/seo/site-config";
 import { createThemeBootstrapScript } from "@/features/theme/theme-config";
 import "./globals.css";
 
@@ -31,55 +27,82 @@ const fontMono = JetBrains_Mono({
 const siteOrigin = getSiteOrigin();
 const metadataBase = siteOrigin ?? new URL("http://localhost:3000");
 
-export const metadata: Metadata = {
-  metadataBase,
-  title: {
-    default: `${AUTHOR_NAME} | ${SITE_NAME}`,
-    template: `%s | ${SITE_NAME}`,
-  },
-  description: DEFAULT_DESCRIPTION,
-  applicationName: SITE_NAME,
-  authors: [{ name: AUTHOR_NAME, ...(siteOrigin ? { url: siteOrigin } : {}) }],
-  creator: AUTHOR_NAME,
-  publisher: AUTHOR_NAME,
-  category: "engineering",
-  keywords: [
-    "Anurag Kumar Bharti",
-    "Anurag Aryan",
-    "Ace AKB",
-    "AKB NITP",
-    "AKB Studio",
-    "software engineer",
-    "electrical and automation engineer",
-  ],
-  manifest: "/manifest.webmanifest",
-  icons: {
-    icon: [
-      { url: "/brand/favicon.ico" },
-      { url: "/brand/favicon-16x16.png", sizes: "16x16", type: "image/png" },
-      { url: "/brand/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-      { url: "/brand/favicon-48x48.png", sizes: "48x48", type: "image/png" },
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getPublicSiteSettings();
+  return {
+    metadataBase,
+    title: {
+      default: `${settings.authorName} | ${settings.siteName}`,
+      template: `%s | ${settings.siteName}`,
+    },
+    description: settings.description,
+    applicationName: settings.siteName,
+    authors: [
+      { name: settings.authorName, ...(siteOrigin ? { url: siteOrigin } : {}) },
     ],
-    apple: [
-      {
-        url: "/brand/apple-touch-icon.png",
-        sizes: "180x180",
-        type: "image/png",
-      },
+    creator: settings.authorName,
+    publisher: settings.authorName,
+    category: "engineering",
+    keywords: [
+      "Anurag Kumar Bharti",
+      "Anurag Aryan",
+      "Ace AKB",
+      "AKB NITP",
+      "AKB Studio",
+      "software engineer",
+      "electrical and automation engineer",
     ],
-  },
-  referrer: "strict-origin-when-cross-origin",
-  formatDetection: {
-    email: false,
-    address: false,
-    telephone: false,
-  },
-  verification: {
-    ...(process.env.GOOGLE_SITE_VERIFICATION?.trim()
-      ? { google: process.env.GOOGLE_SITE_VERIFICATION.trim() }
-      : {}),
-  },
-};
+    openGraph: settings.socialImageUrl
+      ? {
+          type: "website",
+          siteName: settings.siteName,
+          title: settings.authorName,
+          description: settings.description,
+          images: [
+            {
+              url: settings.socialImageUrl,
+              width: 1200,
+              height: 630,
+              alt: settings.socialImageAlt,
+            },
+          ],
+        }
+      : undefined,
+    twitter: settings.socialImageUrl
+      ? {
+          card: "summary_large_image",
+          title: settings.authorName,
+          description: settings.description,
+          images: [
+            { url: settings.socialImageUrl, alt: settings.socialImageAlt },
+          ],
+        }
+      : undefined,
+    manifest: "/manifest.webmanifest",
+    icons: {
+      icon: [
+        { url: "/brand/favicon.ico" },
+        { url: "/brand/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+        { url: "/brand/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+        { url: "/brand/favicon-48x48.png", sizes: "48x48", type: "image/png" },
+      ],
+      apple: [
+        {
+          url: "/brand/apple-touch-icon.png",
+          sizes: "180x180",
+          type: "image/png",
+        },
+      ],
+    },
+    referrer: "strict-origin-when-cross-origin",
+    formatDetection: { email: false, address: false, telephone: false },
+    verification: {
+      ...(process.env.GOOGLE_SITE_VERIFICATION?.trim()
+        ? { google: process.env.GOOGLE_SITE_VERIFICATION.trim() }
+        : {}),
+    },
+  };
+}
 
 export const viewport: Viewport = { themeColor: "#0b0b0b" };
 

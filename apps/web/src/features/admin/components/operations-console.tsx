@@ -6,6 +6,15 @@ import { type FormEvent, useState } from "react";
 type ContentState = "DRAFT" | "SCHEDULED" | "PUBLISHED" | "ARCHIVED";
 
 export type OperationsInitialData = {
+  siteConfiguration: {
+    siteName: string;
+    authorName: string;
+    description: string;
+    professionalEmail: string;
+    generalEmail: string;
+    socialImageAssetId: string | null;
+    socialImageAlt: string | null;
+  } | null;
   profile: {
     displayName: string;
     headline: string;
@@ -58,10 +67,16 @@ export type OperationsInitialData = {
     description: string | null;
     state: ContentState;
   }>;
+  mediaAssets: Array<{
+    id: string;
+    label: string;
+    mimeType: string;
+  }>;
 };
 
 export type OperationsSection =
   | "all"
+  | "site"
   | "profile"
   | "availability"
   | "projects"
@@ -93,6 +108,34 @@ function StateSelect({ value = "DRAFT" }: { value?: ContentState }) {
         <option>ARCHIVED</option>
       </select>
     </label>
+  );
+}
+
+function MediaSelect({
+  name,
+  value,
+  assets,
+  kind = "image",
+  required = false,
+}: {
+  name: string;
+  value?: string | null;
+  assets: OperationsInitialData["mediaAssets"];
+  kind?: "image" | "all";
+  required?: boolean;
+}) {
+  const options = assets.filter(
+    (asset) => kind === "all" || asset.mimeType.startsWith("image/"),
+  );
+  return (
+    <select name={name} defaultValue={value ?? ""} required={required}>
+      <option value="">No asset selected</option>
+      {options.map((asset) => (
+        <option key={asset.id} value={asset.id}>
+          {asset.label} · {asset.mimeType}
+        </option>
+      ))}
+    </select>
   );
 }
 
@@ -145,6 +188,87 @@ export function OperationsConsole({
   return (
     <div className="akb-admin-operations">
       <output aria-live="polite">{status}</output>
+      <section hidden={section !== "all" && section !== "site"}>
+        <h2>Site identity and sharing preview</h2>
+        <form
+          onSubmit={(event) =>
+            run(event, (d) => ({
+              resource: "site-configuration",
+              siteName: d.siteName,
+              authorName: d.authorName,
+              description: d.description,
+              professionalEmail: d.professionalEmail,
+              generalEmail: d.generalEmail,
+              socialImageAssetId: d.socialImageAssetId || undefined,
+              socialImageAlt: d.socialImageAlt || undefined,
+            }))
+          }
+        >
+          <label>
+            <span>Site name</span>
+            <input
+              name="siteName"
+              defaultValue={
+                initialData.siteConfiguration?.siteName ?? "AKB Studio"
+              }
+              required
+            />
+          </label>
+          <label>
+            <span>Public author name</span>
+            <input
+              name="authorName"
+              defaultValue={
+                initialData.siteConfiguration?.authorName ??
+                "Anurag Kumar Bharti"
+              }
+              required
+            />
+          </label>
+          <label className="akb-admin-span-2">
+            <span>Default site description</span>
+            <textarea
+              name="description"
+              defaultValue={initialData.siteConfiguration?.description}
+              required
+            />
+          </label>
+          <label>
+            <span>Professional public email</span>
+            <input
+              type="email"
+              name="professionalEmail"
+              defaultValue={initialData.siteConfiguration?.professionalEmail}
+              required
+            />
+          </label>
+          <label>
+            <span>General public email</span>
+            <input
+              type="email"
+              name="generalEmail"
+              defaultValue={initialData.siteConfiguration?.generalEmail}
+              required
+            />
+          </label>
+          <div className="akb-admin-field">
+            <span>Social preview image</span>
+            <MediaSelect
+              name="socialImageAssetId"
+              value={initialData.siteConfiguration?.socialImageAssetId}
+              assets={initialData.mediaAssets}
+            />
+          </div>
+          <label>
+            <span>Social preview image description</span>
+            <input
+              name="socialImageAlt"
+              defaultValue={initialData.siteConfiguration?.socialImageAlt ?? ""}
+            />
+          </label>
+          <button type="submit">Save site settings</button>
+        </form>
+      </section>
       <section hidden={section !== "all" && section !== "profile"}>
         <h2>About profile and DP</h2>
         <form
@@ -200,13 +324,14 @@ export function OperationsConsole({
               defaultValue={initialData.profile?.email ?? ""}
             />
           </label>
-          <label>
-            <span>DP media asset ID</span>
-            <input
+          <div className="akb-admin-field">
+            <span>Profile image</span>
+            <MediaSelect
               name="dpAssetId"
-              defaultValue={initialData.profile?.dpAssetId ?? ""}
+              value={initialData.profile?.dpAssetId}
+              assets={initialData.mediaAssets}
             />
-          </label>
+          </div>
           <StateSelect value={initialData.profile?.state} />
           <button type="submit">Save profile</button>
         </form>
@@ -401,13 +526,14 @@ export function OperationsConsole({
               defaultValue={selectedProject?.demoUrl ?? ""}
             />
           </label>
-          <label>
-            <span>Cover media asset ID</span>
-            <input
+          <div className="akb-admin-field">
+            <span>Project cover</span>
+            <MediaSelect
               name="coverAssetId"
-              defaultValue={selectedProject?.coverAssetId ?? ""}
+              value={selectedProject?.coverAssetId}
+              assets={initialData.mediaAssets}
             />
-          </label>
+          </div>
           <label>
             <span>Order</span>
             <input
@@ -613,10 +739,14 @@ export function OperationsConsole({
               required
             />
           </label>
-          <label>
-            <span>Uploaded media asset ID</span>
-            <input name="assetId" required />
-          </label>
+          <div className="akb-admin-field">
+            <span>Uploaded image</span>
+            <MediaSelect
+              name="assetId"
+              assets={initialData.mediaAssets}
+              required
+            />
+          </div>
           <label>
             <span>Alt text</span>
             <input name="altText" required />

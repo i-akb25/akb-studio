@@ -36,6 +36,7 @@ declare global {
 
 type ContactFormProps = {
   turnstileSiteKey?: string;
+  fallbackEmail: string;
 };
 
 const initialMessage: ContactResponse = {
@@ -43,7 +44,10 @@ const initialMessage: ContactResponse = {
   message: "",
 };
 
-export function ContactForm({ turnstileSiteKey }: ContactFormProps) {
+export function ContactForm({
+  turnstileSiteKey,
+  fallbackEmail,
+}: ContactFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const turnstileRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | undefined>(undefined);
@@ -356,7 +360,7 @@ export function ContactForm({ turnstileSiteKey }: ContactFormProps) {
           <div className="contact-form__error contact-field--wide" role="alert">
             <p>{result.message}</p>
             {result.code === "unavailable" ? (
-              <a href="mailto:akbstudioofficial@gmail.com">
+              <a href={`mailto:${fallbackEmail}`}>
                 Email AKB Studio directly
                 <ArrowUpRight aria-hidden="true" />
               </a>

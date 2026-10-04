@@ -159,69 +159,80 @@ export async function DELETE(request: Request) {
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 403 });
   }
-  const id = new URL(request.url).searchParams.get("id");
-  if (!id)
-    return NextResponse.json({ error: "Missing asset id" }, { status: 400 });
-  const asset = await prisma.mediaAsset.findUnique({
-    where: { id },
-    include: {
-      profileDp: true,
-      projectCovers: true,
-      galleryItems: true,
-      projectMedia: true,
-      reflections: true,
-      siteAudioSettings: true,
-    },
-  });
-  if (!asset) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  const references =
-    asset.profileDp.length +
-    asset.projectCovers.length +
-    asset.galleryItems.length +
-    asset.projectMedia.length +
-    asset.reflections.length +
-    asset.siteAudioSettings.length;
-  if (references > 0)
-    return NextResponse.json(
-      { error: "Replace or detach this asset before deletion" },
-      { status: 409 },
-    );
-  await runAuditedMutation(
-    (tx) =>
-      tx.mediaAsset.update({
-        where: { id },
-        data: { state: "DELETED", deletedAt: new Date() },
-      }),
-    (stored) => ({
-      actorId: session.user.id,
-      action: "DELETE",
-      entityType: "MediaAsset",
-      entityId: stored.id,
-    }),
-  );
   try {
-    await deleteAdminMedia(asset.providerId, asset.resourceType);
-  } catch {
+    const id = new URL(request.url).searchParams.get("id");
+    if (!id)
+      return NextResponse.json({ error: "Missing asset id" }, { status: 400 });
+    const asset = await prisma.mediaAsset.findUnique({
+      where: { id },
+      include: {
+        profileDp: true,
+        projectCovers: true,
+        galleryItems: true,
+        projectMedia: true,
+        reflections: true,
+        siteAudioSettings: true,
+        siteSocialImages: true,
+      },
+    });
+    if (!asset)
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const references =
+      asset.profileDp.length +
+      asset.projectCovers.length +
+      asset.galleryItems.length +
+      asset.projectMedia.length +
+      asset.reflections.length +
+      asset.siteAudioSettings.length +
+      asset.siteSocialImages.length;
+    if (references > 0)
+      return NextResponse.json(
+        { error: "Replace or detach this asset before deletion" },
+        { status: 409 },
+      );
     await runAuditedMutation(
       (tx) =>
         tx.mediaAsset.update({
           where: { id },
-          data: { state: "QUARANTINED" },
+          data: { state: "DELETED", deletedAt: new Date() },
         }),
       (stored) => ({
         actorId: session.user.id,
-        action: "UPDATE",
+        action: "DELETE",
         entityType: "MediaAsset",
         entityId: stored.id,
       }),
     );
-    return NextResponse.json(
-      {
-        error:
-          "The asset was removed from the site but provider cleanup must be retried.",
-      },
-      { status: 503 },
-    );
+    try {
+      await deleteAdminMedia(asset.providerId, asset.resourceType);
+    } catch {
+      await runAuditedMutation(
+        (tx) =>
+          tx.mediaAsset.update({
+            where: { id },
+            data: { state: "QUARANTINED" },
+          }),
+        (stored) => ({
+          actorId: session.user.id,
+          action: "UPDATE",
+          entityType: "MediaAsset",
+          entityId: stored.id,
+        }),
+      );
+      return NextResponse.json(
+        {
+          error:
+            "The asset was removed from the site but provider cleanup must be retried.",
+        },
+        { status: 503 },
+      );
+    }
+    revalidatePath("/admin/media");
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return adminErrorResponse(error, {
+      event: "admin_media_delete_failed",
+      fallback: "The asset could not be removed.",
+    });
   }
-  return NextResponse.json({ ok: true });
 }

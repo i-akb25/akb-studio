@@ -1,5 +1,6 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { logger, safeErrorFields } from "@/server/logging/logger";
 
@@ -56,7 +57,8 @@ export function adminErrorResponse(
     fallbackStatus?: number;
   },
 ) {
-  logger.error({ event: options.event, ...safeErrorFields(error) });
+  const reference = randomUUID().slice(0, 8);
+  logger.error({ event: options.event, reference, ...safeErrorFields(error) });
 
   if (error instanceof z.ZodError) {
     const issue = error.issues[0];
@@ -82,8 +84,26 @@ export function adminErrorResponse(
     return Response.json({ error: error.message }, { status: 400 });
   }
 
+  if (error instanceof Error) {
+    const normalized = error.message.toLowerCase();
+    if (normalized.includes("cloudinary"))
+      return Response.json(
+        {
+          error: `Cloudinary rejected the request. Check the asset format and provider dashboard. Reference ${reference}.`,
+        },
+        { status: 502 },
+      );
+    if (normalized.includes("timeout") || normalized.includes("timed out"))
+      return Response.json(
+        {
+          error: `The provider did not respond in time. Nothing was published. Reference ${reference}.`,
+        },
+        { status: 504 },
+      );
+  }
+
   return Response.json(
-    { error: options.fallback },
+    { error: `${options.fallback} Reference ${reference}.` },
     { status: options.fallbackStatus ?? 500 },
   );
 }

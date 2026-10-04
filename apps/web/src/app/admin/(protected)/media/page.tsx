@@ -31,12 +31,20 @@ export default async function MediaPage() {
     <main className="akb-admin-page">
       <header className="akb-admin-page__header">
         <p className="akb-kicker">Media library</p>
-        <h1>Upload controlled assets</h1>
+        <h1>Media and portfolio music</h1>
         <p>
-          Uploads use the card-free Cloudinary plan. SVG and oversized files are
-          rejected.
+          Upload files first. The returned asset ID is what connects media to a
+          project, profile, gallery, reflection or the public music control.
         </p>
       </header>
+      <div className="akb-admin-guide">
+        <strong>How this page works</strong>
+        <p>
+          Upload creates an asset. Replace updates one existing asset. Portfolio
+          music only accepts an uploaded audio asset and never starts without a
+          visitor action.
+        </p>
+      </div>
       <MediaConsole assets={assets} />
       <SiteAudioConsole initial={audio ?? undefined} assets={audioAssets} />
     </main>

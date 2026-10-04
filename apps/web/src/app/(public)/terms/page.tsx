@@ -36,7 +36,7 @@ const sections: readonly LegalSection[] = [
     title: "Permitted use",
     content: (
       <p>
-        You may browse public work, download the public résumé, ask Aeva about
+        You may browse public work, download the public resume, ask Aeva about
         approved material, subscribe to publication notices, participate in
         moderated Vartalap and send genuine professional, technical,
         collaboration, guidance, support or privacy requests.
@@ -111,7 +111,7 @@ const sections: readonly LegalSection[] = [
         Studio’s original writing, design, illustrations, code presentation and
         branding remain owned by Anurag Kumar Bharti. Open-source code is
         governed by the licence in its repository. Viewing, linking or
-        downloading a public résumé does not transfer ownership or grant a
+        downloading a public resume does not transfer ownership or grant a
         broader licence.
       </p>
     ),

@@ -4,32 +4,32 @@ import { CalendarDays, Clock3 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 const monthNames = [
-  "जनवर",
-  "फरवर",
-  "मर",
-  "अपल",
+  "जनवरी",
+  "फ़रवरी",
+  "मार्च",
+  "अप्रैल",
   "मई",
-  "जन",
-  "जलई",
-  "अगस",
-  "सतबर",
-  "अकबर",
-  "नवबर",
-  "दसबर",
+  "जून",
+  "जुलाई",
+  "अगस्त",
+  "सितंबर",
+  "अक्टूबर",
+  "नवंबर",
+  "दिसंबर",
 ] as const;
 
 const weekdayNames = [
-  "रववर",
-  "समवर",
-  "मगलवर",
-  "बधवर",
-  "गरवर",
-  "शकवर",
-  "शनवर",
+  "रविवार",
+  "सोमवार",
+  "मंगलवार",
+  "बुधवार",
+  "गुरुवार",
+  "शुक्रवार",
+  "शनिवार",
 ] as const;
 
 function formatClock(date: Date) {
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat("hi-IN", {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
@@ -37,7 +37,7 @@ function formatClock(date: Date) {
 }
 
 function formatLocalDate(date: Date) {
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat("hi-IN", {
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -84,7 +84,7 @@ export function ReflectionLocalClock() {
     <div className="relative flex h-full flex-col justify-between">
       <div>
         <p className="text-xs font-medium tracking-[0.15em] text-[#7a4c27]/82 uppercase dark:text-amber-300/65">
-          दनक ससत चतनम
+          <span lang="sa-Deva">दैनिक संस्कृत चिन्तनम्</span>
         </p>
 
         <div
@@ -104,11 +104,17 @@ export function ReflectionLocalClock() {
               {display.day}
             </span>
 
-            <span className="mt-3 block text-base font-medium text-[#5f4734] dark:text-foreground/70">
+            <span
+              lang="hi"
+              className="mt-3 block text-base font-medium text-[#5f4734] dark:text-foreground/70"
+            >
               {display.monthYear}
             </span>
 
-            <span className="mt-2 block text-sm text-[#715b49] dark:text-foreground/55">
+            <span
+              lang="hi"
+              className="mt-2 block text-sm text-[#715b49] dark:text-foreground/55"
+            >
               {display.weekday}
             </span>
           </time>
@@ -168,6 +174,7 @@ export function ReflectionLocalClock() {
 
           {display ? (
             <time
+              lang="hi"
               dateTime={display.dateTime}
               className="text-xs text-[#6c5543] dark:text-foreground/45"
             >

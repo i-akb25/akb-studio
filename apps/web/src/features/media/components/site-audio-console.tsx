@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 
 type SiteAudioConsoleProps = {
   assets: Array<{ id: string; originalName: string | null }>;
@@ -15,9 +15,36 @@ type SiteAudioConsoleProps = {
 
 export function SiteAudioConsole({ initial, assets }: SiteAudioConsoleProps) {
   const router = useRouter();
+  const [availableAssets, setAvailableAssets] = useState(assets);
   const [status, setStatus] = useState("");
   const [tone, setTone] = useState<"neutral" | "success" | "error">("neutral");
   const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    setAvailableAssets(assets);
+  }, [assets]);
+  useEffect(() => {
+    const refreshMedia = async () => {
+      const response = await fetch("/api/admin/media", { cache: "no-store" });
+      if (!response.ok) return;
+      const payload = (await response.json()) as {
+        assets?: Array<{
+          id: string;
+          originalName: string | null;
+          mimeType: string;
+        }>;
+      };
+      setAvailableAssets(
+        (payload.assets ?? [])
+          .filter((asset) => asset.mimeType.startsWith("audio/"))
+          .map(({ id, originalName }) => ({ id, originalName })),
+      );
+    };
+    void refreshMedia().catch(() => {});
+    const handleMediaUpdate = () => void refreshMedia().catch(() => {});
+    window.addEventListener("akb:media-updated", handleMediaUpdate);
+    return () =>
+      window.removeEventListener("akb:media-updated", handleMediaUpdate);
+  }, []);
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -71,7 +98,7 @@ export function SiteAudioConsole({ initial, assets }: SiteAudioConsoleProps) {
             <option value="" disabled>
               Select uploaded audio
             </option>
-            {assets.map((asset) => (
+            {availableAssets.map((asset) => (
               <option key={asset.id} value={asset.id}>
                 {asset.originalName ?? `Audio ${asset.id.slice(-6)}`}
               </option>
@@ -115,7 +142,7 @@ export function SiteAudioConsole({ initial, assets }: SiteAudioConsoleProps) {
           {status}
         </output>
       </form>
-      {!assets.length ? (
+      {!availableAssets.length ? (
         <p>Upload an MP3, OGG, WAV or M4A file before publishing music.</p>
       ) : null}
     </section>

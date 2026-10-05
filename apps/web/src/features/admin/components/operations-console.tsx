@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 
 type ContentState = "DRAFT" | "SCHEDULED" | "PUBLISHED" | "ARCHIVED";
 
@@ -163,6 +163,7 @@ export function OperationsConsole({
 }) {
   const router = useRouter();
   const [status, setStatus] = useState("");
+  const [mediaAssets, setMediaAssets] = useState(initialData.mediaAssets);
   const [projectSlug, setProjectSlug] = useState("");
   const [reflectionSlug, setReflectionSlug] = useState("");
   const [gallerySlug, setGallerySlug] = useState("");
@@ -175,6 +176,36 @@ export function OperationsConsole({
   const selectedGallery = initialData.galleries.find(
     (item) => item.slug === gallerySlug,
   );
+  useEffect(() => {
+    setMediaAssets(initialData.mediaAssets);
+  }, [initialData.mediaAssets]);
+  useEffect(() => {
+    const refreshMedia = async () => {
+      const response = await fetch("/api/admin/media", { cache: "no-store" });
+      if (!response.ok) return;
+      const payload = (await response.json()) as {
+        assets?: Array<{
+          id: string;
+          originalName: string | null;
+          altText: string;
+          mimeType: string;
+        }>;
+      };
+      if (payload.assets)
+        setMediaAssets(
+          payload.assets.map((asset) => ({
+            id: asset.id,
+            label: asset.originalName || asset.altText || asset.id,
+            mimeType: asset.mimeType,
+          })),
+        );
+    };
+    void refreshMedia().catch(() => {});
+    const handleMediaUpdate = () => void refreshMedia().catch(() => {});
+    window.addEventListener("akb:media-updated", handleMediaUpdate);
+    return () =>
+      window.removeEventListener("akb:media-updated", handleMediaUpdate);
+  }, []);
   async function run(
     event: FormEvent<HTMLFormElement>,
     build: (
@@ -264,7 +295,7 @@ export function OperationsConsole({
             <MediaSelect
               name="socialImageAssetId"
               value={initialData.siteConfiguration?.socialImageAssetId}
-              assets={initialData.mediaAssets}
+              assets={mediaAssets}
             />
           </div>
           <label>
@@ -337,7 +368,7 @@ export function OperationsConsole({
             <MediaSelect
               name="dpAssetId"
               value={initialData.profile?.dpAssetId}
-              assets={initialData.mediaAssets}
+              assets={mediaAssets}
             />
           </div>
           <StateSelect value={initialData.profile?.state} />
@@ -539,7 +570,7 @@ export function OperationsConsole({
             <MediaSelect
               name="coverAssetId"
               value={selectedProject?.coverAssetId}
-              assets={initialData.mediaAssets}
+              assets={mediaAssets}
             />
           </div>
           <label>
@@ -830,11 +861,7 @@ export function OperationsConsole({
           </label>
           <div className="akb-admin-field">
             <span>Uploaded image</span>
-            <MediaSelect
-              name="assetId"
-              assets={initialData.mediaAssets}
-              required
-            />
+            <MediaSelect name="assetId" assets={mediaAssets} required />
           </div>
           <label>
             <span>Alt text</span>

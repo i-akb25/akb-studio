@@ -137,6 +137,54 @@
   gap: 0.6rem;
 }
 
+.akb-pravaah-media-preview {
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--pravaah-admin-line);
+  background: var(--background);
+}
+
+.akb-pravaah-media-preview img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+.akb-pravaah-media-preview figcaption {
+  padding: 0.65rem 0.8rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.akb-pravaah-item-preview {
+  display: block;
+  width: min(100%, 20rem);
+  margin-bottom: 0.8rem;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--pravaah-admin-line);
+  object-fit: cover;
+}
+
+.akb-admin-list .akb-pravaah-item-media {
+  display: grid;
+  min-width: min(18rem, 100%);
+  gap: 0.35rem;
+}
+
+.akb-pravaah-item-media span {
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.akb-pravaah-item-media select {
+  min-height: 44px;
+  padding: 0 0.7rem;
+  border: 1px solid var(--pravaah-admin-line);
+  color: var(--foreground);
+  background: var(--background);
+}
+
 .akb-admin-list button,
 .akb-admin-actions button {
   min-height: 44px;

@@ -376,18 +376,69 @@ test("About galleries stay balanced while supporting swipeable multi-image sets"
 });
 
 test("Pravaah uses an approved media-library image without scraping the source", async () => {
-  const [adminPage, consoleSource, model, publicPage] = await Promise.all([
+  const [adminPage, consoleSource, api, model, publicPage] = await Promise.all([
     webSource("src/app/admin/(protected)/pravaah/page.tsx"),
     webSource("src/features/admin/components/pravaah-console.tsx"),
+    webSource("src/app/api/admin/pravaah/route.ts"),
     webSource("src/features/pravaah/model.ts"),
     webSource("src/features/pravaah/components/pravaah-page.tsx"),
   ]);
 
   assert.match(adminPage, /mediaAsset\.findMany/);
   assert.match(consoleSource, /Post image from Media/);
+  assert.match(consoleSource, /name="mediaAssetId"/);
+  assert.match(consoleSource, /value="update-media"/);
+  assert.match(api, /state: "READY"/);
+  assert.match(api, /mimeType: \{ startsWith: "image\/" \}/);
   assert.match(model, /res\.cloudinary\.com/);
   assert.match(publicPage, /lead\.media/);
+  assert.match(publicPage, /<PravaahNetworkAnimation/);
   assert.doesNotMatch(consoleSource, /fetch\(.*linkedin/i);
+});
+
+test("the reflection clock preserves correct Devanagari text and Hindi locale", async () => {
+  const clock = await webSource(
+    "src/features/homepage/components/reflection/reflection-local-clock.tsx",
+  );
+
+  for (const label of [
+    "जनवरी",
+    "फ़रवरी",
+    "मार्च",
+    "अप्रैल",
+    "सितंबर",
+    "अक्टूबर",
+    "रविवार",
+    "सोमवार",
+    "मंगलवार",
+    "बुधवार",
+    "गुरुवार",
+    "शुक्रवार",
+    "शनिवार",
+  ]) {
+    assert.match(clock, new RegExp(label));
+  }
+
+  assert.match(clock, /दैनिक संस्कृत चिन्तनम्/);
+  assert.match(clock, /lang="sa-Deva"/);
+  assert.match(clock, /Intl\.DateTimeFormat\("hi-IN"/);
+  assert.doesNotMatch(clock, /दनक ससत चतनम/);
+});
+
+test("uploaded Admin media is immediately available to dependent controls", async () => {
+  const [route, library, audio, operations] = await Promise.all([
+    webSource("src/app/api/admin/media/route.ts"),
+    webSource("src/features/admin/components/media-console.tsx"),
+    webSource("src/features/media/components/site-audio-console.tsx"),
+    webSource("src/features/admin/components/operations-console.tsx"),
+  ]);
+
+  assert.match(route, /export async function GET/);
+  assert.match(route, /private, no-store/);
+  assert.match(library, /akb:media-updated/);
+  assert.match(library, /akb-admin-media-thumbnail/);
+  assert.match(audio, /akb:media-updated/);
+  assert.match(operations, /akb:media-updated/);
 });
 
 test("the service worker clones cacheable responses before returning them", async () => {

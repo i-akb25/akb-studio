@@ -260,18 +260,24 @@ export async function updateFeatureState(input: {
   id: string;
   status?: "published" | "hidden" | "archived";
   pinned?: boolean;
+  media?: FeatureItem["media"] | null;
 }): Promise<void> {
   const manifest = await writableManifest();
   const current = manifest.items.find((item) => item.id === input.id);
 
   if (!current) throw new Error("Feature item was not found");
 
-  const updated = featureItemSchema.parse({
+  const candidate: Record<string, unknown> = {
     ...current,
     ...(input.status ? { status: input.status } : {}),
     ...(input.pinned !== undefined ? { pinned: input.pinned } : {}),
     syncedAt: new Date().toISOString(),
-  });
+  };
+
+  if (input.media === null) delete candidate.media;
+  else if (input.media !== undefined) candidate.media = input.media;
+
+  const updated = featureItemSchema.parse(candidate);
 
   await writeManifest(
     withItem(manifest, updated),

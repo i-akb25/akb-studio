@@ -9,6 +9,7 @@ const ANIMATION_PATH =
 export function PravaahNetworkAnimation() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -17,16 +18,26 @@ export function PravaahNetworkAnimation() {
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     let animation: AnimationItem | undefined;
     let cancelled = false;
+    let loaded = false;
+    const loadTimeout = window.setTimeout(() => {
+      if (!loaded && !cancelled) setFailed(true);
+    }, 8_000);
 
-    void import("lottie-web")
-      .then(({ default: lottie }) => {
+    void Promise.all([
+      import("lottie-web"),
+      fetch(ANIMATION_PATH, { cache: "force-cache" }),
+    ])
+      .then(async ([{ default: lottie }, response]) => {
+        if (!response.ok)
+          throw new Error("Pravaah animation asset unavailable");
+        const animationData = (await response.json()) as object;
         if (cancelled) return;
 
         animation = lottie.loadAnimation({
           autoplay: !reducedMotion.matches,
+          animationData,
           container,
           loop: !reducedMotion.matches,
-          path: ANIMATION_PATH,
           renderer: "svg",
           rendererSettings: {
             preserveAspectRatio: "xMidYMid meet",
@@ -34,16 +45,26 @@ export function PravaahNetworkAnimation() {
           },
         });
         animation.addEventListener("data_failed", () => setFailed(true));
-        if (reducedMotion.matches) {
-          animation.addEventListener("DOMLoaded", () => {
-            animation?.goToAndStop(0, true);
-          });
-        }
+        animation.addEventListener("DOMLoaded", () => {
+          if (cancelled || !animation) return;
+          loaded = true;
+          window.clearTimeout(loadTimeout);
+          setFailed(false);
+          setReady(true);
+          if (reducedMotion.matches) {
+            const totalFrames = animation.getDuration(true);
+            animation.goToAndStop(
+              Math.max(1, Math.floor(totalFrames * 0.62)),
+              true,
+            );
+          }
+        });
       })
       .catch(() => setFailed(true));
 
     return () => {
       cancelled = true;
+      window.clearTimeout(loadTimeout);
       animation?.destroy();
     };
   }, []);
@@ -56,9 +77,19 @@ export function PravaahNetworkAnimation() {
       <div
         ref={containerRef}
         className="pravaah-network-animation__canvas"
+        data-ready={ready}
         aria-hidden="true"
       />
-      {failed ? (
+      {!ready ? (
+        <div className="pravaah-network-animation__static" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+        </div>
+      ) : null}
+      {failed && !ready ? (
         <p className="pravaah-network-animation__fallback">
           Public ideas, connected.
         </p>

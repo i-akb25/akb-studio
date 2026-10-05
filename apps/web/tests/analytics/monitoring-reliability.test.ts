@@ -91,4 +91,6 @@ test("Pravaah uses the supplied network Lottie with a reduced-motion fallback", 
   assert.match(animation, /Networking%20For%20All\.json/);
   assert.match(animation, /prefers-reduced-motion:\s*reduce/);
   assert.match(animation, /goToAndStop/);
+  assert.match(animation, /renderer:\s*"canvas"/);
+  assert.doesNotMatch(animation, /progressiveLoad:\s*true/);
 });

@@ -38,10 +38,14 @@ export function PravaahNetworkAnimation() {
           animationData,
           container,
           loop: !reducedMotion.matches,
-          renderer: "svg",
+          // The bundled animation contains animated gradients and expressions.
+          // Lottie's SVG renderer can report DOMLoaded while leaving those SVG
+          // paths empty under the production CSP. Canvas renders the same local
+          // asset without relying on generated SVG gradient definitions.
+          renderer: "canvas",
           rendererSettings: {
+            clearCanvas: true,
             preserveAspectRatio: "xMidYMid meet",
-            progressiveLoad: true,
           },
         });
         animation.addEventListener("data_failed", () => setFailed(true));
@@ -50,14 +54,19 @@ export function PravaahNetworkAnimation() {
           loaded = true;
           window.clearTimeout(loadTimeout);
           setFailed(false);
-          setReady(true);
           if (reducedMotion.matches) {
             const totalFrames = animation.getDuration(true);
             animation.goToAndStop(
               Math.max(1, Math.floor(totalFrames * 0.62)),
               true,
             );
+            window.requestAnimationFrame(() => {
+              if (!cancelled) setReady(true);
+            });
           }
+        });
+        animation.addEventListener("enterFrame", () => {
+          if (!cancelled) setReady(true);
         });
       })
       .catch(() => setFailed(true));

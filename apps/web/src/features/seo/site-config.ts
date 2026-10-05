@@ -4,8 +4,10 @@ export const SITE_NAME = "AKB Studio";
 export const AUTHOR_NAME = "Anurag Kumar Bharti";
 export const DEFAULT_DESCRIPTION =
   "Anurag Kumar Bharti's engineering profile, project case studies, field journal and technical knowledge archive.";
-export const DEFAULT_SOCIAL_IMAGE_PATH = "/opengraph-image";
-export const DEFAULT_TWITTER_IMAGE_PATH = "/opengraph-image";
+export const DEFAULT_SOCIAL_IMAGE_PATH =
+  "/images/projects/akb-studio/cover.webp";
+export const DEFAULT_TWITTER_IMAGE_PATH =
+  "/images/projects/akb-studio/cover.webp";
 export const SOCIAL_IMAGE_ALT =
   "AKB Studio — engineering projects, field notes and technical knowledge";
 export const SOCIAL_PROFILES = [

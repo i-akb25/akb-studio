@@ -1,4 +1,4 @@
-const CACHE = "akb-public-v1.2";
+const CACHE = "akb-public-v1.3";
 const SAFE_PAGES = [
   "/",
   "/projects",
@@ -63,10 +63,12 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          if (response.ok)
-            caches
-              .open(CACHE)
-              .then((cache) => cache.put(request, response.clone()));
+          if (response.ok) {
+            const cacheCopy = response.clone();
+            event.waitUntil(
+              caches.open(CACHE).then((cache) => cache.put(request, cacheCopy)),
+            );
+          }
           return response;
         })
         .catch(
@@ -83,10 +85,14 @@ self.addEventListener("fetch", (event) => {
         (cached) =>
           cached ||
           fetch(request).then((response) => {
-            if (response.ok)
-              caches
-                .open(CACHE)
-                .then((cache) => cache.put(request, response.clone()));
+            if (response.ok) {
+              const cacheCopy = response.clone();
+              event.waitUntil(
+                caches
+                  .open(CACHE)
+                  .then((cache) => cache.put(request, cacheCopy)),
+              );
+            }
             return response;
           }),
       ),

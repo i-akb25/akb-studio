@@ -27,7 +27,7 @@ export function ProjectOverview({ project }: { project: ProjectRecord }) {
           </p>
 
           {project.cover ? (
-            <div className="relative mt-10 aspect-[16/9] overflow-hidden rounded-[1.25rem] border border-foreground/10 bg-foreground/[0.025]">
+            <div className="relative mt-10 aspect-[4/3] overflow-hidden rounded-[1.25rem] border border-foreground/10 bg-foreground/[0.025]">
               <Image
                 src={project.cover.src}
                 alt={project.cover.alt}

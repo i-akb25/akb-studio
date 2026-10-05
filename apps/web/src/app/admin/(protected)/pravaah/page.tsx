@@ -1,11 +1,18 @@
 import { PravaahConsole } from "@/features/admin/components/pravaah-console";
 import { getFeatureManifest } from "@/features/pravaah/server/feature-source";
 import { getGitHubDiscoveries } from "@/features/pravaah/server/github-adapter";
+import { prisma } from "@/server/db/prisma";
 
 export default async function AdminPravaahPage() {
-  const [manifest, discoveries] = await Promise.all([
+  const [manifest, discoveries, mediaAssets] = await Promise.all([
     getFeatureManifest(),
     getGitHubDiscoveries(),
+    prisma.mediaAsset.findMany({
+      where: { state: "READY", mimeType: { startsWith: "image/" } },
+      select: { id: true, originalName: true, altText: true, secureUrl: true },
+      orderBy: { createdAt: "desc" },
+      take: 250,
+    }),
   ]);
   const knownExternalIds = new Set(
     manifest.items
@@ -24,6 +31,12 @@ export default async function AdminPravaahPage() {
     <PravaahConsole
       items={manifest.items}
       discoveries={pending}
+      mediaAssets={mediaAssets.map((asset) => ({
+        id: asset.id,
+        label: asset.originalName || asset.altText || asset.id,
+        alt: asset.altText,
+        url: asset.secureUrl,
+      }))}
       anonymousNoteConfigured={Boolean(
         process.env.AKB_ANONYMOUS_NOTE_URL?.trim(),
       )}

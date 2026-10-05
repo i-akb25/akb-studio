@@ -358,3 +358,41 @@ test("social discovery, project indexing and installability have complete fallba
   assert.match(installer, /Add to Home Screen/);
   assert.match(footer, /InstallAppControl/);
 });
+
+test("About galleries stay balanced while supporting swipeable multi-image sets", async () => {
+  const [resolver, carousel, operations, api] = await Promise.all([
+    webSource("src/features/about/server/managed-about-profile.ts"),
+    webSource("src/features/about/components/about-interest-carousel.tsx"),
+    webSource("src/features/admin/components/operations-console.tsx"),
+    webSource("src/app/api/admin/operations/route.ts"),
+  ]);
+
+  assert.match(resolver, /slice\(0, 25\)/);
+  assert.match(carousel, /onTouchStart/);
+  assert.match(carousel, /SetIndex|setIndex/);
+  assert.match(operations, /Set as cover/);
+  assert.match(api, /gallery-item-cover/);
+  assert.match(api, /already contains 25 images/);
+});
+
+test("Pravaah uses an approved media-library image without scraping the source", async () => {
+  const [adminPage, consoleSource, model, publicPage] = await Promise.all([
+    webSource("src/app/admin/(protected)/pravaah/page.tsx"),
+    webSource("src/features/admin/components/pravaah-console.tsx"),
+    webSource("src/features/pravaah/model.ts"),
+    webSource("src/features/pravaah/components/pravaah-page.tsx"),
+  ]);
+
+  assert.match(adminPage, /mediaAsset\.findMany/);
+  assert.match(consoleSource, /Post image from Media/);
+  assert.match(model, /res\.cloudinary\.com/);
+  assert.match(publicPage, /lead\.media/);
+  assert.doesNotMatch(consoleSource, /fetch\(.*linkedin/i);
+});
+
+test("the service worker clones cacheable responses before returning them", async () => {
+  const worker = await webSource("public/sw.js");
+  assert.match(worker, /const cacheCopy = response\.clone\(\)/);
+  assert.match(worker, /cache\.put\(request, cacheCopy\)/);
+  assert.doesNotMatch(worker, /cache\.put\(request, response\.clone\(\)\)/);
+});

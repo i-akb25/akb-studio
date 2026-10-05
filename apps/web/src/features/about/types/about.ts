@@ -37,6 +37,7 @@ export type AboutInterestEntry = {
   title: string;
   note: string;
   media: AboutMedia;
+  images?: AboutMedia[];
 };
 
 export type AboutPrinciple = {

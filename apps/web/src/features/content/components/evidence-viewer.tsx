@@ -42,14 +42,19 @@ export function EvidenceViewer({ attachments }: EvidenceViewerProps) {
             onClick={() => setActive(attachment)}
             className="akb-evidence__item"
           >
-            <span>{attachment.kind}</span>
-            <span>
-              <strong>{attachment.title}</strong>
+            <span className="akb-evidence__kind">{attachment.kind}</span>
+            <span className="akb-evidence__copy">
+              <strong className="akb-evidence__title">
+                {attachment.title}
+              </strong>
               {attachment.description ? (
                 <small className="mt-1 block text-muted">
                   {attachment.description}
                 </small>
               ) : null}
+            </span>
+            <span className="akb-evidence__action" aria-hidden="true">
+              Open preview ↗
             </span>
           </button>
         ))}

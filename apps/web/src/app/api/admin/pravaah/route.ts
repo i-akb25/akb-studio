@@ -37,6 +37,20 @@ function optionalHttpsUrl(raw: string): string | undefined {
   return url.href;
 }
 
+function approvedMediaSource(raw: string): string | undefined {
+  if (!raw) return undefined;
+  if (raw.startsWith("/") && !raw.startsWith("//")) return raw;
+  const url = new URL(raw);
+  if (
+    url.protocol !== "https:" ||
+    url.hostname.toLowerCase() !== "res.cloudinary.com" ||
+    url.username ||
+    url.password
+  )
+    throw new Error("Choose a ready image from the media library.");
+  return url.href;
+}
+
 export async function POST(request: Request) {
   if (!(await canAdmin("content:publish"))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -77,7 +91,7 @@ export async function POST(request: Request) {
       const author = value(form, "author");
       const relationship =
         source === "announcement" ? "studio" : value(form, "relationship");
-      const mediaSrc = value(form, "mediaSrc");
+      const mediaSrc = approvedMediaSource(value(form, "mediaSrc"));
       const mediaAlt = value(form, "mediaAlt");
       const status = value(form, "status");
       const canonicalUrl = optionalHttpsUrl(value(form, "canonicalUrl"));
@@ -104,7 +118,6 @@ export async function POST(request: Request) {
         (status === "scheduled" && !publishedAt) ||
         title.length < 3 ||
         excerpt.length < 10 ||
-        (mediaSrc && !mediaSrc.startsWith("/")) ||
         (mediaSrc && mediaAlt.length < 3) ||
         !["published", "scheduled"].includes(status)
       ) {

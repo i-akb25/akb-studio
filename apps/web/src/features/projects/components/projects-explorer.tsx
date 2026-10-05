@@ -188,7 +188,7 @@ function ProjectEntry({
         </p>
 
         {project.cover ? (
-          <div className="relative mt-7 aspect-[16/9] max-w-3xl overflow-hidden rounded-[1.1rem] border border-foreground/10 bg-foreground/[0.025]">
+          <div className="relative mt-7 aspect-[4/3] max-w-3xl overflow-hidden rounded-[1.1rem] border border-foreground/10 bg-foreground/[0.025]">
             <Image
               src={project.cover.src}
               alt={project.cover.alt}

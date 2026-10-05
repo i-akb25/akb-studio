@@ -17,6 +17,38 @@ import { prisma } from "@/server/db/prisma";
 
 export const runtime = "nodejs";
 
+const mediaSelection = {
+  id: true,
+  originalName: true,
+  mimeType: true,
+  bytes: true,
+  secureUrl: true,
+  altText: true,
+  state: true,
+} as const;
+
+export async function GET() {
+  if (!(await canAdmin("content:read")))
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const assets = await prisma.mediaAsset.findMany({
+      where: { state: "READY" },
+      select: mediaSelection,
+      orderBy: { createdAt: "desc" },
+      take: 500,
+    });
+    return NextResponse.json(
+      { ok: true, assets },
+      { headers: { "Cache-Control": "private, no-store, max-age=0" } },
+    );
+  } catch (error) {
+    return adminErrorResponse(error, {
+      event: "admin_media_read_failed",
+      fallback: "The media library could not be loaded.",
+    });
+  }
+}
+
 export async function POST(request: Request) {
   if (!(await canAdmin("media:write")))
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -48,10 +80,10 @@ export async function POST(request: Request) {
     if (!(file instanceof File) || altText.length < 3 || altText.length > 240)
       throw new Error("A valid file and description are required");
     const prepared = await prepareAdminMedia(file);
-    const replacement = replaceId
+    const requestedReplacement = replaceId
       ? await prisma.mediaAsset.findUnique({ where: { id: replaceId } })
       : null;
-    if (replaceId && !replacement)
+    if (replaceId && !requestedReplacement)
       return NextResponse.json(
         { error: "Replacement asset was not found." },
         { status: 404 },
@@ -59,12 +91,27 @@ export async function POST(request: Request) {
     const existing = await prisma.mediaAsset.findUnique({
       where: { checksum: prepared.checksum },
     });
-    if (existing)
+    if (
+      existing?.state === "READY" &&
+      (!requestedReplacement || requestedReplacement.id === existing.id)
+    ) {
+      revalidatePath("/admin", "layout");
       return NextResponse.json({
         ok: true,
         asset: existing,
         deduplicated: true,
       });
+    }
+    if (
+      existing?.state === "READY" &&
+      requestedReplacement &&
+      requestedReplacement.id !== existing.id
+    )
+      return NextResponse.json(
+        { error: "This file already exists as another ready media asset." },
+        { status: 409 },
+      );
+    const replacement = requestedReplacement ?? existing;
     const extractedText = [
       "text/plain",
       "text/markdown",
@@ -133,7 +180,7 @@ export async function POST(request: Request) {
         replacement.providerId,
         replacement.resourceType,
       ).catch(() => {});
-    revalidatePath("/admin/media");
+    revalidatePath("/admin", "layout");
     return NextResponse.json({ ok: true, asset }, { status: 201 });
   } catch (error) {
     if (uploadedProviderId && uploadedResourceType)
@@ -227,7 +274,7 @@ export async function DELETE(request: Request) {
         { status: 503 },
       );
     }
-    revalidatePath("/admin/media");
+    revalidatePath("/admin", "layout");
     return NextResponse.json({ ok: true });
   } catch (error) {
     return adminErrorResponse(error, {

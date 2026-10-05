@@ -1,7 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 
 type MediaAsset = {
   id: string;
@@ -14,10 +15,12 @@ type MediaAsset = {
 
 export function MediaConsole({ assets }: { assets: MediaAsset[] }) {
   const router = useRouter();
+  const [visibleAssets, setVisibleAssets] = useState(assets);
   const [status, setStatus] = useState("");
   const [tone, setTone] = useState<"neutral" | "success" | "error">("neutral");
   const [busy, setBusy] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  useEffect(() => setVisibleAssets(assets), [assets]);
   async function upload(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -32,12 +35,20 @@ export function MediaConsole({ assets }: { assets: MediaAsset[] }) {
       });
       const result = (await response.json().catch(() => null)) as {
         error?: string;
-        asset?: { id: string };
+        asset?: MediaAsset;
       } | null;
       if (!response.ok)
         throw new Error(result?.error ?? "The media upload failed.");
       setStatus(`Uploaded. Asset ID: ${result?.asset?.id ?? "available"}`);
       setTone("success");
+      if (result?.asset) {
+        const uploadedAsset = result.asset;
+        setVisibleAssets((current) => [
+          uploadedAsset,
+          ...current.filter((asset) => asset.id !== uploadedAsset.id),
+        ]);
+      }
+      window.dispatchEvent(new CustomEvent("akb:media-updated"));
       form.reset();
       router.refresh();
     } catch (error) {
@@ -67,6 +78,8 @@ export function MediaConsole({ assets }: { assets: MediaAsset[] }) {
         throw new Error(result?.error ?? "The asset could not be removed.");
       setStatus("Asset removed.");
       setTone("success");
+      setVisibleAssets((current) => current.filter((asset) => asset.id !== id));
+      window.dispatchEvent(new CustomEvent("akb:media-updated"));
       router.refresh();
     } catch (error) {
       setTone("error");
@@ -118,7 +131,7 @@ export function MediaConsole({ assets }: { assets: MediaAsset[] }) {
           <span>Replace an existing asset (optional)</span>
           <select name="replaceId" defaultValue="">
             <option value="">Create a new asset</option>
-            {assets.map((asset) => (
+            {visibleAssets.map((asset) => (
               <option key={asset.id} value={asset.id}>
                 {asset.originalName ?? asset.id} · {asset.mimeType}
               </option>
@@ -139,10 +152,27 @@ export function MediaConsole({ assets }: { assets: MediaAsset[] }) {
 
       <div className="akb-admin-list">
         <h2>Current media assets</h2>
-        {assets.length ? (
-          assets.map((asset) => (
+        {visibleAssets.length ? (
+          visibleAssets.map((asset) => (
             <article key={asset.id}>
               <div>
+                {asset.mimeType.startsWith("image/") ? (
+                  <a
+                    href={asset.secureUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`Open ${asset.originalName ?? "uploaded image"}`}
+                  >
+                    <Image
+                      src={asset.secureUrl}
+                      alt={asset.altText}
+                      width={320}
+                      height={240}
+                      sizes="(max-width: 760px) 100vw, 320px"
+                      className="akb-admin-media-thumbnail"
+                    />
+                  </a>
+                ) : null}
                 <h3>{asset.originalName ?? "Unnamed asset"}</h3>
                 <p>
                   {asset.mimeType} · {(asset.bytes / 1024).toFixed(1)} KB

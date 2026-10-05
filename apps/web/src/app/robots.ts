@@ -13,7 +13,6 @@ export default function robots(): MetadataRoute.Robots {
         "/api/",
         "/preview/",
         "/private/",
-        "/_next/",
         "/guardian-consent",
         "/privacy/requests",
       ],

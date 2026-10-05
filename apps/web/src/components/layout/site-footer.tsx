@@ -7,6 +7,7 @@ import {
   type SocialPlatform,
 } from "@/components/brand/social-logo";
 import { JourneyScene } from "@/features/footer/components/journey-scene";
+import { InstallAppControl } from "@/features/offline/components/install-app-control";
 import { getPublicSiteSettings } from "@/features/seo/server/site-settings";
 
 const primaryLinks = [
@@ -120,6 +121,10 @@ export async function SiteFooter() {
                 >
                   Download resume
                 </a>
+              </li>
+
+              <li>
+                <InstallAppControl />
               </li>
             </ul>
           </nav>

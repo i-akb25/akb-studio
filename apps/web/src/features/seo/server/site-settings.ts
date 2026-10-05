@@ -3,6 +3,7 @@ import "server-only";
 import { cache } from "react";
 import {
   AUTHOR_NAME,
+  absoluteSiteUrl,
   DEFAULT_DESCRIPTION,
   SITE_NAME,
   SOCIAL_IMAGE_ALT,
@@ -27,7 +28,8 @@ const fallback: PublicSiteSettings = {
   professionalEmail: "anuragbhartiee25@gmail.com",
   generalEmail: "akbstudioofficial@gmail.com",
   socialImageAssetId: null,
-  socialImageUrl: null,
+  socialImageUrl:
+    absoluteSiteUrl("/images/projects/akb-studio/cover.webp") ?? null,
   socialImageAlt: SOCIAL_IMAGE_ALT,
 };
 
@@ -52,7 +54,7 @@ export const getPublicSiteSettings = cache(
         professionalEmail: settings.professionalEmail,
         generalEmail: settings.generalEmail,
         socialImageAssetId: usableImage?.id ?? null,
-        socialImageUrl: usableImage?.secureUrl ?? null,
+        socialImageUrl: usableImage?.secureUrl ?? fallback.socialImageUrl,
         socialImageAlt:
           settings.socialImageAlt || usableImage?.altText || SOCIAL_IMAGE_ALT,
       };

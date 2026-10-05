@@ -13,7 +13,6 @@ import {
 } from "@/components/brand/social-logo";
 import type { FeatureItem } from "@/features/pravaah/model";
 import { featureSourceLabel } from "@/features/pravaah/model";
-import { PravaahNetworkAnimation } from "./pravaah-network-animation";
 import { PravaahStream } from "./pravaah-stream";
 
 type PravaahPageProps = {
@@ -105,8 +104,6 @@ export function PravaahPage({ signals, anonymousNoteUrl }: PravaahPageProps) {
             <ArrowDownRight aria-hidden="true" />
           </a>
         </div>
-
-        <PravaahNetworkAnimation />
 
         <dl className="pravaah-hero__measure">
           <div>

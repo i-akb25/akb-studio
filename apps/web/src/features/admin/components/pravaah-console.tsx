@@ -15,16 +15,24 @@ type PravaahConsoleProps = {
   items: readonly FeatureItem[];
   discoveries: readonly FeatureItem[];
   anonymousNoteConfigured: boolean;
+  mediaAssets: readonly {
+    id: string;
+    label: string;
+    alt: string;
+    url: string;
+  }[];
 };
 
 export function PravaahConsole({
   items,
   discoveries,
   anonymousNoteConfigured,
+  mediaAssets,
 }: PravaahConsoleProps) {
   const router = useRouter();
   const [result, setResult] = useState("");
   const [busy, setBusy] = useState(false);
+  const [mediaAlt, setMediaAlt] = useState("");
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -50,6 +58,7 @@ export function PravaahConsole({
         throw new Error(payload?.error ?? "The Pravaah update failed.");
       setResult("Pravaah registry updated.");
       form.reset();
+      setMediaAlt("");
       router.refresh();
     } catch (error) {
       setResult(
@@ -213,12 +222,34 @@ export function PravaahConsole({
               <input name="canonicalUrl" type="url" inputMode="url" />
             </label>
             <label>
-              <span>Approved local media path</span>
-              <input name="mediaSrc" placeholder="/images/pravaah/item.webp" />
+              <span>Post image from Media</span>
+              <select
+                name="mediaSrc"
+                defaultValue=""
+                onChange={(event) => {
+                  const selected = mediaAssets.find(
+                    (asset) => asset.url === event.target.value,
+                  );
+                  setMediaAlt(selected?.alt ?? "");
+                }}
+              >
+                <option value="">No image</option>
+                {mediaAssets.map((asset) => (
+                  <option key={asset.id} value={asset.url}>
+                    {asset.label}
+                  </option>
+                ))}
+              </select>
             </label>
             <label>
               <span>Media alternative text</span>
-              <input name="mediaAlt" maxLength={240} />
+              <input
+                name="mediaAlt"
+                maxLength={240}
+                placeholder="Describe the selected post image"
+                value={mediaAlt}
+                onChange={(event) => setMediaAlt(event.target.value)}
+              />
             </label>
             <label>
               <span>Publish state</span>

@@ -25,7 +25,15 @@ export async function getOperationsInitialData(): Promise<OperationsInitialData>
       orderBy: { order: "asc" },
     }),
     prisma.reflection.findMany({ orderBy: { updatedAt: "desc" } }),
-    prisma.gallery.findMany({ orderBy: { order: "asc" } }),
+    prisma.gallery.findMany({
+      include: {
+        items: {
+          include: { asset: true },
+          orderBy: { order: "asc" },
+        },
+      },
+      orderBy: { order: "asc" },
+    }),
     prisma.mediaAsset.findMany({
       where: { state: "READY" },
       select: { id: true, originalName: true, altText: true, mimeType: true },
@@ -175,6 +183,14 @@ export async function getOperationsInitialData(): Promise<OperationsInitialData>
       title: gallery.title,
       description: gallery.description,
       state: gallery.state,
+      items: gallery.items.map((item) => ({
+        id: item.id,
+        assetId: item.assetId,
+        label: item.asset.originalName || item.altText,
+        altText: item.altText,
+        caption: item.caption,
+        order: item.order,
+      })),
     })),
     mediaAssets: mediaAssets.map((asset) => ({
       id: asset.id,

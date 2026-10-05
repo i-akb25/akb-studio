@@ -91,7 +91,17 @@ const galleryItem = base.extend({
   assetId: z.string(),
   altText: z.string().min(3).max(240),
   caption: z.string().max(500).optional(),
-  order: z.number().int().min(0).max(1000),
+  order: z.number().int().min(0).max(24),
+});
+const galleryItemCover = base.extend({
+  resource: z.literal("gallery-item-cover"),
+  gallerySlug: z.string(),
+  itemId: z.string(),
+});
+const galleryItemRemove = base.extend({
+  resource: z.literal("gallery-item-remove"),
+  gallerySlug: z.string(),
+  itemId: z.string(),
 });
 const contact = base.extend({
   resource: z.literal("contact"),
@@ -114,6 +124,8 @@ const operation = z.discriminatedUnion("resource", [
   project,
   gallery,
   galleryItem,
+  galleryItemCover,
+  galleryItemRemove,
   contact,
 ]);
 
@@ -435,6 +447,21 @@ export async function POST(request: Request) {
           const gallery = await tx.gallery.findUniqueOrThrow({
             where: { slug: input.gallerySlug },
           });
+          const existing = await tx.galleryItem.findUnique({
+            where: {
+              galleryId_assetId: {
+                galleryId: gallery.id,
+                assetId: input.assetId,
+              },
+            },
+          });
+          if (!existing) {
+            const count = await tx.galleryItem.count({
+              where: { galleryId: gallery.id },
+            });
+            if (count >= 25)
+              throw new Error("This gallery already contains 25 images.");
+          }
           return tx.galleryItem.upsert({
             where: {
               galleryId_assetId: {
@@ -459,6 +486,64 @@ export async function POST(request: Request) {
         (saved) => ({
           actorId: session.user.id,
           action: "UPDATE",
+          entityType: "GalleryItem",
+          entityId: saved.id,
+        }),
+      );
+      revalidatePath("/about");
+      return NextResponse.json({ ok: true, result });
+    }
+    if (input.resource === "gallery-item-cover") {
+      const result = await runAuditedMutation(
+        async (tx) => {
+          const gallery = await tx.gallery.findUniqueOrThrow({
+            where: { slug: input.gallerySlug },
+            include: { items: { orderBy: { order: "asc" } } },
+          });
+          const selected = gallery.items.find(
+            (item) => item.id === input.itemId,
+          );
+          if (!selected) throw new Error("Gallery image was not found.");
+          const reordered = [
+            selected,
+            ...gallery.items.filter((item) => item.id !== selected.id),
+          ];
+          await Promise.all(
+            reordered.map((item, order) =>
+              tx.galleryItem.update({
+                where: { id: item.id },
+                data: { order },
+              }),
+            ),
+          );
+          return selected;
+        },
+        (saved) => ({
+          actorId: session.user.id,
+          action: "UPDATE",
+          entityType: "GalleryItemCover",
+          entityId: saved.id,
+        }),
+      );
+      revalidatePath("/about");
+      return NextResponse.json({ ok: true, result });
+    }
+    if (input.resource === "gallery-item-remove") {
+      const result = await runAuditedMutation(
+        async (tx) => {
+          const gallery = await tx.gallery.findUniqueOrThrow({
+            where: { slug: input.gallerySlug },
+          });
+          const item = await tx.galleryItem.findFirst({
+            where: { id: input.itemId, galleryId: gallery.id },
+          });
+          if (!item) throw new Error("Gallery image was not found.");
+          await tx.galleryItem.delete({ where: { id: item.id } });
+          return item;
+        },
+        (saved) => ({
+          actorId: session.user.id,
+          action: "DELETE",
           entityType: "GalleryItem",
           entityId: saved.id,
         }),

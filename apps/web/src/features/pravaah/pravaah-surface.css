@@ -41,7 +41,7 @@
   min-height: min(690px, calc(100svh - 4rem));
   margin-inline: auto;
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 0.9fr) minmax(21rem, 0.78fr);
   gap: clamp(3rem, 7vw, 8rem);
   align-items: center;
   padding-block: clamp(5rem, 9vw, 8rem) 4rem;
@@ -64,7 +64,6 @@
 .pravaah-hero__copy {
   position: relative;
   z-index: 2;
-  max-width: 56rem;
 }
 
 .pravaah-hero__copy h1 {
@@ -903,7 +902,7 @@
 
 @media (max-width: 1040px) {
   .pravaah-hero {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.62fr);
   }
 
   .pravaah-entry {

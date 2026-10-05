@@ -1,7 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 
 import {
   FEATURE_RELATIONSHIPS,
@@ -33,6 +34,48 @@ export function PravaahConsole({
   const [result, setResult] = useState("");
   const [busy, setBusy] = useState(false);
   const [mediaAlt, setMediaAlt] = useState("");
+  const [selectedMediaId, setSelectedMediaId] = useState("");
+  const [availableMediaAssets, setAvailableMediaAssets] = useState(mediaAssets);
+
+  useEffect(() => setAvailableMediaAssets(mediaAssets), [mediaAssets]);
+
+  useEffect(() => {
+    const refreshMedia = async () => {
+      const response = await fetch("/api/admin/media", { cache: "no-store" });
+      if (!response.ok) return;
+      const payload = (await response.json()) as {
+        assets?: Array<{
+          id: string;
+          originalName: string | null;
+          mimeType: string;
+          secureUrl: string;
+          altText: string;
+        }>;
+      };
+      setAvailableMediaAssets(
+        (payload.assets ?? [])
+          .filter((asset) => asset.mimeType.startsWith("image/"))
+          .map((asset) => ({
+            id: asset.id,
+            label: asset.originalName || asset.altText || asset.id,
+            alt: asset.altText,
+            url: asset.secureUrl,
+          })),
+      );
+    };
+    void refreshMedia().catch(() => {});
+    const handleMediaUpdate = () => void refreshMedia().catch(() => {});
+    window.addEventListener("akb:media-updated", handleMediaUpdate);
+    return () =>
+      window.removeEventListener("akb:media-updated", handleMediaUpdate);
+  }, []);
+
+  const selectedMedia = useMemo(
+    () =>
+      availableMediaAssets.find((asset) => asset.id === selectedMediaId) ??
+      null,
+    [availableMediaAssets, selectedMediaId],
+  );
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -59,6 +102,7 @@ export function PravaahConsole({
       setResult("Pravaah registry updated.");
       form.reset();
       setMediaAlt("");
+      setSelectedMediaId("");
       router.refresh();
     } catch (error) {
       setResult(
@@ -224,18 +268,19 @@ export function PravaahConsole({
             <label>
               <span>Post image from Media</span>
               <select
-                name="mediaSrc"
+                name="mediaAssetId"
                 defaultValue=""
                 onChange={(event) => {
-                  const selected = mediaAssets.find(
-                    (asset) => asset.url === event.target.value,
+                  setSelectedMediaId(event.target.value);
+                  const selected = availableMediaAssets.find(
+                    (asset) => asset.id === event.target.value,
                   );
                   setMediaAlt(selected?.alt ?? "");
                 }}
               >
                 <option value="">No image</option>
-                {mediaAssets.map((asset) => (
-                  <option key={asset.id} value={asset.url}>
+                {availableMediaAssets.map((asset) => (
+                  <option key={asset.id} value={asset.id}>
                     {asset.label}
                   </option>
                 ))}
@@ -251,6 +296,18 @@ export function PravaahConsole({
                 onChange={(event) => setMediaAlt(event.target.value)}
               />
             </label>
+            {selectedMedia ? (
+              <figure className="akb-pravaah-media-preview akb-admin-span-2">
+                <Image
+                  src={selectedMedia.url}
+                  alt={mediaAlt || selectedMedia.alt}
+                  width={800}
+                  height={450}
+                  sizes="(max-width: 760px) 100vw, 720px"
+                />
+                <figcaption>Selected public post image preview</figcaption>
+              </figure>
+            ) : null}
             <label>
               <span>Publish state</span>
               <select name="status" defaultValue="published">
@@ -299,6 +356,16 @@ export function PravaahConsole({
           {items.map((item) => (
             <article key={item.id}>
               <div>
+                {item.media ? (
+                  <Image
+                    src={item.media.src}
+                    alt={item.media.alt}
+                    width={320}
+                    height={180}
+                    sizes="(max-width: 760px) 100vw, 320px"
+                    className="akb-pravaah-item-preview"
+                  />
+                ) : null}
                 <p className="akb-kicker">
                   {featureSourceLabel(item.source, item.sourceName)} /{" "}
                   {item.status}
@@ -337,6 +404,35 @@ export function PravaahConsole({
                 >
                   Archive
                 </button>
+                <label className="akb-pravaah-item-media">
+                  <span>Post image</span>
+                  <select name="mediaAssetId" defaultValue="">
+                    <option value="">Choose from Media</option>
+                    {availableMediaAssets.map((asset) => (
+                      <option key={asset.id} value={asset.id}>
+                        {asset.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="submit"
+                  name="action"
+                  value="update-media"
+                  disabled={busy}
+                >
+                  {item.media ? "Replace image" : "Attach image"}
+                </button>
+                {item.media ? (
+                  <button
+                    type="submit"
+                    name="action"
+                    value="clear-media"
+                    disabled={busy}
+                  >
+                    Remove image
+                  </button>
+                ) : null}
               </form>
             </article>
           ))}

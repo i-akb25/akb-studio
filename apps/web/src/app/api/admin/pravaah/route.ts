@@ -15,6 +15,7 @@ import {
   publishManualFeature,
   updateFeatureState,
 } from "@/features/pravaah/server/feature-publisher";
+import { prisma } from "@/server/db/prisma";
 
 export const runtime = "nodejs";
 
@@ -37,18 +38,23 @@ function optionalHttpsUrl(raw: string): string | undefined {
   return url.href;
 }
 
-function approvedMediaSource(raw: string): string | undefined {
-  if (!raw) return undefined;
-  if (raw.startsWith("/") && !raw.startsWith("//")) return raw;
-  const url = new URL(raw);
-  if (
-    url.protocol !== "https:" ||
-    url.hostname.toLowerCase() !== "res.cloudinary.com" ||
-    url.username ||
-    url.password
-  )
-    throw new Error("Choose a ready image from the media library.");
-  return url.href;
+async function selectedMedia(form: FormData) {
+  const id = value(form, "mediaAssetId");
+  if (!id) return undefined;
+  const asset = await prisma.mediaAsset.findFirst({
+    where: {
+      id,
+      state: "READY",
+      mimeType: { startsWith: "image/" },
+    },
+    select: { secureUrl: true, altText: true },
+  });
+  if (!asset) throw new Error("Choose a ready image from the media library.");
+  const suppliedAlt = value(form, "mediaAlt");
+  const alt = suppliedAlt || asset.altText;
+  if (alt.length < 3 || alt.length > 240)
+    throw new Error("The selected image needs useful alternative text.");
+  return { src: asset.secureUrl, alt };
 }
 
 export async function POST(request: Request) {
@@ -82,6 +88,12 @@ export async function POST(request: Request) {
         id: value(form, "id"),
         status: action === "hide" ? "hidden" : "archived",
       });
+    } else if (action === "update-media") {
+      const media = await selectedMedia(form);
+      if (!media) throw new Error("Choose an image before saving.");
+      await updateFeatureState({ id: value(form, "id"), media });
+    } else if (action === "clear-media") {
+      await updateFeatureState({ id: value(form, "id"), media: null });
     } else if (action === "publish-manual") {
       const source = value(form, "source");
       const type = value(form, "type");
@@ -91,8 +103,7 @@ export async function POST(request: Request) {
       const author = value(form, "author");
       const relationship =
         source === "announcement" ? "studio" : value(form, "relationship");
-      const mediaSrc = approvedMediaSource(value(form, "mediaSrc"));
-      const mediaAlt = value(form, "mediaAlt");
+      const media = await selectedMedia(form);
       const status = value(form, "status");
       const canonicalUrl = optionalHttpsUrl(value(form, "canonicalUrl"));
       const publishedAt = value(form, "publishedAt");
@@ -118,7 +129,6 @@ export async function POST(request: Request) {
         (status === "scheduled" && !publishedAt) ||
         title.length < 3 ||
         excerpt.length < 10 ||
-        (mediaSrc && mediaAlt.length < 3) ||
         !["published", "scheduled"].includes(status)
       ) {
         throw new Error("Invalid feature item");
@@ -133,8 +143,8 @@ export async function POST(request: Request) {
         author,
         relationship: relationship as FeatureRelationship,
         canonicalUrl,
-        mediaSrc: mediaSrc || undefined,
-        mediaAlt: mediaAlt || undefined,
+        mediaSrc: media?.src,
+        mediaAlt: media?.alt,
         publishedAt: publishedAt
           ? new Date(publishedAt).toISOString()
           : undefined,

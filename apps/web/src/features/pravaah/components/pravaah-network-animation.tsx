@@ -15,9 +15,7 @@ export function PravaahNetworkAnimation() {
     const container = containerRef.current;
     if (!container) return;
 
-    const reducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    );
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
     let animation: AnimationItem | undefined;
     let cancelled = false;

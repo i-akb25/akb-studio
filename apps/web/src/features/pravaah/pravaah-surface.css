@@ -140,6 +140,8 @@
 }
 
 .pravaah-network-animation__canvas {
+  position: relative;
+  z-index: 1;
   width: min(100%, 34rem);
   aspect-ratio: 1;
   filter: saturate(0.72) sepia(0.12);
@@ -150,8 +152,66 @@
   height: 100%;
 }
 
+.pravaah-network-animation__static {
+  position: absolute;
+  width: min(66%, 21rem);
+  aspect-ratio: 1;
+  opacity: 0.7;
+}
+
+.pravaah-network-animation__static::before,
+.pravaah-network-animation__static::after {
+  content: "";
+  position: absolute;
+  inset: 50% 8%;
+  height: 1px;
+  background: var(--pravaah-accent);
+  opacity: 0.45;
+  transform: rotate(28deg);
+}
+
+.pravaah-network-animation__static::after {
+  transform: rotate(-32deg);
+}
+
+.pravaah-network-animation__static span {
+  position: absolute;
+  width: 0.7rem;
+  aspect-ratio: 1;
+  border: 1px solid var(--pravaah-accent);
+  border-radius: 50%;
+  background: var(--background);
+}
+
+.pravaah-network-animation__static span:nth-child(1) {
+  top: 47%;
+  left: 47%;
+  width: 1rem;
+}
+
+.pravaah-network-animation__static span:nth-child(2) {
+  top: 8%;
+  left: 18%;
+}
+
+.pravaah-network-animation__static span:nth-child(3) {
+  top: 18%;
+  right: 10%;
+}
+
+.pravaah-network-animation__static span:nth-child(4) {
+  right: 16%;
+  bottom: 12%;
+}
+
+.pravaah-network-animation__static span:nth-child(5) {
+  bottom: 16%;
+  left: 10%;
+}
+
 .pravaah-network-animation__fallback {
   position: absolute;
+  z-index: 2;
   margin: 0;
   color: var(--muted);
   font-family: var(--font-mono), monospace;

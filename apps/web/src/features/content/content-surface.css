@@ -573,9 +573,11 @@
 }
 
 .akb-prose a {
-  color: inherit;
-  text-decoration-color: var(--akb-copper);
-  text-underline-offset: 3px;
+  color: var(--akb-copper);
+  font-weight: 650;
+  text-decoration-thickness: 1px;
+  text-decoration-color: currentColor;
+  text-underline-offset: 4px;
 }
 
 .akb-code {
@@ -646,21 +648,57 @@
 .akb-evidence__item {
   width: 100%;
   display: flex;
-  justify-content: space-between;
+  align-items: center;
+  justify-content: flex-start;
   gap: 20px;
-  padding: 15px 0;
-  border: 0;
-  border-top: 1px solid var(--akb-soft-line);
-  background: transparent;
+  padding: 18px;
+  border: 1px solid var(--akb-soft-line);
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--akb-copper) 5%, transparent);
   color: inherit;
   text-align: left;
   cursor: pointer;
 }
 
-.akb-evidence__item > span {
+.akb-evidence__kind {
   color: var(--akb-muted);
   font: 500 0.68rem / 1 var(--font-mono, ui-monospace, monospace);
   text-transform: uppercase;
+}
+
+.akb-evidence__copy {
+  display: grid;
+  flex: 1;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.akb-evidence__title {
+  color: var(--akb-text);
+  font-size: 0.96rem;
+}
+
+.akb-evidence__action {
+  color: var(--akb-copper);
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.akb-evidence__item:hover,
+.akb-evidence__item:focus-visible {
+  border-color: var(--akb-copper);
+}
+
+@media (max-width: 640px) {
+  .akb-evidence__item {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .akb-evidence__action {
+    width: 100%;
+  }
 }
 
 .akb-admin-ledger {

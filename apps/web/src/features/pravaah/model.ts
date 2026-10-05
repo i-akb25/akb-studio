@@ -55,6 +55,30 @@ const canonicalUrlSchema = z
     return url.href;
   });
 
+const mediaSourceSchema = z
+  .string()
+  .trim()
+  .max(2048)
+  .superRefine((value, context) => {
+    if (value.startsWith("/") && !value.startsWith("//")) return;
+    try {
+      const url = new URL(value);
+      if (
+        url.protocol === "https:" &&
+        url.hostname.toLowerCase() === "res.cloudinary.com" &&
+        !url.username &&
+        !url.password
+      )
+        return;
+    } catch {
+      // The issue below provides the public validation message.
+    }
+    context.addIssue({
+      code: "custom",
+      message: "Media must use an approved local path or Cloudinary HTTPS URL",
+    });
+  });
+
 const sourceHosts: Partial<Record<(typeof FEATURE_SOURCES)[number], string[]>> =
   {
     github: ["github.com"],
@@ -97,7 +121,7 @@ export const featureItemSchema = z
       .optional(),
     media: z
       .object({
-        src: z.string().startsWith("/").max(500),
+        src: mediaSourceSchema,
         alt: z.string().min(3).max(240),
       })
       .optional(),

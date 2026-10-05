@@ -23,6 +23,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import type { AboutProfile } from "@/features/about/types/about";
+import { AboutInterestCarousel } from "./about-interest-carousel";
 
 type Props = {
   profile: AboutProfile;
@@ -371,24 +372,7 @@ export function AboutJourneyPage({ profile }: Props) {
           </p>
         </header>
 
-        <div className="about-final__interest-grid">
-          {profile.interests.map((item) => (
-            <figure key={item.title}>
-              <div>
-                <Image
-                  src={item.media.src}
-                  alt={item.media.alt}
-                  fill
-                  sizes="(max-width: 760px) 80vw, 22vw"
-                />
-              </div>
-              <figcaption>
-                <strong>{item.title}</strong>
-                <span>{item.note}</span>
-              </figcaption>
-            </figure>
-          ))}
-        </div>
+        <AboutInterestCarousel items={profile.interests} />
       </section>
 
       <section

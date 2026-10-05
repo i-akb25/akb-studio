@@ -29,9 +29,11 @@ const metadataBase = siteOrigin ?? new URL("http://localhost:3000");
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getPublicSiteSettings();
-  const socialCardUrl = siteOrigin
-    ? new URL("/opengraph-image", siteOrigin).href
-    : "/opengraph-image";
+  const socialCardUrl =
+    settings.socialImageUrl ??
+    (siteOrigin
+      ? new URL("/images/projects/akb-studio/cover.webp", siteOrigin).href
+      : "/images/projects/akb-studio/cover.webp");
   return {
     metadataBase,
     title: {
@@ -62,13 +64,15 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       type: "website",
       siteName: settings.siteName,
-      title: settings.authorName,
+      locale: "en_IN",
+      title: `${settings.authorName} | ${settings.siteName}`,
       description: settings.description,
+      ...(siteOrigin ? { url: siteOrigin } : {}),
       images: [
         {
           url: socialCardUrl,
-          width: 1200,
-          height: 630,
+          width: 1600,
+          height: 1200,
           alt: settings.socialImageAlt,
         },
       ],

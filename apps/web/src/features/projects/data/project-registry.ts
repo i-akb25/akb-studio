@@ -624,6 +624,11 @@ export const projectRegistry = [
     lifecycle: "completed",
     publication: "published",
     caseStudyState: "planned",
+    cover: {
+      kind: "image",
+      src: "/images/projects/make-a-wish/cover.webp",
+      alt: "Make-A-Wish interactive web experience",
+    },
     technologies: [
       { name: "React", icon: "code" },
       { name: "Vite", icon: "tool" },
@@ -650,6 +655,11 @@ export const projectRegistry = [
     lifecycle: "completed",
     publication: "published",
     caseStudyState: "planned",
+    cover: {
+      kind: "image",
+      src: "/images/projects/accord/cover.webp",
+      alt: "Accord animated interface study",
+    },
     technologies: [
       { name: "React", icon: "code" },
       { name: "GSAP", icon: "tool" },
@@ -682,6 +692,11 @@ export const projectRegistry = [
     lifecycle: "completed",
     publication: "published",
     caseStudyState: "planned",
+    cover: {
+      kind: "image",
+      src: "/images/projects/proposal/cover.webp",
+      alt: "Proposal configurable web experiment",
+    },
     technologies: [
       { name: "JavaScript", icon: "code" },
       { name: "HTML", icon: "code" },

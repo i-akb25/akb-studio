@@ -66,6 +66,14 @@ export type OperationsInitialData = {
     title: string;
     description: string | null;
     state: ContentState;
+    items: Array<{
+      id: string;
+      assetId: string;
+      label: string;
+      altText: string;
+      caption: string | null;
+      order: number;
+    }>;
   }>;
   mediaAssets: Array<{
     id: string;
@@ -717,6 +725,86 @@ export function OperationsConsole({
           <button type="submit">Save gallery</button>
         </form>
       </section>
+      {selectedGallery ? (
+        <section hidden={section !== "all" && section !== "galleries"}>
+          <h2>Images in {selectedGallery.title}</h2>
+          <p>
+            The first image is the cover. Each gallery supports up to 25 images;
+            visitors can swipe or use the arrow controls.
+          </p>
+          {selectedGallery.items.length ? (
+            <div className="akb-admin-list">
+              {selectedGallery.items.map((item, index) => (
+                <article key={item.id}>
+                  <div>
+                    <p className="akb-kicker">
+                      {index === 0 ? "COVER IMAGE" : `IMAGE ${index + 1}`}
+                    </p>
+                    <h3>{item.label}</h3>
+                    <p>{item.caption || item.altText}</p>
+                  </div>
+                  <div className="akb-admin-actions">
+                    {index !== 0 ? (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setStatus("Changing cover…");
+                          try {
+                            await send({
+                              resource: "gallery-item-cover",
+                              gallerySlug: selectedGallery.slug,
+                              itemId: item.id,
+                            });
+                            setStatus(
+                              "Cover changed and recorded in the audit log.",
+                            );
+                            router.refresh();
+                          } catch (error) {
+                            setStatus(
+                              error instanceof Error
+                                ? error.message
+                                : "Cover change failed",
+                            );
+                          }
+                        }}
+                      >
+                        Set as cover
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setStatus("Removing image…");
+                        try {
+                          await send({
+                            resource: "gallery-item-remove",
+                            gallerySlug: selectedGallery.slug,
+                            itemId: item.id,
+                          });
+                          setStatus(
+                            "Image removed from this gallery. The media asset was kept.",
+                          );
+                          router.refresh();
+                        } catch (error) {
+                          setStatus(
+                            error instanceof Error
+                              ? error.message
+                              : "Remove failed",
+                          );
+                        }
+                      }}
+                    >
+                      Remove from gallery
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p>No images are attached to this gallery yet.</p>
+          )}
+        </section>
+      ) : null}
       <section hidden={section !== "all" && section !== "galleries"}>
         <h2>Add gallery image</h2>
         <form
@@ -736,6 +824,7 @@ export function OperationsConsole({
             <input
               name="gallerySlug"
               placeholder="travel or painting"
+              defaultValue={selectedGallery?.slug ?? ""}
               required
             />
           </label>
@@ -756,8 +845,14 @@ export function OperationsConsole({
             <input name="caption" />
           </label>
           <label>
-            <span>Order</span>
-            <input name="order" type="number" min="0" defaultValue="0" />
+            <span>Order (0 is the cover)</span>
+            <input
+              name="order"
+              type="number"
+              min="0"
+              max="24"
+              defaultValue={selectedGallery?.items.length ?? 0}
+            />
           </label>
           <button type="submit">Add image</button>
         </form>

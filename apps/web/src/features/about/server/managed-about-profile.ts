@@ -25,21 +25,28 @@ export async function getManagedAboutProfile(): Promise<AboutProfile> {
         orderBy: { order: "asc" },
       }),
     ]);
-    const interests: AboutInterestEntry[] = galleries.flatMap((gallery) =>
-      gallery.items
+    const interests: AboutInterestEntry[] = galleries.flatMap((gallery) => {
+      const readyItems = gallery.items
         .filter((item) => item.asset.state === "READY")
-        .map((item) => ({
-          id: item.id,
+        .slice(0, 25);
+      const images = readyItems.map((item) => ({
+        src: item.asset.secureUrl,
+        alt: item.altText,
+        width: item.asset.width ?? 1600,
+        height: item.asset.height ?? 1200,
+      }));
+      const cover = readyItems[0];
+      if (!cover) return [];
+      return [
+        {
+          id: gallery.id,
           title: gallery.title,
-          note: item.caption ?? gallery.description ?? "",
-          media: {
-            src: item.asset.secureUrl,
-            alt: item.altText,
-            width: item.asset.width ?? 1200,
-            height: item.asset.height ?? 1500,
-          },
-        })),
-    );
+          note: cover.caption ?? gallery.description ?? "",
+          media: images[0],
+          images,
+        },
+      ];
+    });
     return {
       ...fallback,
       ...(profile

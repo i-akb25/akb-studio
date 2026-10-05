@@ -23,6 +23,11 @@ export const projectRegistry = [
     caseStudyState: "planned",
     period: "2026",
     role: "Independent product design and engineering",
+    cover: {
+      kind: "image",
+      src: "/images/projects/akb-studio/cover.webp",
+      alt: "AKB Studio engineering portfolio homepage",
+    },
     technologies: [
       { name: "Next.js", icon: "code" },
       { name: "React", icon: "code" },
@@ -52,6 +57,11 @@ export const projectRegistry = [
     caseStudyState: "published",
     period: "2026",
     role: "Product design and engineering",
+    cover: {
+      kind: "image",
+      src: "/images/projects/veyra/cover.webp",
+      alt: "VEYRA privacy-first job intelligence workspace",
+    },
     technologies: [
       { name: "Next.js", icon: "code" },
       { name: "TypeScript", icon: "code" },
@@ -124,6 +134,11 @@ export const projectRegistry = [
     caseStudyState: "planned",
     period: "2026",
     role: "Independent system design and implementation",
+    cover: {
+      kind: "image",
+      src: "/images/projects/titan-os/cover.webp",
+      alt: "Titan OS industrial telemetry dashboard",
+    },
     technologies: [
       { name: "Python", icon: "code" },
       { name: "Node.js", icon: "server" },
@@ -277,6 +292,11 @@ export const projectRegistry = [
     caseStudyState: "planned",
     period: "2026",
     role: "Independent design and development",
+    cover: {
+      kind: "image",
+      src: "/images/projects/akb-cli/cover.webp",
+      alt: "AKB CLI interactive command-line portfolio",
+    },
     technologies: [
       { name: "Python", icon: "code" },
       { name: "Standard Library", icon: "tool" },
@@ -368,6 +388,11 @@ export const projectRegistry = [
     lifecycle: "completed",
     publication: "published",
     caseStudyState: "planned",
+    cover: {
+      kind: "image",
+      src: "/images/projects/arduino-quadcopter/cover.webp",
+      alt: "Arduino quadcopter flight-control prototype",
+    },
     technologies: [
       { name: "Arduino", icon: "hardware" },
       { name: "MPU6050", icon: "hardware" },
@@ -500,6 +525,11 @@ export const projectRegistry = [
     lifecycle: "completed",
     publication: "published",
     caseStudyState: "planned",
+    cover: {
+      kind: "image",
+      src: "/images/projects/carbon-footprint/cover.webp",
+      alt: "Carbon Footprint calculator interface",
+    },
     technologies: [
       { name: "HTML", icon: "code" },
       { name: "CSS", icon: "code" },
@@ -557,6 +587,11 @@ export const projectRegistry = [
     lifecycle: "completed",
     publication: "published",
     caseStudyState: "planned",
+    cover: {
+      kind: "image",
+      src: "/images/projects/safar-awaits/cover.webp",
+      alt: "Safar Awaits travel interface",
+    },
     technologies: [
       { name: "React", icon: "code" },
       { name: "JavaScript", icon: "code" },

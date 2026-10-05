@@ -297,3 +297,64 @@ test("public source and tests use plain resume spelling", async () => {
   assert.match(files.at(-1) ?? "", /Download resume PDF/);
   assert.doesNotMatch(files.at(-1) ?? "", /Print \/ save PDF|General PDF/);
 });
+
+test("every available project cover is mapped and the homepage uses six flagship records", async () => {
+  const [registry, homepage] = await Promise.all([
+    webSource("src/features/projects/data/project-registry.ts"),
+    webSource(
+      "src/features/homepage/components/projects/featured-projects.tsx",
+    ),
+  ]);
+  const covers = [
+    "akb-studio",
+    "veyra",
+    "codevet",
+    "titan-os",
+    "automated-drone-delivery",
+    "adhayan-lms",
+    "production-website-fieldbook",
+    "akb-cli",
+    "arduino-quadcopter",
+    "health-tracker",
+    "expressify",
+    "carbon-footprint",
+    "vecho",
+    "binance-trade-analysis",
+    "safar-awaits",
+  ];
+
+  for (const slug of covers) {
+    const relativePath = `public/images/projects/${slug}/cover.webp`;
+    assert.match(registry, new RegExp(`/images/projects/${slug}/cover\\.webp`));
+    assert.ok((await stat(path.join(webRoot, relativePath))).size > 0);
+  }
+
+  assert.match(
+    homepage,
+    /<CurrentProject image="\/images\/projects\/akb-studio\/cover\.webp" \/>/,
+  );
+});
+
+test("social discovery, project indexing and installability have complete fallbacks", async () => {
+  const [layout, settings, sitemap, robots, manifest, installer, footer] =
+    await Promise.all([
+      webSource("src/app/layout.tsx"),
+      webSource("src/features/seo/server/site-settings.ts"),
+      webSource("src/app/sitemap.ts"),
+      webSource("src/app/robots.ts"),
+      webSource("src/app/manifest.ts"),
+      webSource("src/features/offline/components/install-app-control.tsx"),
+      webSource("src/components/layout/site-footer.tsx"),
+    ]);
+
+  assert.match(layout, /socialCardUrl/);
+  assert.match(layout, /Anurag NITP/);
+  assert.match(settings, /images\/projects\/akb-studio\/cover\.webp/);
+  assert.match(sitemap, /project\.publication === "published"/);
+  assert.doesNotMatch(robots, /\/_next\//);
+  assert.match(manifest, /icon-maskable-512\.png/);
+  assert.match(manifest, /scope: "\/"/);
+  assert.match(installer, /beforeinstallprompt/);
+  assert.match(installer, /Add to Home Screen/);
+  assert.match(footer, /InstallAppControl/);
+});

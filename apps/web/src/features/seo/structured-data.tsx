@@ -33,7 +33,14 @@ export function personStructuredData(): JsonLdValue | null {
     "@type": "Person",
     "@id": `${siteUrl}#person`,
     name: AUTHOR_NAME,
-    alternateName: ["Anurag Aryan", "Ace", "Ace AKB"],
+    alternateName: [
+      "Anurag Aryan",
+      "Ace",
+      "Ace AKB",
+      "Ace-AKB",
+      "AKB NITP",
+      "Anurag NITP",
+    ],
     url: siteUrl,
     jobTitle: ["Software Engineer", "Electrical & Automation Engineer"],
     alumniOf: {
@@ -57,6 +64,14 @@ export function websiteStructuredData(): JsonLdValue | null {
     url: siteUrl,
     inLanguage: "en-IN",
     publisher: { "@id": `${siteUrl}#person` },
+    potentialAction: {
+      "@type": "SearchAction",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: `${siteUrl}search?q={search_term_string}`,
+      },
+      "query-input": "required name=search_term_string",
+    },
   };
 }
 

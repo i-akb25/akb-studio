@@ -1,4 +1,4 @@
-const CACHE = "akb-public-v1.1";
+const CACHE = "akb-public-v1.2";
 const SAFE_PAGES = [
   "/",
   "/projects",
@@ -21,7 +21,14 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open(CACHE)
-      .then((cache) => cache.addAll(["/offline", "/app-icon.svg"])),
+      .then((cache) =>
+        cache.addAll([
+          "/offline",
+          "/brand/icon-192.png",
+          "/brand/icon-512.png",
+          "/manifest.webmanifest",
+        ]),
+      ),
   );
   self.skipWaiting();
 });

@@ -399,6 +399,11 @@ test("Pravaah uses an approved media-library image without scraping the source",
   assert.match(consoleSource, /value="update-media"/);
   assert.match(consoleSource, /value="delete"/);
   assert.match(consoleSource, /window\.confirm/);
+  assert.match(consoleSource, /formData\.set\("action", requestedAction\)/);
+  assert.doesNotMatch(
+    consoleSource,
+    /Every change is written to the private knowledge repository/,
+  );
   assert.match(api, /state: "READY"/);
   assert.match(api, /mimeType: \{ startsWith: "image\/" \}/);
   assert.match(model, /res\.cloudinary\.com/);

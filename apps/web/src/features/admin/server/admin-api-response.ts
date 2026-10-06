@@ -56,6 +56,7 @@ const safeOperationalMessages = [
   /^Feature registry (?:response )?is invalid$/,
   /^Invalid feature item$/,
   /^GitHub discovery is unavailable$/,
+  /^No Pravaah action was submitted\.$/,
 ];
 
 function isSafeOperationalMessage(message: string): boolean {

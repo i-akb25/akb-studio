@@ -397,12 +397,16 @@ test("Pravaah uses an approved media-library image without scraping the source",
   assert.match(consoleSource, /Post image from Media/);
   assert.match(consoleSource, /name="mediaAssetId"/);
   assert.match(consoleSource, /value="update-media"/);
+  assert.match(consoleSource, /value="delete"/);
+  assert.match(consoleSource, /window\.confirm/);
   assert.match(api, /state: "READY"/);
   assert.match(api, /mimeType: \{ startsWith: "image\/" \}/);
   assert.match(model, /res\.cloudinary\.com/);
   assert.match(publicPage, /lead\.media/);
   assert.match(publicPage, /<PravaahNetworkAnimation/);
   assert.match(publisher, /GITHUB_CONTENT_TOKEN/);
+  assert.match(publisher, /deleteFeatureItem/);
+  assert.match(publisher, /Pravaah repository could not be reached/);
   assert.match(publisher, /Refresh the Admin page before trying again/);
   assert.match(api, /The Pravaah image could not be saved/);
   assert.match(errors, /Choose a ready image from the media library/);

@@ -79,6 +79,16 @@ export function PravaahConsole({
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const submitter = (event.nativeEvent as SubmitEvent).submitter;
+    const requestedAction =
+      submitter instanceof HTMLButtonElement ? submitter.value : "";
+    if (
+      requestedAction === "delete" &&
+      !window.confirm(
+        "Delete this Pravaah item? It will disappear from the public archive, but its Git history will remain recoverable.",
+      )
+    )
+      return;
     const form = event.currentTarget;
     setBusy(true);
     setResult("");
@@ -433,6 +443,14 @@ export function PravaahConsole({
                     Remove image
                   </button>
                 ) : null}
+                <button
+                  type="submit"
+                  name="action"
+                  value="delete"
+                  disabled={busy}
+                >
+                  Delete
+                </button>
               </form>
             </article>
           ))}

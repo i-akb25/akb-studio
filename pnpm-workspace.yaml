@@ -1,14 +1,17 @@
 packages:
   - "apps/*"
   - "packages/*"
+
 overrides:
   deepmerge-ts: 8.0.0
   "fast-uri@3.1.7": 3.1.8
   js-yaml: 3.15.2
   mysql2: 3.23.1
+  sharp: 0.35.5
   "source-map-js@1.2.1": 1.2.2
+
 allowBuilds:
-  '@prisma/engines': false
+  "@prisma/engines": false
   esbuild: false
   msgpackr-extract: false
   prisma: false

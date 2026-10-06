@@ -68,11 +68,24 @@ function headers(): HeadersInit {
   };
 }
 
+async function githubRequest(
+  input: string,
+  init: RequestInit,
+): Promise<Response> {
+  try {
+    return await fetch(input, init);
+  } catch {
+    throw new Error(
+      "Pravaah repository could not be reached. Try again after confirming GitHub availability and the Vercel token configuration.",
+    );
+  }
+}
+
 async function writableManifest(): Promise<FeatureManifest> {
   const path = MANIFEST_PATH.split("/")
     .map((segment) => encodeURIComponent(segment))
     .join("/");
-  const response = await fetch(
+  const response = await githubRequest(
     `https://api.github.com/repos/${OWNER}/${REPOSITORY}/contents/${path}?ref=${encodeURIComponent(
       REF,
     )}`,
@@ -114,7 +127,7 @@ async function currentSha(): Promise<string | undefined> {
   const path = MANIFEST_PATH.split("/")
     .map((segment) => encodeURIComponent(segment))
     .join("/");
-  const response = await fetch(
+  const response = await githubRequest(
     `https://api.github.com/repos/${OWNER}/${REPOSITORY}/contents/${path}?ref=${encodeURIComponent(
       REF,
     )}`,
@@ -140,7 +153,7 @@ async function writeManifest(
     .map((segment) => encodeURIComponent(segment))
     .join("/");
   const sha = await currentSha();
-  const response = await fetch(
+  const response = await githubRequest(
     `https://api.github.com/repos/${OWNER}/${REPOSITORY}/contents/${path}`,
     {
       method: "PUT",
@@ -287,5 +300,23 @@ export async function updateFeatureState(input: {
   await writeManifest(
     withItem(manifest, updated),
     `Update Pravaah item: ${updated.title}`,
+  );
+}
+
+export async function deleteFeatureItem(id: string): Promise<void> {
+  const manifest = await writableManifest();
+  const current = manifest.items.find((item) => item.id === id);
+
+  if (!current)
+    throw new Error(
+      "The Pravaah item is no longer present in the publishing repository. Refresh the Admin page before trying again.",
+    );
+
+  await writeManifest(
+    {
+      ...manifest,
+      items: manifest.items.filter((item) => item.id !== id),
+    },
+    `Delete Pravaah item: ${current.title}`,
   );
 }

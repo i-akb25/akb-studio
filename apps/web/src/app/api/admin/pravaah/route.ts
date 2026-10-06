@@ -10,6 +10,7 @@ import {
   type FeatureType,
 } from "@/features/pravaah/model";
 import {
+  deleteFeatureItem,
   featureGitHubDiscovery,
   ignoreGitHubDiscovery,
   publishManualFeature,
@@ -97,6 +98,8 @@ export async function POST(request: Request) {
       await updateFeatureState({ id: value(form, "id"), media });
     } else if (action === "clear-media") {
       await updateFeatureState({ id: value(form, "id"), media: null });
+    } else if (action === "delete") {
+      await deleteFeatureItem(value(form, "id"));
     } else if (action === "publish-manual") {
       const source = value(form, "source");
       const type = value(form, "type");
@@ -169,7 +172,9 @@ export async function POST(request: Request) {
       event: "admin_pravaah_operation_failed",
       fallback: ["update-media", "clear-media"].includes(requestedAction)
         ? "The Pravaah image could not be saved. Refresh the page and confirm that the post and Media asset still exist."
-        : "The Pravaah change could not be saved. Check the submitted URL and publishing repository access.",
+        : requestedAction === "delete"
+          ? "The Pravaah item could not be deleted. Refresh the page and confirm publishing repository access."
+          : "The Pravaah change could not be saved. Check the submitted URL and publishing repository access.",
     });
   }
 }

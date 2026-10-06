@@ -173,6 +173,12 @@ test("protected Admin pages do not load conflicting public or legacy styles", as
   assert.doesNotMatch(pravaahPage, /pravaah-admin\.css/);
   assert.match(shell, /\.akb-admin-publisher/);
   assert.match(shell, /\.akb-admin-editor/);
+  assert.match(
+    shell,
+    /grid-template-columns:\s*minmax\(0, 1fr\) minmax\(0, 24rem\)/,
+  );
+  assert.match(shell, /\.akb-admin-list \.akb-pravaah-item-media select/);
+  assert.match(shell, /max-width:\s*100%/);
 });
 
 test("Admin can override tracked projects and select managed media", async () => {
@@ -376,13 +382,16 @@ test("About galleries stay balanced while supporting swipeable multi-image sets"
 });
 
 test("Pravaah uses an approved media-library image without scraping the source", async () => {
-  const [adminPage, consoleSource, api, model, publicPage] = await Promise.all([
-    webSource("src/app/admin/(protected)/pravaah/page.tsx"),
-    webSource("src/features/admin/components/pravaah-console.tsx"),
-    webSource("src/app/api/admin/pravaah/route.ts"),
-    webSource("src/features/pravaah/model.ts"),
-    webSource("src/features/pravaah/components/pravaah-page.tsx"),
-  ]);
+  const [adminPage, consoleSource, api, model, publicPage, publisher, errors] =
+    await Promise.all([
+      webSource("src/app/admin/(protected)/pravaah/page.tsx"),
+      webSource("src/features/admin/components/pravaah-console.tsx"),
+      webSource("src/app/api/admin/pravaah/route.ts"),
+      webSource("src/features/pravaah/model.ts"),
+      webSource("src/features/pravaah/components/pravaah-page.tsx"),
+      webSource("src/features/pravaah/server/feature-publisher.ts"),
+      webSource("src/features/admin/server/admin-api-response.ts"),
+    ]);
 
   assert.match(adminPage, /mediaAsset\.findMany/);
   assert.match(consoleSource, /Post image from Media/);
@@ -393,6 +402,10 @@ test("Pravaah uses an approved media-library image without scraping the source",
   assert.match(model, /res\.cloudinary\.com/);
   assert.match(publicPage, /lead\.media/);
   assert.match(publicPage, /<PravaahNetworkAnimation/);
+  assert.match(publisher, /GITHUB_CONTENT_TOKEN/);
+  assert.match(publisher, /Refresh the Admin page before trying again/);
+  assert.match(api, /The Pravaah image could not be saved/);
+  assert.match(errors, /Choose a ready image from the media library/);
   assert.doesNotMatch(consoleSource, /fetch\(.*linkedin/i);
 });
 

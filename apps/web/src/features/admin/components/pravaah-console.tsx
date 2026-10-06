@@ -85,7 +85,7 @@ export function PravaahConsole({
     if (
       requestedAction === "delete" &&
       !window.confirm(
-        "Delete this Pravaah item? It will disappear from the public archive, but its Git history will remain recoverable.",
+        "Delete this Pravaah item? It will disappear from the public archive and cannot be restored from Admin.",
       )
     )
       return;
@@ -94,6 +94,7 @@ export function PravaahConsole({
     setResult("");
 
     const formData = new FormData(form);
+    if (requestedAction) formData.set("action", requestedAction);
     const publishedAt = formData.get("publishedAt");
     if (typeof publishedAt === "string" && publishedAt) {
       formData.set("publishedAt", new Date(publishedAt).toISOString());
@@ -130,8 +131,8 @@ export function PravaahConsole({
         <h1>Public signal control</h1>
         <p>
           Review automatic GitHub discoveries, add external posts and control
-          what becomes public. Every change is written to the private knowledge
-          repository before it appears on the public Pravaah page.
+          what becomes public. Approved changes are saved to the production
+          registry, with the private repository retained as a fallback mirror.
         </p>
       </header>
 

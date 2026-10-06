@@ -77,6 +77,7 @@ export async function POST(request: Request) {
     const form = await request.formData();
     const action = value(form, "action");
     requestedAction = action;
+    if (!action) throw new Error("No Pravaah action was submitted.");
 
     if (action === "feature-github") {
       await featureGitHubDiscovery(value(form, "externalId"));

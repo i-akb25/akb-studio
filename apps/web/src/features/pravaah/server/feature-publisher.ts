@@ -2,7 +2,7 @@ import "server-only";
 
 import { Buffer } from "node:buffer";
 import { randomUUID } from "node:crypto";
-import { revalidateTag } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 import {
   EMPTY_FEATURE_MANIFEST,
@@ -14,6 +14,10 @@ import {
   featureItemSchema,
   featureManifestSchema,
 } from "../model";
+import {
+  readStoredFeatureManifest,
+  saveStoredFeatureManifest,
+} from "./feature-store";
 import { getGitHubDiscoveries } from "./github-adapter";
 
 const OWNER = process.env.AKB_KNOWLEDGE_GITHUB_OWNER ?? "i-akb25";
@@ -23,15 +27,19 @@ const REF = process.env.AKB_KNOWLEDGE_GITHUB_REF ?? "main";
 const MANIFEST_PATH = "content/feature-manifest.json";
 const TIMEOUT_MS = 12_000;
 
-function writeToken(): string {
+function writeToken(): string | undefined {
   const value =
     process.env.AKB_KNOWLEDGE_GITHUB_WRITE_TOKEN?.trim() ||
     process.env.GITHUB_CONTENT_TOKEN?.trim();
-  if (!value)
-    throw new Error(
-      "Pravaah repository write access is not configured for the server.",
-    );
-  return value;
+  return value || undefined;
+}
+
+function readToken(): string | undefined {
+  return (
+    process.env.AKB_KNOWLEDGE_GITHUB_TOKEN?.trim() ||
+    process.env.GITHUB_READ_TOKEN?.trim() ||
+    writeToken()
+  );
 }
 
 function repositoryError(operation: string, status: number): Error {
@@ -58,10 +66,10 @@ function repositoryError(operation: string, status: number): Error {
   return new Error(`Pravaah repository ${operation} failed (${status}).`);
 }
 
-function headers(): HeadersInit {
+function headers(token: string): HeadersInit {
   return {
     Accept: "application/vnd.github+json",
-    Authorization: `Bearer ${writeToken()}`,
+    Authorization: `Bearer ${token}`,
     "Content-Type": "application/json",
     "User-Agent": "akb-studio-pravaah",
     "X-GitHub-Api-Version": "2022-11-28",
@@ -82,6 +90,10 @@ async function githubRequest(
 }
 
 async function writableManifest(): Promise<FeatureManifest> {
+  const stored = await readStoredFeatureManifest();
+  if (stored) return stored;
+  const token = readToken();
+  if (!token) return EMPTY_FEATURE_MANIFEST;
   const path = MANIFEST_PATH.split("/")
     .map((segment) => encodeURIComponent(segment))
     .join("/");
@@ -90,7 +102,7 @@ async function writableManifest(): Promise<FeatureManifest> {
       REF,
     )}`,
     {
-      headers: headers(),
+      headers: headers(token),
       cache: "no-store",
       signal: AbortSignal.timeout(TIMEOUT_MS),
     },
@@ -123,7 +135,7 @@ async function writableManifest(): Promise<FeatureManifest> {
   return parsed.data;
 }
 
-async function currentSha(): Promise<string | undefined> {
+async function currentSha(token: string): Promise<string | undefined> {
   const path = MANIFEST_PATH.split("/")
     .map((segment) => encodeURIComponent(segment))
     .join("/");
@@ -132,7 +144,7 @@ async function currentSha(): Promise<string | undefined> {
       REF,
     )}`,
     {
-      headers: headers(),
+      headers: headers(token),
       cache: "no-store",
       signal: AbortSignal.timeout(TIMEOUT_MS),
     },
@@ -145,19 +157,21 @@ async function currentSha(): Promise<string | undefined> {
   return typeof payload.sha === "string" ? payload.sha : undefined;
 }
 
-async function writeManifest(
+async function mirrorManifest(
   manifest: FeatureManifest,
   message: string,
 ): Promise<void> {
+  const token = writeToken();
+  if (!token) return;
   const path = MANIFEST_PATH.split("/")
     .map((segment) => encodeURIComponent(segment))
     .join("/");
-  const sha = await currentSha();
+  const sha = await currentSha(token);
   const response = await githubRequest(
     `https://api.github.com/repos/${OWNER}/${REPOSITORY}/contents/${path}`,
     {
       method: "PUT",
-      headers: headers(),
+      headers: headers(token),
       body: JSON.stringify({
         message,
         content: Buffer.from(
@@ -173,8 +187,30 @@ async function writeManifest(
   );
 
   if (!response.ok) throw repositoryError("publish", response.status);
+}
+
+async function writeManifest(
+  manifest: FeatureManifest,
+  input: {
+    action: "CREATE" | "UPDATE" | "PUBLISH" | "DELETE";
+    entityId?: string;
+    message: string;
+  },
+): Promise<void> {
+  await saveStoredFeatureManifest({ manifest, ...input });
+
+  // Git remains a recoverable content mirror. A missing, expired or
+  // branch-restricted token must not break the authenticated Admin controls.
+  try {
+    await mirrorManifest(manifest, input.message);
+  } catch {
+    // Neon is authoritative for Admin changes; the public reader still uses
+    // the Git manifest whenever Neon is unavailable.
+  }
 
   revalidateTag("pravaah-manifest", "max");
+  revalidatePath("/pravaah");
+  revalidatePath("/admin/pravaah");
 }
 
 function withItem(
@@ -204,10 +240,11 @@ export async function featureGitHubDiscovery(
     syncedAt: new Date().toISOString(),
   });
 
-  await writeManifest(
-    withItem(manifest, item),
-    `Feature GitHub item: ${item.title}`,
-  );
+  await writeManifest(withItem(manifest, item), {
+    action: "PUBLISH",
+    entityId: item.id,
+    message: `Feature GitHub item: ${item.title}`,
+  });
 }
 
 export async function ignoreGitHubDiscovery(externalId: string): Promise<void> {
@@ -220,7 +257,11 @@ export async function ignoreGitHubDiscovery(externalId: string): Promise<void> {
         new Set([externalId, ...manifest.ignoredExternalIds]),
       ).slice(0, 1000),
     },
-    "Ignore GitHub discovery",
+    {
+      action: "UPDATE",
+      entityId: externalId,
+      message: "Ignore GitHub discovery",
+    },
   );
 }
 
@@ -265,10 +306,11 @@ export async function publishManualFeature(input: {
   });
   const manifest = await writableManifest();
 
-  await writeManifest(
-    withItem(manifest, item),
-    `Publish Pravaah item: ${item.title}`,
-  );
+  await writeManifest(withItem(manifest, item), {
+    action: "PUBLISH",
+    entityId: item.id,
+    message: `Publish Pravaah item: ${item.title}`,
+  });
 }
 
 export async function updateFeatureState(input: {
@@ -297,10 +339,11 @@ export async function updateFeatureState(input: {
 
   const updated = featureItemSchema.parse(candidate);
 
-  await writeManifest(
-    withItem(manifest, updated),
-    `Update Pravaah item: ${updated.title}`,
-  );
+  await writeManifest(withItem(manifest, updated), {
+    action: "UPDATE",
+    entityId: updated.id,
+    message: `Update Pravaah item: ${updated.title}`,
+  });
 }
 
 export async function deleteFeatureItem(id: string): Promise<void> {
@@ -317,6 +360,10 @@ export async function deleteFeatureItem(id: string): Promise<void> {
       ...manifest,
       items: manifest.items.filter((item) => item.id !== id),
     },
-    `Delete Pravaah item: ${current.title}`,
+    {
+      action: "DELETE",
+      entityId: current.id,
+      message: `Delete Pravaah item: ${current.title}`,
+    },
   );
 }

@@ -464,3 +464,23 @@ test("the service worker clones cacheable responses before returning them", asyn
   assert.match(worker, /cache\.put\(request, cacheCopy\)/);
   assert.doesNotMatch(worker, /cache\.put\(request, response\.clone\(\)\)/);
 });
+
+test("Pravaah Admin writes to Neon and treats GitHub as a fallback mirror", async () => {
+  const [publisher, source, store, schema, migration] = await Promise.all([
+    webSource("src/features/pravaah/server/feature-publisher.ts"),
+    webSource("src/features/pravaah/server/feature-source.ts"),
+    webSource("src/features/pravaah/server/feature-store.ts"),
+    repositorySource("prisma/schema.prisma"),
+    repositorySource(
+      "prisma/migrations/20261006170000_pravaah_database_registry/migration.sql",
+    ),
+  ]);
+
+  assert.match(store, /prisma\.pravaahRegistry\.findUnique/);
+  assert.match(store, /runAuditedMutation/);
+  assert.match(publisher, /saveStoredFeatureManifest/);
+  assert.match(publisher, /await mirrorManifest/);
+  assert.match(source, /readStoredFeatureManifest/);
+  assert.match(schema, /model PravaahRegistry/);
+  assert.match(migration, /CREATE TABLE "PravaahRegistry"/);
+});

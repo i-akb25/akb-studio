@@ -15,6 +15,11 @@ const databaseMessages: Record<string, { message: string; status: number }> = {
     message: "The database connection closed unexpectedly. Try again.",
     status: 503,
   },
+  P2021: {
+    message:
+      "The required database table is not available yet. Apply the approved production migration and try again.",
+    status: 503,
+  },
   P2002: {
     message: "A record with the same unique value already exists.",
     status: 409,
@@ -49,6 +54,8 @@ const safeOperationalMessages = [
   /^The selected image needs useful alternative text\.$/,
   /^The Pravaah item is no longer present in the publishing repository\./,
   /^Feature registry (?:response )?is invalid$/,
+  /^Invalid feature item$/,
+  /^GitHub discovery is unavailable$/,
 ];
 
 function isSafeOperationalMessage(message: string): boolean {

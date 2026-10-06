@@ -3,8 +3,8 @@
 import type { AnimationItem } from "lottie-web";
 import { useEffect, useRef, useState } from "react";
 
-const ANIMATION_PATH =
-  "/animations/about/Connecting/Networking%20For%20All.json";
+const ANIMATION_DIRECTORY = "/animations/pravaah/interactive-workspace/";
+const ANIMATION_PATH = `${ANIMATION_DIRECTORY}interactive-workspace-premium.json`;
 
 export function PravaahNetworkAnimation() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -34,18 +34,17 @@ export function PravaahNetworkAnimation() {
         if (cancelled) return;
 
         animation = lottie.loadAnimation({
+          assetsPath: `${ANIMATION_DIRECTORY}images/`,
           autoplay: !reducedMotion.matches,
           animationData,
           container,
           loop: !reducedMotion.matches,
-          // The bundled animation contains animated gradients and expressions.
-          // Lottie's SVG renderer can report DOMLoaded while leaving those SVG
-          // paths empty under the production CSP. Canvas renders the same local
-          // asset without relying on generated SVG gradient definitions.
-          renderer: "canvas",
+          // This bundle animates transparent PNG layers. SVG preserves their
+          // alpha channel without introducing a canvas-coloured rectangle.
+          renderer: "svg",
           rendererSettings: {
-            clearCanvas: true,
             preserveAspectRatio: "xMidYMid meet",
+            progressiveLoad: true,
           },
         });
         animation.addEventListener("data_failed", () => setFailed(true));
@@ -81,7 +80,7 @@ export function PravaahNetworkAnimation() {
   return (
     <figure
       className="pravaah-network-animation"
-      aria-label="A network of connected public ideas and conversations"
+      aria-label="An animated engineering workspace with two active displays"
     >
       <div
         ref={containerRef}

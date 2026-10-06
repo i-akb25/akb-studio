@@ -121,35 +121,27 @@
   min-height: 25rem;
   margin: 0;
   isolation: isolate;
+  background: transparent;
 }
 
 .pravaah-network-animation::before {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  width: 82%;
-  aspect-ratio: 1;
-  border: 1px solid var(--pravaah-line);
-  border-radius: 50%;
-  background: radial-gradient(
-    circle,
-    color-mix(in srgb, var(--pravaah-accent) 10%, transparent),
-    transparent 66%
-  );
-  opacity: 0.75;
+  content: none;
 }
 
 .pravaah-network-animation__canvas {
   position: relative;
   z-index: 1;
-  width: min(100%, 34rem);
-  aspect-ratio: 1;
-  filter: saturate(0.72) sepia(0.12);
+  width: min(100%, 42rem);
+  aspect-ratio: 4 / 3;
+  background: transparent;
+  filter: saturate(0.84);
 }
 
 .pravaah-network-animation__canvas :where(svg) {
+  display: block;
   width: 100%;
   height: 100%;
+  background: transparent;
 }
 
 .pravaah-network-animation__static {

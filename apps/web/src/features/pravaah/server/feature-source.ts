@@ -9,6 +9,7 @@ import {
   type FeatureManifest,
   featureManifestSchema,
 } from "../model";
+import { readStoredFeatureManifest } from "./feature-store";
 
 const OWNER = process.env.AKB_KNOWLEDGE_GITHUB_OWNER ?? "i-akb25";
 const REPOSITORY =
@@ -102,7 +103,10 @@ async function requestManifest(): Promise<FeatureManifest> {
   }
 }
 
-export const getFeatureManifest = cache(requestManifest);
+export const getFeatureManifest = cache(async (): Promise<FeatureManifest> => {
+  const stored = await readStoredFeatureManifest();
+  return stored ?? requestManifest();
+});
 
 export const getPublishedFeatureItems = cache(
   async (): Promise<FeatureItem[]> => {

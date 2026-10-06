@@ -39,14 +39,12 @@ export function PravaahNetworkAnimation() {
           animationData,
           container,
           loop: !reducedMotion.matches,
-          // The bundled animation contains animated gradients and expressions.
-          // Lottie's SVG renderer can report DOMLoaded while leaving those SVG
-          // paths empty under the production CSP. Canvas renders the same local
-          // asset without relying on generated SVG gradient definitions.
-          renderer: "canvas",
+          // This bundle animates transparent PNG layers. SVG preserves their
+          // alpha channel without introducing a canvas-coloured rectangle.
+          renderer: "svg",
           rendererSettings: {
-            clearCanvas: true,
             preserveAspectRatio: "xMidYMid meet",
+            progressiveLoad: true,
           },
         });
         animation.addEventListener("data_failed", () => setFailed(true));

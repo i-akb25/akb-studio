@@ -92,8 +92,8 @@ test("Pravaah uses the supplied workspace Lottie with a reduced-motion fallback"
   assert.match(animation, /assetsPath/);
   assert.match(animation, /prefers-reduced-motion:\s*reduce/);
   assert.match(animation, /goToAndStop/);
-  assert.match(animation, /renderer:\s*"canvas"/);
-  assert.doesNotMatch(animation, /progressiveLoad:\s*true/);
+  assert.match(animation, /renderer:\s*"svg"/);
+  assert.match(animation, /progressiveLoad:\s*true/);
 
   const assetRoot = path.join(
     webRoot,

@@ -3,8 +3,8 @@
 import type { AnimationItem } from "lottie-web";
 import { useEffect, useRef, useState } from "react";
 
-const ANIMATION_PATH =
-  "/animations/about/Connecting/Networking%20For%20All.json";
+const ANIMATION_DIRECTORY = "/animations/pravaah/interactive-workspace/";
+const ANIMATION_PATH = `${ANIMATION_DIRECTORY}interactive-workspace-premium.json`;
 
 export function PravaahNetworkAnimation() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -34,6 +34,7 @@ export function PravaahNetworkAnimation() {
         if (cancelled) return;
 
         animation = lottie.loadAnimation({
+          assetsPath: `${ANIMATION_DIRECTORY}images/`,
           autoplay: !reducedMotion.matches,
           animationData,
           container,
@@ -81,7 +82,7 @@ export function PravaahNetworkAnimation() {
   return (
     <figure
       className="pravaah-network-animation"
-      aria-label="A network of connected public ideas and conversations"
+      aria-label="An animated engineering workspace with two active displays"
     >
       <div
         ref={containerRef}

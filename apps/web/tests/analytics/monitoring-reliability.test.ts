@@ -80,7 +80,7 @@ test("portfolio music is user initiated and rolling text respects reduced motion
   assert.match(homepage, /home-collaboration-roll-right/);
 });
 
-test("Pravaah uses the supplied network Lottie with a reduced-motion fallback", async () => {
+test("Pravaah uses the supplied workspace Lottie with a reduced-motion fallback", async () => {
   const animation = await readFile(
     path.join(
       webRoot,
@@ -88,7 +88,29 @@ test("Pravaah uses the supplied network Lottie with a reduced-motion fallback", 
     ),
     "utf8",
   );
-  assert.match(animation, /Networking%20For%20All\.json/);
+  assert.match(animation, /interactive-workspace-premium\.json/);
+  assert.match(animation, /assetsPath/);
   assert.match(animation, /prefers-reduced-motion:\s*reduce/);
   assert.match(animation, /goToAndStop/);
+  assert.match(animation, /renderer:\s*"canvas"/);
+  assert.doesNotMatch(animation, /progressiveLoad:\s*true/);
+
+  const assetRoot = path.join(
+    webRoot,
+    "public/animations/pravaah/interactive-workspace",
+  );
+  const definition = JSON.parse(
+    await readFile(
+      path.join(assetRoot, "interactive-workspace-premium.json"),
+      "utf8",
+    ),
+  ) as { assets?: Array<{ p?: string; u?: string }> };
+  const imageAssets = definition.assets ?? [];
+
+  assert.equal(imageAssets.length, 6);
+  await Promise.all(
+    imageAssets.map((asset) =>
+      readFile(path.join(assetRoot, asset.u ?? "", asset.p ?? "")),
+    ),
+  );
 });

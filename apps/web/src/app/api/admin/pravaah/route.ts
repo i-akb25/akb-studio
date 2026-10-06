@@ -62,6 +62,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  let requestedAction = "";
+
   try {
     assertSameOrigin(request);
   } catch {
@@ -73,6 +75,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Request too large" }, { status: 413 });
     const form = await request.formData();
     const action = value(form, "action");
+    requestedAction = action;
 
     if (action === "feature-github") {
       await featureGitHubDiscovery(value(form, "externalId"));
@@ -164,8 +167,9 @@ export async function POST(request: Request) {
   } catch (error) {
     return adminErrorResponse(error, {
       event: "admin_pravaah_operation_failed",
-      fallback:
-        "The Pravaah change could not be saved. Check the submitted URL and publishing repository access.",
+      fallback: ["update-media", "clear-media"].includes(requestedAction)
+        ? "The Pravaah image could not be saved. Refresh the page and confirm that the post and Media asset still exist."
+        : "The Pravaah change could not be saved. Check the submitted URL and publishing repository access.",
     });
   }
 }

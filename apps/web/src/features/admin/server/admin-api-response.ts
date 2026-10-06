@@ -44,6 +44,11 @@ const safeOperationalMessages = [
   /^Missing knowledge repository write token$/,
   /^HTTPS URL required$/,
   /^Pravaah repository /,
+  /^Choose a ready image from the media library\.$/,
+  /^Choose an image before saving\.$/,
+  /^The selected image needs useful alternative text\.$/,
+  /^The Pravaah item is no longer present in the publishing repository\./,
+  /^Feature registry (?:response )?is invalid$/,
 ];
 
 function isSafeOperationalMessage(message: string): boolean {

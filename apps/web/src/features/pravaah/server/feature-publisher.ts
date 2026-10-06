@@ -24,7 +24,9 @@ const MANIFEST_PATH = "content/feature-manifest.json";
 const TIMEOUT_MS = 12_000;
 
 function writeToken(): string {
-  const value = process.env.AKB_KNOWLEDGE_GITHUB_WRITE_TOKEN?.trim();
+  const value =
+    process.env.AKB_KNOWLEDGE_GITHUB_WRITE_TOKEN?.trim() ||
+    process.env.GITHUB_CONTENT_TOKEN?.trim();
   if (!value)
     throw new Error(
       "Pravaah repository write access is not configured for the server.",
@@ -265,7 +267,10 @@ export async function updateFeatureState(input: {
   const manifest = await writableManifest();
   const current = manifest.items.find((item) => item.id === input.id);
 
-  if (!current) throw new Error("Feature item was not found");
+  if (!current)
+    throw new Error(
+      "The Pravaah item is no longer present in the publishing repository. Refresh the Admin page before trying again.",
+    );
 
   const candidate: Record<string, unknown> = {
     ...current,

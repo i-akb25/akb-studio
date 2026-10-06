@@ -827,3 +827,10 @@ model SiteConfiguration {
 
   @@index([socialImageAssetId])
 }
+
+model PravaahRegistry {
+  id        String   @id @default("primary")
+  manifest  Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

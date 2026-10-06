@@ -147,7 +147,7 @@ export function PravaahConsole({
           <div className="akb-admin-list">
             {discoveries.map((item) => (
               <article key={item.id}>
-                <div>
+                <div className="akb-pravaah-item-copy">
                   <p className="akb-kicker">
                     {featureSourceLabel(item.source, item.sourceName)}
                   </p>
@@ -355,7 +355,7 @@ export function PravaahConsole({
         <div className="akb-admin-list">
           {items.map((item) => (
             <article key={item.id}>
-              <div>
+              <div className="akb-pravaah-item-copy">
                 {item.media ? (
                   <Image
                     src={item.media.src}

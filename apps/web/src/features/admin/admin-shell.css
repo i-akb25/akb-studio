@@ -468,13 +468,16 @@
 }
 .akb-admin-list article {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 24rem);
   gap: 1rem;
   align-items: center;
   padding: 1rem;
   border: 1px solid var(--admin-line);
   border-radius: 0.65rem;
   background: var(--background);
+}
+.akb-pravaah-item-copy {
+  min-width: 0;
 }
 .akb-admin-list article h3 {
   margin: 0;
@@ -492,10 +495,23 @@
   align-items: center;
 }
 .akb-admin-list article > form {
+  min-width: 0;
+  width: 100%;
+  max-width: 24rem;
   display: flex;
   flex-wrap: wrap;
   gap: 0.65rem;
   justify-content: flex-end;
+}
+.akb-admin-list .akb-pravaah-item-media {
+  min-width: 0;
+  width: 100%;
+  max-width: 24rem;
+}
+.akb-admin-list .akb-pravaah-item-media select {
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
 }
 .akb-admin-list article a {
   color: var(--accent-warm);
@@ -706,6 +722,10 @@
   }
   .akb-admin-list article {
     grid-template-columns: 1fr;
+  }
+  .akb-admin-list article > form {
+    max-width: none;
+    justify-content: flex-start;
   }
   .akb-admin-ledger__actions {
     grid-template-columns: 1fr;

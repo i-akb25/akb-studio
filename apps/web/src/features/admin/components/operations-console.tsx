@@ -163,6 +163,7 @@ export function OperationsConsole({
 }) {
   const router = useRouter();
   const [status, setStatus] = useState("");
+  const [busy, setBusy] = useState(false);
   const [mediaAssets, setMediaAssets] = useState(initialData.mediaAssets);
   const [projectSlug, setProjectSlug] = useState("");
   const [reflectionSlug, setReflectionSlug] = useState("");
@@ -213,8 +214,10 @@ export function OperationsConsole({
     ) => Record<string, unknown>,
   ) {
     event.preventDefault();
+    if (busy) return;
     const form = event.currentTarget;
     const formValues = values(form);
+    setBusy(true);
     setStatus("Saving…");
     try {
       await send(build(formValues));
@@ -222,6 +225,28 @@ export function OperationsConsole({
       router.refresh();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Save failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function runDirect(
+    payload: Record<string, unknown>,
+    pendingMessage: string,
+    successMessage: string,
+    failureMessage: string,
+  ) {
+    if (busy) return;
+    setBusy(true);
+    setStatus(pendingMessage);
+    try {
+      await send(payload);
+      setStatus(successMessage);
+      router.refresh();
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : failureMessage);
+    } finally {
+      setBusy(false);
     }
   }
   return (
@@ -305,7 +330,9 @@ export function OperationsConsole({
               defaultValue={initialData.siteConfiguration?.socialImageAlt ?? ""}
             />
           </label>
-          <button type="submit">Save site settings</button>
+          <button type="submit" disabled={busy}>
+            Save site settings
+          </button>
         </form>
       </section>
       <section hidden={section !== "all" && section !== "profile"}>
@@ -372,7 +399,9 @@ export function OperationsConsole({
             />
           </div>
           <StateSelect value={initialData.profile?.state} />
-          <button type="submit">Save profile</button>
+          <button type="submit" disabled={busy}>
+            Save profile
+          </button>
         </form>
       </section>
       <section hidden={section !== "all" && section !== "availability"}>
@@ -423,7 +452,9 @@ export function OperationsConsole({
             />
           </label>
           <StateSelect value={initialData.availability?.state} />
-          <button type="submit">Update availability</button>
+          <button type="submit" disabled={busy}>
+            Update availability
+          </button>
         </form>
       </section>
       <section hidden={section !== "all" && section !== "projects"}>
@@ -609,7 +640,9 @@ export function OperationsConsole({
             Approved for Aeva
           </label>
           <StateSelect value={selectedProject?.state} />
-          <button type="submit">Save project</button>
+          <button type="submit" disabled={busy}>
+            Save project
+          </button>
         </form>
       </section>
       <section hidden={section !== "all" && section !== "reflections"}>
@@ -702,7 +735,9 @@ export function OperationsConsole({
             />
           </label>
           <StateSelect value={selectedReflection?.state} />
-          <button type="submit">Save reflection</button>
+          <button type="submit" disabled={busy}>
+            Save reflection
+          </button>
         </form>
       </section>
       <section hidden={section !== "all" && section !== "galleries"}>
@@ -753,7 +788,9 @@ export function OperationsConsole({
             />
           </label>
           <StateSelect value={selectedGallery?.state} />
-          <button type="submit">Save gallery</button>
+          <button type="submit" disabled={busy}>
+            Save gallery
+          </button>
         </form>
       </section>
       {selectedGallery ? (
@@ -778,52 +815,38 @@ export function OperationsConsole({
                     {index !== 0 ? (
                       <button
                         type="button"
-                        onClick={async () => {
-                          setStatus("Changing cover…");
-                          try {
-                            await send({
+                        disabled={busy}
+                        onClick={() =>
+                          runDirect(
+                            {
                               resource: "gallery-item-cover",
                               gallerySlug: selectedGallery.slug,
                               itemId: item.id,
-                            });
-                            setStatus(
-                              "Cover changed and recorded in the audit log.",
-                            );
-                            router.refresh();
-                          } catch (error) {
-                            setStatus(
-                              error instanceof Error
-                                ? error.message
-                                : "Cover change failed",
-                            );
-                          }
-                        }}
+                            },
+                            "Changing cover…",
+                            "Cover changed and recorded in the audit log.",
+                            "Cover change failed",
+                          )
+                        }
                       >
                         Set as cover
                       </button>
                     ) : null}
                     <button
                       type="button"
-                      onClick={async () => {
-                        setStatus("Removing image…");
-                        try {
-                          await send({
+                      disabled={busy}
+                      onClick={() =>
+                        runDirect(
+                          {
                             resource: "gallery-item-remove",
                             gallerySlug: selectedGallery.slug,
                             itemId: item.id,
-                          });
-                          setStatus(
-                            "Image removed from this gallery. The media asset was kept.",
-                          );
-                          router.refresh();
-                        } catch (error) {
-                          setStatus(
-                            error instanceof Error
-                              ? error.message
-                              : "Remove failed",
-                          );
-                        }
-                      }}
+                          },
+                          "Removing image…",
+                          "Image removed from this gallery. The media asset was kept.",
+                          "Remove failed",
+                        )
+                      }
                     >
                       Remove from gallery
                     </button>
@@ -881,7 +904,9 @@ export function OperationsConsole({
               defaultValue={selectedGallery?.items.length ?? 0}
             />
           </label>
-          <button type="submit">Add image</button>
+          <button type="submit" disabled={busy}>
+            Add image
+          </button>
         </form>
       </section>
     </div>

@@ -39,6 +39,7 @@ export function AevaMemoryConsole({
 }) {
   const router = useRouter();
   const [status, setStatus] = useState("");
+  const [busy, setBusy] = useState(false);
   const [memoryId, setMemoryId] = useState("");
   const [sourceId, setSourceId] = useState("");
   const selectedMemory = memories.find((item) => item.id === memoryId);
@@ -48,7 +49,9 @@ export function AevaMemoryConsole({
     resource: "memory" | "source",
   ) {
     event.preventDefault();
+    if (busy) return;
     const form = event.currentTarget;
+    setBusy(true);
     setStatus("Saving…");
     try {
       const values = Object.fromEntries(new FormData(form).entries());
@@ -61,6 +64,8 @@ export function AevaMemoryConsole({
       router.refresh();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Save failed");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -152,7 +157,9 @@ export function AevaMemoryConsole({
               maxLength={2048}
             />
           </label>
-          <button type="submit">Add memory</button>
+          <button type="submit" disabled={busy}>
+            {busy ? "Saving…" : selectedMemory ? "Save memory" : "Add memory"}
+          </button>
         </form>
       </section>
       <section>
@@ -209,7 +216,13 @@ export function AevaMemoryConsole({
               maxLength={5000}
             />
           </label>
-          <button type="submit">Approve source</button>
+          <button type="submit" disabled={busy}>
+            {busy
+              ? "Saving…"
+              : selectedSource
+                ? "Save source"
+                : "Approve source"}
+          </button>
         </form>
       </section>
     </div>

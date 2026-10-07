@@ -32,6 +32,7 @@ export function StudioWorkspace({
 }) {
   const router = useRouter();
   const [status, setStatus] = useState("");
+  const [busy, setBusy] = useState(false);
   async function run(
     event: FormEvent<HTMLFormElement>,
     build: (
@@ -39,8 +40,10 @@ export function StudioWorkspace({
     ) => Record<string, unknown>,
   ) {
     event.preventDefault();
+    if (busy) return;
     const form = event.currentTarget;
     const values = data(form);
+    setBusy(true);
     setStatus("Saving…");
     try {
       await submit(build(values));
@@ -49,6 +52,8 @@ export function StudioWorkspace({
       router.refresh();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Save failed");
+    } finally {
+      setBusy(false);
     }
   }
   const ContactSelect = ({
@@ -88,7 +93,9 @@ export function StudioWorkspace({
             <span>Private note</span>
             <textarea name="body" required maxLength={2000} />
           </label>
-          <button type="submit">Add note</button>
+          <button type="submit" disabled={busy}>
+            Add note
+          </button>
         </form>
       </section>
       <section>
@@ -117,7 +124,9 @@ export function StudioWorkspace({
             <span>Next step</span>
             <textarea name="nextStep" />
           </label>
-          <button type="submit">Record meeting</button>
+          <button type="submit" disabled={busy}>
+            Record meeting
+          </button>
         </form>
       </section>
       <section>
@@ -141,7 +150,9 @@ export function StudioWorkspace({
             <span>Reminder</span>
             <textarea name="note" required />
           </label>
-          <button type="submit">Schedule reminder</button>
+          <button type="submit" disabled={busy}>
+            Schedule reminder
+          </button>
         </form>
         {reminders.length ? (
           <form
@@ -170,7 +181,9 @@ export function StudioWorkspace({
                 <option>CANCELLED</option>
               </select>
             </label>
-            <button type="submit">Resolve reminder</button>
+            <button type="submit" disabled={busy}>
+              Resolve reminder
+            </button>
           </form>
         ) : (
           <p>No pending reminders.</p>
@@ -197,7 +210,9 @@ export function StudioWorkspace({
                 ))}
               </select>
             </label>
-            <button type="submit">Queue proposed action</button>
+            <button type="submit" disabled={busy}>
+              Queue proposed action
+            </button>
           </form>
         ) : (
           <p>No current health findings.</p>
@@ -229,7 +244,9 @@ export function StudioWorkspace({
                 <option>REJECTED</option>
               </select>
             </label>
-            <button type="submit">Record decision</button>
+            <button type="submit" disabled={busy}>
+              Record decision
+            </button>
           </form>
         ) : (
           <p>
@@ -279,7 +296,9 @@ export function StudioWorkspace({
             <span>Notes</span>
             <textarea name="notes" />
           </label>
-          <button type="submit">Record restore drill</button>
+          <button type="submit" disabled={busy}>
+            Record restore drill
+          </button>
         </form>
       </section>
     </div>

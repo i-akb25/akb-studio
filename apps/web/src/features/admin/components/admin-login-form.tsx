@@ -12,36 +12,47 @@ export function AdminLoginForm() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (pending) return;
     setPending(true);
     setError("");
     const data = new FormData(event.currentTarget);
 
-    if (step === "credentials") {
-      const result = await authClient.signIn.email({
-        email: String(data.get("email") ?? "").trim(),
-        password: String(data.get("password") ?? ""),
-      });
-      setPending(false);
-      if (result.error)
-        return setError("Invalid credentials or access is disabled.");
-      if (
-        result.data &&
-        "twoFactorRedirect" in result.data &&
-        result.data.twoFactorRedirect
-      )
-        return setStep("totp");
-    } else {
-      const result = await authClient.twoFactor.verifyTotp({
-        code: String(data.get("code") ?? "").replace(/\s/g, ""),
-        trustDevice: false,
-      });
-      setPending(false);
-      if (result.error)
-        return setError("Invalid or expired authenticator code.");
-    }
+    try {
+      if (step === "credentials") {
+        const result = await authClient.signIn.email({
+          email: String(data.get("email") ?? "").trim(),
+          password: String(data.get("password") ?? ""),
+        });
+        if (result.error) {
+          setError("Invalid credentials or access is disabled.");
+          return;
+        }
+        if (
+          result.data &&
+          "twoFactorRedirect" in result.data &&
+          result.data.twoFactorRedirect
+        ) {
+          setStep("totp");
+          return;
+        }
+      } else {
+        const result = await authClient.twoFactor.verifyTotp({
+          code: String(data.get("code") ?? "").replace(/\s/g, ""),
+          trustDevice: false,
+        });
+        if (result.error) {
+          setError("Invalid or expired authenticator code.");
+          return;
+        }
+      }
 
-    router.replace("/admin");
-    router.refresh();
+      router.replace("/admin");
+      router.refresh();
+    } catch {
+      setError("The authentication service could not be reached. Try again.");
+    } finally {
+      setPending(false);
+    }
   }
 
   return (

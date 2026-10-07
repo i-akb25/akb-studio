@@ -43,6 +43,7 @@ export function AevaExperience() {
   const [followUps, setFollowUps] = useState<string[]>([]);
   const [ended, setEnded] = useState(false);
   const [feedbackStatus, setFeedbackStatus] = useState("");
+  const [feedbackBusy, setFeedbackBusy] = useState(false);
   const questionRef = useRef<HTMLTextAreaElement>(null);
   const feedbackHeadingRef = useRef<HTMLHeadingElement>(null);
 
@@ -177,24 +178,32 @@ export function AevaExperience() {
 
   async function sendFeedback(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (feedbackBusy) return;
+    setFeedbackBusy(true);
     setFeedbackStatus("Sending…");
     const data = new FormData(event.currentTarget);
-    const response = await fetch("/api/feedback", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        rating: data.get("rating"),
-        message: String(data.get("message") ?? "") || undefined,
-        ...(shareConversation && conversationId ? { conversationId } : {}),
-        page: "/aeva",
-        policyVersion: POLICY_VERSIONS.aeva,
-      }),
-    });
-    setFeedbackStatus(
-      response.ok
-        ? "Thank you — feedback received."
-        : "Feedback is temporarily unavailable.",
-    );
+    try {
+      const response = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rating: data.get("rating"),
+          message: String(data.get("message") ?? "") || undefined,
+          ...(shareConversation && conversationId ? { conversationId } : {}),
+          page: "/aeva",
+          policyVersion: POLICY_VERSIONS.aeva,
+        }),
+      });
+      setFeedbackStatus(
+        response.ok
+          ? "Thank you — feedback received."
+          : "Feedback is temporarily unavailable.",
+      );
+    } catch {
+      setFeedbackStatus("Feedback is temporarily unavailable.");
+    } finally {
+      setFeedbackBusy(false);
+    }
   }
 
   return (
@@ -454,6 +463,7 @@ export function AevaExperience() {
                 </label>
                 <button
                   type="submit"
+                  disabled={feedbackBusy}
                   className="inline-flex items-center justify-center gap-2 bg-foreground px-5 py-3 text-sm font-semibold text-background"
                 >
                   <ThumbsUp className="size-4" aria-hidden="true" />

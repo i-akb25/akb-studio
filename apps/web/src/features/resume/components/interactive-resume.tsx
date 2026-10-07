@@ -10,9 +10,12 @@ export function InteractiveResume({ profile }: { profile: ResumeProfile }) {
   const [jobDescription, setJobDescription] = useState("");
   const [analysis, setAnalysis] = useState<RoleFitAnalysis>();
   const [status, setStatus] = useState("");
+  const [busy, setBusy] = useState(false);
 
   async function analyze(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (busy) return;
+    setBusy(true);
     setStatus("Comparing published evidence…");
     setAnalysis(undefined);
     try {
@@ -30,6 +33,8 @@ export function InteractiveResume({ profile }: { profile: ResumeProfile }) {
       setStatus("");
     } catch {
       setStatus("The comparison is temporarily unavailable. Please try again.");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -120,7 +125,7 @@ export function InteractiveResume({ profile }: { profile: ResumeProfile }) {
             </span>
             <button
               type="submit"
-              disabled={jobDescription.trim().length < 40 || Boolean(status)}
+              disabled={jobDescription.trim().length < 40 || busy}
               className="inline-flex items-center gap-2 bg-foreground px-5 py-3 text-sm font-semibold text-background disabled:opacity-45"
             >
               <Search className="size-4" aria-hidden="true" />

@@ -39,6 +39,7 @@ export function InstallAppControl() {
   const instructionsId = useId();
   const promptRef = useRef<InstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
+  const [installing, setInstalling] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
 
   useEffect(() => {
@@ -64,7 +65,7 @@ export function InstallAppControl() {
   }, []);
 
   async function install() {
-    if (installed) return;
+    if (installed || installing) return;
 
     const prompt = promptRef.current;
     if (!prompt) {
@@ -72,12 +73,22 @@ export function InstallAppControl() {
       return;
     }
 
-    await prompt.prompt();
-    const choice = await prompt.userChoice;
-    promptRef.current = null;
-    if (choice.outcome === "accepted") {
-      setInstalled(true);
-      setShowInstructions(false);
+    setInstalling(true);
+    try {
+      await prompt.prompt();
+      const choice = await prompt.userChoice;
+      promptRef.current = null;
+      if (choice.outcome === "accepted") {
+        setInstalled(true);
+        setShowInstructions(false);
+      } else {
+        setShowInstructions(true);
+      }
+    } catch {
+      promptRef.current = null;
+      setShowInstructions(true);
+    } finally {
+      setInstalling(false);
     }
   }
 
@@ -86,13 +97,17 @@ export function InstallAppControl() {
       <button
         type="button"
         onClick={install}
-        disabled={installed}
+        disabled={installed || installing}
         aria-expanded={showInstructions}
         aria-controls={instructionsId}
         className="inline-flex min-h-11 items-center gap-2 rounded-sm text-left text-sm text-muted transition-colors duration-200 hover:text-foreground disabled:cursor-default disabled:text-muted-soft motion-reduce:transition-none"
       >
         <Download aria-hidden="true" className="size-3.5" strokeWidth={1.8} />
-        {installed ? "AKB Studio installed" : "Install AKB Studio"}
+        {installed
+          ? "AKB Studio installed"
+          : installing
+            ? "Opening installer…"
+            : "Install AKB Studio"}
       </button>
 
       {showInstructions ? (

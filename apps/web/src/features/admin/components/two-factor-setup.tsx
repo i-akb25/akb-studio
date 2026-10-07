@@ -9,29 +9,53 @@ export function TwoFactorSetup() {
   const [totpUri, setTotpUri] = useState("");
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
   const [error, setError] = useState("");
+  const [pending, setPending] = useState(false);
 
   async function enable(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (pending) return;
     const data = new FormData(event.currentTarget);
-    const result = await authClient.twoFactor.enable({
-      password: String(data.get("password") ?? ""),
-    });
-    if (result.error || !result.data || result.data.method !== "totp")
-      return setError("Two-factor setup could not be started.");
-    setTotpUri(result.data.totpURI);
-    setBackupCodes(result.data.backupCodes);
+    setPending(true);
+    setError("");
+    try {
+      const result = await authClient.twoFactor.enable({
+        password: String(data.get("password") ?? ""),
+      });
+      if (result.error || !result.data || result.data.method !== "totp") {
+        setError("Two-factor setup could not be started.");
+        return;
+      }
+      setTotpUri(result.data.totpURI);
+      setBackupCodes(result.data.backupCodes);
+    } catch {
+      setError("The authentication service could not be reached. Try again.");
+    } finally {
+      setPending(false);
+    }
   }
 
   async function verify(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (pending) return;
     const data = new FormData(event.currentTarget);
-    const result = await authClient.twoFactor.verifyTotp({
-      code: String(data.get("code") ?? ""),
-      trustDevice: false,
-    });
-    if (result.error) return setError("The authenticator code is invalid.");
-    router.replace("/admin");
-    router.refresh();
+    setPending(true);
+    setError("");
+    try {
+      const result = await authClient.twoFactor.verifyTotp({
+        code: String(data.get("code") ?? "").replace(/\s/g, ""),
+        trustDevice: false,
+      });
+      if (result.error) {
+        setError("The authenticator code is invalid.");
+        return;
+      }
+      router.replace("/admin");
+      router.refresh();
+    } catch {
+      setError("The authentication service could not be reached. Try again.");
+    } finally {
+      setPending(false);
+    }
   }
 
   if (!totpUri)
@@ -41,8 +65,10 @@ export function TwoFactorSetup() {
           <span>Confirm password</span>
           <input type="password" name="password" minLength={14} required />
         </label>
-        <button type="submit">Create authenticator secret</button>
-        <output>{error}</output>
+        <button type="submit" disabled={pending}>
+          {pending ? "Creating…" : "Create authenticator secret"}
+        </button>
+        <output aria-live="polite">{error}</output>
       </form>
     );
 
@@ -57,9 +83,11 @@ export function TwoFactorSetup() {
           <span>First six-digit code</span>
           <input name="code" inputMode="numeric" pattern="[0-9]{6}" required />
         </label>
-        <button type="submit">Verify and activate</button>
+        <button type="submit" disabled={pending}>
+          {pending ? "Verifying…" : "Verify and activate"}
+        </button>
       </form>
-      <output>{error}</output>
+      <output aria-live="polite">{error}</output>
     </div>
   );
 }

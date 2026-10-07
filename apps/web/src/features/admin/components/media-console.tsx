@@ -92,6 +92,19 @@ export function MediaConsole({ assets }: { assets: MediaAsset[] }) {
       setDeletingId(null);
     }
   }
+
+  async function copyAssetId(id: string) {
+    try {
+      await navigator.clipboard.writeText(id);
+      setTone("success");
+      setStatus("Asset ID copied.");
+    } catch {
+      setTone("error");
+      setStatus(
+        "The asset ID could not be copied. Select it from the asset record instead.",
+      );
+    }
+  }
   return (
     <section aria-labelledby="upload-media-heading">
       <h2 id="upload-media-heading">Upload a new asset</h2>
@@ -190,10 +203,7 @@ export function MediaConsole({ assets }: { assets: MediaAsset[] }) {
                 >
                   Open asset
                 </a>
-                <button
-                  type="button"
-                  onClick={() => navigator.clipboard.writeText(asset.id)}
-                >
+                <button type="button" onClick={() => copyAssetId(asset.id)}>
                   Copy asset ID
                 </button>
                 <button

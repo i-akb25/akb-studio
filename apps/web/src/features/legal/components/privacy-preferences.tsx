@@ -15,6 +15,7 @@ type Preferences = {
 export function PrivacyPreferences() {
   const [analytics, setAnalytics] = useState(false);
   const [savedAt, setSavedAt] = useState<string>();
+  const [storageError, setStorageError] = useState("");
 
   useEffect(() => {
     try {
@@ -26,7 +27,9 @@ export function PrivacyPreferences() {
         typeof parsed.updatedAt === "string" ? parsed.updatedAt : undefined,
       );
     } catch {
-      window.localStorage.removeItem(STORAGE_KEY);
+      setStorageError(
+        "This browser is blocking preference storage. Your selection was not saved.",
+      );
     }
   }, []);
 
@@ -36,11 +39,18 @@ export function PrivacyPreferences() {
       version: POLICY_VERSIONS.cookies,
       updatedAt: new Date().toISOString(),
     };
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
-    setSavedAt(value.updatedAt);
-    window.dispatchEvent(
-      new CustomEvent("akb:privacy-preferences", { detail: value }),
-    );
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
+      setSavedAt(value.updatedAt);
+      setStorageError("");
+      window.dispatchEvent(
+        new CustomEvent("akb:privacy-preferences", { detail: value }),
+      );
+    } catch {
+      setStorageError(
+        "This browser is blocking preference storage. Your selection was not saved.",
+      );
+    }
   }
 
   return (
@@ -68,12 +78,13 @@ export function PrivacyPreferences() {
         Save preferences
       </button>
       <output aria-live="polite">
-        {savedAt
-          ? `Saved on ${new Intl.DateTimeFormat("en-IN", {
-              dateStyle: "medium",
-              timeStyle: "short",
-            }).format(new Date(savedAt))}.`
-          : "No optional analytics preference has been saved on this device."}
+        {storageError ||
+          (savedAt
+            ? `Saved on ${new Intl.DateTimeFormat("en-IN", {
+                dateStyle: "medium",
+                timeStyle: "short",
+              }).format(new Date(savedAt))}.`
+            : "No optional analytics preference has been saved on this device.")}
       </output>
     </div>
   );

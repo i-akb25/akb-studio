@@ -489,3 +489,124 @@ test("Pravaah Admin writes to Neon and treats GitHub as a fallback mirror", asyn
   assert.match(schema, /model PravaahRegistry/);
   assert.match(migration, /CREATE TABLE "PravaahRegistry"/);
 });
+
+test("interactive controls recover from failures and block duplicate submissions", async () => {
+  const [
+    resume,
+    login,
+    twoFactor,
+    studio,
+    operations,
+    aevaAdmin,
+    aeva,
+    media,
+    preferences,
+    installer,
+  ] = await Promise.all([
+    webSource("src/features/resume/components/interactive-resume.tsx"),
+    webSource("src/features/admin/components/admin-login-form.tsx"),
+    webSource("src/features/admin/components/two-factor-setup.tsx"),
+    webSource("src/features/admin/components/studio-workspace.tsx"),
+    webSource("src/features/admin/components/operations-console.tsx"),
+    webSource("src/features/admin/components/aeva-memory-console.tsx"),
+    webSource("src/features/aeva/components/aeva-experience.tsx"),
+    webSource("src/features/admin/components/media-console.tsx"),
+    webSource("src/features/legal/components/privacy-preferences.tsx"),
+    webSource("src/features/offline/components/install-app-control.tsx"),
+  ]);
+
+  assert.match(resume, /const \[busy, setBusy\] = useState\(false\)/);
+  assert.match(resume, /finally \{\s*setBusy\(false\)/);
+  assert.match(resume, /jobDescription\.trim\(\)\.length < 40 \|\| busy/);
+  assert.doesNotMatch(
+    resume,
+    /jobDescription\.trim\(\)\.length < 40 \|\| Boolean\(status\)/,
+  );
+
+  for (const source of [login, twoFactor]) {
+    assert.match(source, /if \(pending\) return/);
+    assert.match(source, /catch \{/);
+    assert.match(source, /finally \{\s*setPending\(false\)/);
+    assert.match(source, /disabled=\{pending\}/);
+  }
+
+  for (const source of [studio, operations, aevaAdmin]) {
+    assert.match(source, /const \[busy, setBusy\] = useState\(false\)/);
+    assert.match(source, /if \(busy\) return/);
+    assert.match(source, /finally \{\s*setBusy\(false\)/);
+    assert.match(source, /disabled=\{busy\}/);
+  }
+
+  assert.match(
+    aeva,
+    /const \[feedbackBusy, setFeedbackBusy\] = useState\(false\)/,
+  );
+  assert.match(aeva, /finally \{\s*setFeedbackBusy\(false\)/);
+  assert.match(aeva, /disabled=\{feedbackBusy\}/);
+  assert.match(media, /await navigator\.clipboard\.writeText\(id\)/);
+  assert.match(media, /The asset ID could not be copied/);
+  assert.match(preferences, /browser is blocking preference storage/);
+  assert.match(
+    installer,
+    /const \[installing, setInstalling\] = useState\(false\)/,
+  );
+  assert.match(installer, /catch \{\s*promptRef\.current = null/);
+  assert.match(installer, /finally \{\s*setInstalling\(false\)/);
+});
+
+test("Admin client actions remain aligned with accepted API contracts", async () => {
+  const [
+    pravaahClient,
+    pravaahApi,
+    studioClient,
+    studioApi,
+    operationsClient,
+    operationsApi,
+  ] = await Promise.all([
+    webSource("src/features/admin/components/pravaah-console.tsx"),
+    webSource("src/app/api/admin/pravaah/route.ts"),
+    webSource("src/features/admin/components/studio-workspace.tsx"),
+    webSource("src/app/api/admin/studio/route.ts"),
+    webSource("src/features/admin/components/operations-console.tsx"),
+    webSource("src/app/api/admin/operations/route.ts"),
+  ]);
+
+  for (const action of [
+    "feature-github",
+    "ignore-github",
+    "publish-manual",
+    "toggle-pin",
+    "hide",
+    "archive",
+    "update-media",
+    "clear-media",
+    "delete",
+  ]) {
+    assert.match(pravaahClient, new RegExp(`value="${action}"`));
+    assert.match(pravaahApi, new RegExp(`"${action}"`));
+  }
+
+  const studioActions = [
+    ...studioClient.matchAll(/action:\s*"([a-z-]+)"/g),
+  ].map((match) => match[1]);
+  const acceptedStudioActions = new Set(
+    [...studioApi.matchAll(/action:\s*z\.literal\("([a-z-]+)"\)/g)].map(
+      (match) => match[1],
+    ),
+  );
+  assert.ok(studioActions.length > 0);
+  for (const action of studioActions)
+    assert.ok(acceptedStudioActions.has(action));
+
+  const operationResources = [
+    ...operationsClient.matchAll(/resource:\s*"([a-z-]+)"/g),
+  ].map((match) => match[1]);
+  const acceptedOperationResources = new Set(
+    [...operationsApi.matchAll(/resource:\s*z\.literal\("([a-z-]+)"\)/g)].map(
+      (match) => match[1],
+    ),
+  );
+  assert.ok(operationResources.length > 0);
+  for (const resource of operationResources)
+    assert.ok(acceptedOperationResources.has(resource));
+});

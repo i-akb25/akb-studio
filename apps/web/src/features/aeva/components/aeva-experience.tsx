@@ -1,19 +1,13 @@
 "use client";
 
-import {
-  ArrowUpRight,
-  Check,
-  LoaderCircle,
-  Send,
-  Square,
-  ThumbsUp,
-} from "lucide-react";
+import { ArrowUpRight, LoaderCircle, Send, Square } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { trackConversion } from "@/features/analytics/components/conversion-tracker";
 import { POLICY_VERSIONS } from "@/features/legal/policy-registry";
 import type { AevaAnswer, AevaCitation, AevaMode } from "../model";
+import { AnswerFeedback } from "./answer-feedback";
 import { AEVA_HIGHLIGHT_EVENT } from "./screen-awareness";
 import { VoiceControls } from "./voice-controls";
 
@@ -23,6 +17,7 @@ type Message = {
   citations?: AevaCitation[];
   evidenceState?: AevaAnswer["evidenceState"];
   highlights?: string[];
+  responseId?: string;
 };
 const starters = [
   "Which projects best show production engineering?",
@@ -42,10 +37,7 @@ export function AevaExperience() {
   const [status, setStatus] = useState("");
   const [followUps, setFollowUps] = useState<string[]>([]);
   const [ended, setEnded] = useState(false);
-  const [feedbackStatus, setFeedbackStatus] = useState("");
-  const [feedbackBusy, setFeedbackBusy] = useState(false);
   const questionRef = useRef<HTMLTextAreaElement>(null);
-  const feedbackHeadingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
     const latestMessage = messages.at(-1);
@@ -54,12 +46,6 @@ export function AevaExperience() {
       questionRef.current?.focus();
     }
   }, [ended, messages, status]);
-
-  useEffect(() => {
-    if (ended) {
-      feedbackHeadingRef.current?.focus();
-    }
-  }, [ended]);
 
   useEffect(() => {
     const highlights = messages.at(-1)?.highlights;
@@ -146,6 +132,7 @@ export function AevaExperience() {
                 citations: payload.result.citations,
                 evidenceState: payload.result.evidenceState,
                 highlights: payload.result.highlights,
+                responseId: payload.result.requestId,
               },
             ]);
             setFollowUps(payload.result.followUps);
@@ -176,44 +163,14 @@ export function AevaExperience() {
     setEnded(true);
   }
 
-  async function sendFeedback(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (feedbackBusy) return;
-    setFeedbackBusy(true);
-    setFeedbackStatus("Sending…");
-    const data = new FormData(event.currentTarget);
-    try {
-      const response = await fetch("/api/feedback", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          rating: data.get("rating"),
-          message: String(data.get("message") ?? "") || undefined,
-          ...(shareConversation && conversationId ? { conversationId } : {}),
-          page: "/aeva",
-          policyVersion: POLICY_VERSIONS.aeva,
-        }),
-      });
-      setFeedbackStatus(
-        response.ok
-          ? "Thank you — feedback received."
-          : "Feedback is temporarily unavailable.",
-      );
-    } catch {
-      setFeedbackStatus("Feedback is temporarily unavailable.");
-    } finally {
-      setFeedbackBusy(false);
-    }
-  }
-
   return (
     <main className="relative overflow-hidden border-b border-border bg-background">
       <div
         aria-hidden="true"
         className="absolute inset-x-0 top-0 h-px bg-accent-warm/50"
       />
-      <section className="mx-auto grid min-h-[calc(100vh-5rem)] w-full max-w-[1440px] lg:grid-cols-[0.72fr_1.28fr]">
-        <aside className="relative min-h-[34rem] overflow-hidden border-b border-border lg:min-h-full lg:border-r lg:border-b-0">
+      <section className="mx-auto grid min-h-[calc(100svh-5rem)] w-full max-w-[1440px] lg:h-[calc(100svh-5rem)] lg:min-h-[44rem] lg:grid-cols-[0.72fr_1.28fr]">
+        <aside className="relative min-h-[34rem] overflow-hidden border-b border-border lg:sticky lg:top-20 lg:h-[calc(100svh-5rem)] lg:min-h-[44rem] lg:border-r lg:border-b-0">
           <Image
             src="/images/aeva/aeva-identity.webp"
             alt="Fictional portrait representing Aeva"
@@ -238,7 +195,7 @@ export function AevaExperience() {
           </div>
         </aside>
 
-        <div className="flex min-w-0 flex-col px-5 py-8 sm:px-8 lg:px-12 lg:py-10 xl:px-16">
+        <div className="flex min-w-0 flex-col px-5 py-8 sm:px-8 lg:min-h-0 lg:px-12 lg:py-10 xl:px-16">
           <header className="flex flex-wrap items-start justify-between gap-5 border-b border-border pb-6">
             <div>
               <p className="font-mono text-[0.65rem] tracking-[0.16em] text-accent-warm uppercase">
@@ -292,7 +249,10 @@ export function AevaExperience() {
             </section>
           ) : null}
 
-          <div className="flex-1 py-7" aria-busy={Boolean(status)}>
+          <div
+            className="min-h-0 flex-1 py-7 lg:overflow-y-auto lg:pr-2"
+            aria-busy={Boolean(status)}
+          >
             {!messages.length ? (
               <div className="max-w-2xl">
                 <p className="text-xl leading-8 text-foreground">
@@ -386,6 +346,9 @@ export function AevaExperience() {
                         ))}
                       </ul>
                     ) : null}
+                    {message.role === "assistant" && message.responseId ? (
+                      <AnswerFeedback responseId={message.responseId} />
+                    ) : null}
                   </li>
                 ))}
               </ol>
@@ -419,63 +382,11 @@ export function AevaExperience() {
           </div>
 
           {ended ? (
-            <section
-              className="border-t border-border pt-6"
-              aria-labelledby="aeva-feedback-heading"
-            >
-              <h2
-                ref={feedbackHeadingRef}
-                id="aeva-feedback-heading"
-                tabIndex={-1}
-                className="inline-flex items-center gap-2 font-medium text-foreground outline-none"
-              >
-                <Check className="size-4 text-accent-warm" aria-hidden="true" />
-                Thank you for talking with Aeva.
-              </h2>
-              <p className="mt-2 text-sm text-muted">
-                Would you like to leave brief feedback? I use it to make Aeva
-                more useful for future visitors.
+            <section className="border-t border-border pt-6">
+              <p className="text-sm text-muted">
+                Conversation ended. Feedback remains attached to each Aeva
+                answer.
               </p>
-              <form
-                onSubmit={sendFeedback}
-                className="mt-5 grid gap-3 sm:grid-cols-[12rem_minmax(0,1fr)_auto]"
-              >
-                <label className="min-w-0">
-                  <span className="sr-only">How helpful was Aeva?</span>
-                  <select
-                    name="rating"
-                    required
-                    className="min-h-12 w-full border border-border bg-surface px-3 py-3 text-sm text-foreground"
-                  >
-                    <option value="helpful">Helpful</option>
-                    <option value="mixed">Mixed</option>
-                    <option value="not-helpful">Not helpful</option>
-                  </select>
-                </label>
-                <label className="min-w-0">
-                  <span className="sr-only">Optional feedback note</span>
-                  <input
-                    name="message"
-                    maxLength={1000}
-                    placeholder="Optional note"
-                    className="min-h-12 w-full border border-border bg-surface px-3 py-3 text-sm text-foreground"
-                  />
-                </label>
-                <button
-                  type="submit"
-                  disabled={feedbackBusy}
-                  className="inline-flex items-center justify-center gap-2 bg-foreground px-5 py-3 text-sm font-semibold text-background"
-                >
-                  <ThumbsUp className="size-4" aria-hidden="true" />
-                  Send
-                </button>
-              </form>
-              <output
-                aria-live="polite"
-                className="mt-3 block min-h-5 text-sm text-muted"
-              >
-                {feedbackStatus}
-              </output>
             </section>
           ) : (
             <footer className="border-t border-border pt-6">

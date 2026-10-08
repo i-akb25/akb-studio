@@ -498,7 +498,7 @@ test("interactive controls recover from failures and block duplicate submissions
     studio,
     operations,
     aevaAdmin,
-    aeva,
+    aevaFeedback,
     media,
     preferences,
     installer,
@@ -509,7 +509,7 @@ test("interactive controls recover from failures and block duplicate submissions
     webSource("src/features/admin/components/studio-workspace.tsx"),
     webSource("src/features/admin/components/operations-console.tsx"),
     webSource("src/features/admin/components/aeva-memory-console.tsx"),
-    webSource("src/features/aeva/components/aeva-experience.tsx"),
+    webSource("src/features/aeva/components/answer-feedback.tsx"),
     webSource("src/features/admin/components/media-console.tsx"),
     webSource("src/features/legal/components/privacy-preferences.tsx"),
     webSource("src/features/offline/components/install-app-control.tsx"),
@@ -538,11 +538,11 @@ test("interactive controls recover from failures and block duplicate submissions
   }
 
   assert.match(
-    aeva,
+    aevaFeedback,
     /const \[feedbackBusy, setFeedbackBusy\] = useState\(false\)/,
   );
-  assert.match(aeva, /finally \{\s*setFeedbackBusy\(false\)/);
-  assert.match(aeva, /disabled=\{feedbackBusy\}/);
+  assert.match(aevaFeedback, /finally \{\s*setFeedbackBusy\(false\)/);
+  assert.match(aevaFeedback, /disabled=\{feedbackBusy/);
   assert.match(media, /await navigator\.clipboard\.writeText\(id\)/);
   assert.match(media, /The asset ID could not be copied/);
   assert.match(preferences, /browser is blocking preference storage/);

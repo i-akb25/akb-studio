@@ -35,6 +35,8 @@ export type AevaCitation = {
   kind: "portfolio" | "memory" | "owner-url" | "web";
   excerpt?: string;
   updatedAt?: string;
+  sourceId?: string;
+  contentHash?: string;
 };
 
 export type AevaAnswer = {

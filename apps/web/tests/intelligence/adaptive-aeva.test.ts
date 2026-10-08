@@ -61,3 +61,17 @@ test("adds page context only for explain-page requests", () => {
   assert.deepEqual(pageHighlights("explain-page", context), ["architecture"]);
   assert.equal(retrievalQuery("Hello", "conversation", context), "Hello");
 });
+
+test("inherits the previous intent for a vague follow-up", () => {
+  assert.equal(
+    classifyAevaIntent({
+      question: "Tell me more",
+      mode: "explore",
+      history: [
+        { role: "user", text: "Explain the drone architecture" },
+        { role: "assistant", text: "A short answer" },
+      ],
+    }),
+    "architecture-walkthrough",
+  );
+});

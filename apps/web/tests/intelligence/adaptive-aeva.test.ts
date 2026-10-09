@@ -47,6 +47,29 @@ test("keeps a visitor name only inside supplied session context", () => {
   );
 });
 
+test("keeps introductions and capability questions out of retrieval", () => {
+  for (const question of [
+    "hey how are you",
+    "i am shivi",
+    "what you do",
+    "what can you do?",
+  ]) {
+    assert.equal(
+      classifyAevaIntent({ question, mode: "explore", history: [] }),
+      "conversation",
+    );
+    assert.ok(conversationalReply(question, []));
+  }
+  assert.match(
+    conversationalReply("i am shivi", []) ?? "",
+    /Hello Shivi, good to meet you/,
+  );
+  assert.match(
+    conversationalReply("what you do", []) ?? "",
+    /help visitors explore Anurag’s published projects/,
+  );
+});
+
 test("adds page context only for explain-page requests", () => {
   const context = {
     path: "/projects/automated-drone-delivery",

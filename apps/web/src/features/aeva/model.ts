@@ -5,6 +5,8 @@ export type AevaMode = (typeof AEVA_MODES)[number];
 export const AEVA_INTENTS = [
   "conversation",
   "portfolio",
+  "skill-evidence",
+  "timeline",
   "compare-projects",
   "architecture-walkthrough",
   "explain-page",
@@ -15,6 +17,27 @@ export const AEVA_INTENTS = [
 ] as const;
 
 export type AevaIntent = (typeof AEVA_INTENTS)[number];
+
+export const AEVA_RESPONSE_SHAPES = [
+  "brief",
+  "evidence-list",
+  "comparison",
+  "timeline",
+  "technical",
+  "recruiter",
+] as const;
+
+export type AevaResponseShape = (typeof AEVA_RESPONSE_SHAPES)[number];
+
+export type AevaQueryPlan = {
+  originalQuestion: string;
+  expandedQuery: string;
+  intent: AevaIntent;
+  responseShape: AevaResponseShape;
+  entities: string[];
+  technologies: string[];
+  years: number[];
+};
 
 export type AevaConversationTurn = {
   role: "user" | "assistant";

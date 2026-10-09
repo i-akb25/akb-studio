@@ -104,6 +104,7 @@ temp/
 LOCAL_NOTES.md
 AUDIT_SCRATCH.md
 apps/web/content/private/resume-profile.local.json
+docs/aeva-*.md
 
 # Archives
 *.zip

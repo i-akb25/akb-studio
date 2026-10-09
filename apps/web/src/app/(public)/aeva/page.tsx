@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { aevaCapabilities } from "@/features/aeva/capabilities/registry";
 import { AevaExperience } from "@/features/aeva/components/aeva-experience";
+import { aevaServerConfig } from "@/features/aeva/config/server-config";
 import { createPageMetadata } from "@/features/seo/site-config";
 
 export const metadata: Metadata = createPageMetadata({
@@ -10,5 +12,11 @@ export const metadata: Metadata = createPageMetadata({
 });
 
 export default function AevaPage() {
-  return <AevaExperience />;
+  return (
+    <AevaExperience
+      voiceEnabled={
+        aevaServerConfig.voiceEnabled && aevaCapabilities.public.voiceInput
+      }
+    />
+  );
 }

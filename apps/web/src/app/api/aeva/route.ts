@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { aevaServerConfig } from "@/features/aeva/config/server-config";
+import { groundedFallbackAnswer } from "@/features/aeva/core/grounded-answer";
+import { understandAevaQuery } from "@/features/aeva/core/query-understanding";
 import {
+  clampWords,
   createResponseContract,
   resolveFollowUpQuestion,
 } from "@/features/aeva/core/response-contract";
@@ -123,19 +126,6 @@ function roleFitAnswer(analysis: RoleFitAnalysis): string {
   return `${analysis.summary}\n\nPublished strengths:\n${strengths.join("\n") || "No explicit technical requirement matched the current evidence."}${gaps}`;
 }
 
-function deterministicAnswer(
-  sources: Awaited<ReturnType<typeof retrieveAevaContext>>,
-): string {
-  const evidence = sources
-    .slice(0, 3)
-    .map(
-      (source) =>
-        `${source.title}: ${source.excerpt ?? source.content.slice(0, 180)}`,
-    )
-    .join("\n\n");
-  return `Here is the most relevant published evidence:\n\n${evidence}`;
-}
-
 export async function POST(request: Request) {
   if (!aevaServerConfig.publicEnabled) {
     return Response.json(
@@ -187,6 +177,11 @@ export async function POST(request: Request) {
           input.question,
           input.history,
         );
+        const queryPlan = understandAevaQuery({
+          question: retrievalQuery(resolvedQuestion, intent, input.pageContext),
+          intent,
+          mode: input.mode,
+        });
 
         if (isPromptInjection(input.question)) {
           answer =
@@ -213,15 +208,17 @@ export async function POST(request: Request) {
             "That answer can change, so I need live web grounding to answer it reliably. Enable live web and ask again. If the place or office is ambiguous, include the city, timezone, country or state.";
         } else if (intent === "role-fit" && input.jobDescription) {
           const analysis = await analyzePublishedRoleFit(input.jobDescription);
-          answer = roleFitAnswer(analysis);
-          citations = analysis.relevantEvidence.map((evidence) => ({
-            id: evidence.id,
-            title: evidence.title,
-            url: evidence.url,
-            kind: "portfolio" as const,
-            excerpt: evidence.excerpt,
-            ...(evidence.updatedAt ? { updatedAt: evidence.updatedAt } : {}),
-          }));
+          answer = clampWords(roleFitAnswer(analysis), contract.maxWords);
+          citations = analysis.relevantEvidence
+            .slice(0, contract.maxCitations)
+            .map((evidence) => ({
+              id: evidence.id,
+              title: evidence.title,
+              url: evidence.url,
+              kind: "portfolio" as const,
+              excerpt: evidence.excerpt,
+              ...(evidence.updatedAt ? { updatedAt: evidence.updatedAt } : {}),
+            }));
           grounded = citations.length > 0;
         } else if (intent === "role-fit") {
           answer =
@@ -230,15 +227,14 @@ export async function POST(request: Request) {
           answer =
             "Add the job description in Recruiter mode first. I’ll use it to run a role-grounded interview instead of asking generic questions.";
         } else {
+          if (intent === "interview" && input.jobDescription) {
+            queryPlan.expandedQuery = [
+              queryPlan.expandedQuery,
+              input.jobDescription.slice(0, 1_000),
+            ].join(" ");
+          }
           const sources = await retrieveAevaContext(
-            [
-              retrievalQuery(resolvedQuestion, intent, input.pageContext),
-              intent === "interview"
-                ? input.jobDescription?.slice(0, 1_000)
-                : "",
-            ]
-              .filter(Boolean)
-              .join(" "),
+            queryPlan,
             contract.retrievalLimit,
           );
           send({
@@ -257,6 +253,7 @@ export async function POST(request: Request) {
             pageContext: input.pageContext,
             jobDescription: input.jobDescription,
             contract,
+            queryPlan,
           });
           if (provider) {
             answer = provider.answer;
@@ -264,7 +261,11 @@ export async function POST(request: Request) {
             grounded = citations.length > 0;
             usedWeb = provider.usedWeb;
           } else if (sources.length) {
-            answer = deterministicAnswer(sources);
+            answer = groundedFallbackAnswer({
+              sources,
+              plan: queryPlan,
+              maxWords: contract.maxWords,
+            });
             citations = sources
               .slice(0, contract.maxCitations)
               .map(citationFromCandidate);

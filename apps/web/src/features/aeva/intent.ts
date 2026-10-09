@@ -23,6 +23,10 @@ const GREETING =
   /^(?:hi|hello|hey|good (?:morning|afternoon|evening)|namaste)(?:[\s,!.'-]+.*)?$/i;
 const CASUAL =
   /^(?:i(?:'m| am) (?:good|fine|great|okay|ok)|how are you|thanks?|thank you|nice to meet you|who are you)[.!?\s]*$/i;
+const SKILL_EVIDENCE =
+  /\b(?:where|which project|show|evidence|demonstrate[sd]?)\b.{0,60}\b(?:use[sd]?|skill|experience|react|next\.js|typescript|javascript|python|prisma|postgres(?:ql)?|neon|gemini|pixhawk|arduino|matlab)\b/i;
+const TIMELINE =
+  /\b(?:timeline|chronolog(?:y|ical)|when (?:did|was)|(?:build|built) in|worked on in|project history|over time|before|after)\b/i;
 
 export function isCurrentActivityQuestion(question: string): boolean {
   return /\b(?:what|where).{0,30}\b(?:anurag|ace|he)\b.{0,40}\b(?:doing|working on|building)\b(?:.{0,20}\b(?:today|now|currently)\b)?/i.test(
@@ -63,6 +67,8 @@ export function classifyAevaIntent(input: {
     return "role-fit";
   if (EXPLAIN_PAGE.test(question) && input.pageContext) return "explain-page";
   if (COMPARE.test(question)) return "compare-projects";
+  if (TIMELINE.test(question)) return "timeline";
+  if (SKILL_EVIDENCE.test(question)) return "skill-evidence";
   if (ARCHITECTURE.test(question)) return "architecture-walkthrough";
   if (LIVE_INFORMATION.test(question)) return "live-information";
   if (PORTFOLIO.test(question) || input.mode !== "explore") return "portfolio";

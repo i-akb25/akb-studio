@@ -35,7 +35,12 @@ export function createResponseContract(
       requiresEvidence: false,
     };
   }
-  if (intent === "role-fit" || intent === "compare-projects") {
+  if (
+    intent === "role-fit" ||
+    intent === "compare-projects" ||
+    intent === "skill-evidence" ||
+    intent === "timeline"
+  ) {
     return {
       maxWords: 180,
       maxCitations: 3,

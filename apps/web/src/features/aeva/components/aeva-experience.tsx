@@ -25,7 +25,7 @@ const starters = [
   "What is Ace currently building?",
 ];
 
-export function AevaExperience() {
+export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [question, setQuestion] = useState("");
   const [mode, setMode] = useState<AevaMode>("explore");
@@ -169,8 +169,10 @@ export function AevaExperience() {
         aria-hidden="true"
         className="absolute inset-x-0 top-0 h-px bg-accent-warm/50"
       />
-      <section className="mx-auto grid min-h-[calc(100svh-5rem)] w-full max-w-[1440px] lg:h-[calc(100svh-5rem)] lg:min-h-[44rem] lg:grid-cols-[0.72fr_1.28fr]">
-        <aside className="relative min-h-[34rem] overflow-hidden border-b border-border lg:sticky lg:top-20 lg:h-[calc(100svh-5rem)] lg:min-h-[44rem] lg:border-r lg:border-b-0">
+      <section className="mx-auto grid min-h-[calc(100svh-5rem)] w-full max-w-[1440px] lg:h-[calc(100dvh-5rem)] lg:min-h-[38rem] lg:grid-cols-[0.72fr_1.28fr]">
+        <aside
+          className={`relative overflow-hidden border-b border-border transition-[min-height] lg:sticky lg:top-20 lg:h-full lg:min-h-0 lg:border-r lg:border-b-0 ${messages.length ? "min-h-[18rem]" : "min-h-[34rem]"}`}
+        >
           <Image
             src="/images/aeva/aeva-identity.webp"
             alt="Fictional portrait representing Aeva"
@@ -180,14 +182,18 @@ export function AevaExperience() {
             className="object-cover object-top"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/15 to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 p-6 sm:p-10 lg:p-12">
+          <div className="absolute inset-x-0 bottom-0 p-6 sm:p-10 lg:p-10 xl:p-12">
             <p className="font-mono text-[0.65rem] tracking-[0.18em] text-foreground/70 uppercase">
               Aeva / public interface
             </p>
-            <h1 className="mt-3 font-display text-5xl font-semibold tracking-[-0.05em] text-foreground sm:text-6xl">
+            <h1
+              className={`mt-3 font-display font-semibold tracking-[-0.05em] text-foreground ${messages.length ? "text-4xl" : "text-5xl sm:text-6xl"}`}
+            >
               Ask the work.
             </h1>
-            <p className="mt-4 max-w-md text-sm leading-7 text-foreground/75">
+            <p
+              className={`mt-4 max-w-md text-sm leading-7 text-foreground/75 ${messages.length ? "hidden lg:block" : ""}`}
+            >
               Aeva is an AI portfolio assistant, not a real person. Her portrait
               is fictional. Her answers draw from approved public sources and
               cited live web results.
@@ -195,8 +201,8 @@ export function AevaExperience() {
           </div>
         </aside>
 
-        <div className="flex min-w-0 flex-col px-5 py-8 sm:px-8 lg:min-h-0 lg:px-12 lg:py-10 xl:px-16">
-          <header className="flex flex-wrap items-start justify-between gap-5 border-b border-border pb-6">
+        <div className="flex min-w-0 flex-col px-5 py-8 sm:px-8 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:px-12 lg:py-6 lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden xl:px-16">
+          <header className="sticky top-0 z-10 flex flex-wrap items-start justify-between gap-5 border-b border-border bg-background pb-5">
             <div>
               <p className="font-mono text-[0.65rem] tracking-[0.16em] text-accent-warm uppercase">
                 AI disclosure · sources before certainty
@@ -250,7 +256,7 @@ export function AevaExperience() {
           ) : null}
 
           <div
-            className="min-h-0 flex-1 py-7 lg:overflow-y-auto lg:pr-2"
+            className="min-h-[18rem] py-6 lg:min-h-[20rem]"
             aria-busy={Boolean(status)}
           >
             {!messages.length ? (
@@ -439,21 +445,24 @@ export function AevaExperience() {
                 >
                   Press Enter to send. Press Shift and Enter for a new line.
                 </p>
-                <VoiceControls
-                  answer={
-                    messages.findLast((message) => message.role === "assistant")
-                      ?.text
-                  }
-                  disabled={Boolean(status)}
-                  onTranscript={(transcript) => {
-                    setQuestion((current) =>
-                      current.trim()
-                        ? `${current.trim()} ${transcript}`
-                        : transcript,
-                    );
-                    questionRef.current?.focus();
-                  }}
-                />
+                {voiceEnabled ? (
+                  <VoiceControls
+                    answer={
+                      messages.findLast(
+                        (message) => message.role === "assistant",
+                      )?.text
+                    }
+                    disabled={Boolean(status)}
+                    onTranscript={(transcript) => {
+                      setQuestion((current) =>
+                        current.trim()
+                          ? `${current.trim()} ${transcript}`
+                          : transcript,
+                      );
+                      questionRef.current?.focus();
+                    }}
+                  />
+                ) : null}
               </form>
               <div className="mt-4 grid gap-3 text-xs leading-5 text-muted sm:grid-cols-2">
                 <label className="flex items-start gap-2">

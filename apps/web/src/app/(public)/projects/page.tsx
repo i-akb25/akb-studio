@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ProjectsExplorer } from "@/features/projects/components/projects-explorer";
 import { projectDisciplineLabels } from "@/features/projects/data/project-registry";
 import { getProjectRegistry } from "@/features/projects/server/resolve-project-registry";
+import type { ProjectDiscipline } from "@/features/projects/types/project";
 import { PROJECT_DISCIPLINES } from "@/features/projects/types/project";
 import { createPageMetadata } from "@/features/seo/site-config";
 
@@ -26,7 +27,20 @@ function getCoverageWidth(count: number, maximumCount: number): `${number}%` {
   return `${Math.max((count / maximumCount) * 100, 8)}%`;
 }
 
-export default async function ProjectsPage() {
+export default async function ProjectsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ discipline?: string | string[] }>;
+}) {
+  const parameters = await searchParams;
+  const requestedDiscipline = Array.isArray(parameters.discipline)
+    ? parameters.discipline[0]
+    : parameters.discipline;
+  const initialFilter = PROJECT_DISCIPLINES.includes(
+    requestedDiscipline as ProjectDiscipline,
+  )
+    ? (requestedDiscipline as ProjectDiscipline)
+    : "all";
   const publishedProjects = await getProjectRegistry();
   const disciplineCounts = PROJECT_DISCIPLINES.map((discipline) => ({
     discipline,
@@ -148,7 +162,10 @@ export default async function ProjectsPage() {
         </Link>
       </aside>
 
-      <ProjectsExplorer projects={publishedProjects} />
+      <ProjectsExplorer
+        projects={publishedProjects}
+        initialFilter={initialFilter}
+      />
     </main>
   );
 }

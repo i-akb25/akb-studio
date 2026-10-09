@@ -5,6 +5,10 @@ import test from "node:test";
 import { groundedFallbackAnswer } from "../../src/features/aeva/core/grounded-answer";
 import { understandAevaQuery } from "../../src/features/aeva/core/query-understanding";
 import { rankRetrievalCandidate } from "../../src/features/aeva/core/retrieval-ranking";
+import {
+  createAevaActions,
+  normalizeAevaPageContext,
+} from "../../src/features/aeva/core/site-awareness";
 import { classifyAevaIntent } from "../../src/features/aeva/intent";
 
 test("understands skill, comparison and timeline questions", () => {
@@ -117,4 +121,87 @@ test("provider and feedback paths enforce evidence and independent quotas", asyn
   assert.match(guard, /aeva:chat:address/);
   assert.match(guard, /aeva:feedback:address/);
   assert.match(feedback, /acceptAevaFeedbackRequest/);
+});
+
+test("site context rejects private routes and keeps allowlisted public routes", () => {
+  assert.equal(
+    normalizeAevaPageContext({ path: "/admin", title: "Admin" }),
+    undefined,
+  );
+  assert.equal(
+    normalizeAevaPageContext({ path: "https://example.com", title: "Other" }),
+    undefined,
+  );
+  assert.equal(
+    normalizeAevaPageContext({ path: "//example.com", title: "Other" }),
+    undefined,
+  );
+  assert.deepEqual(
+    normalizeAevaPageContext({
+      path: "/projects/codevet",
+      title: "CodeVet",
+      sectionId: "architecture",
+    }),
+    {
+      path: "/projects/codevet",
+      title: "CodeVet",
+      sectionId: "architecture",
+    },
+  );
+});
+
+test("site actions are deterministic, internal and user initiated", () => {
+  const plan = understandAevaQuery({
+    question: "Show me software projects and the resume",
+    intent: "skill-evidence",
+    mode: "explore",
+  });
+  const actions = createAevaActions({
+    question: plan.originalQuestion,
+    intent: plan.intent,
+    citations: [
+      {
+        id: "internal",
+        title: "CodeVet",
+        url: "/projects/codevet",
+        kind: "portfolio",
+      },
+      {
+        id: "external",
+        title: "Untrusted external action",
+        url: "https://example.com/write",
+        kind: "web",
+      },
+    ],
+  });
+  assert.ok(actions.some((item) => item.href === "/resume"));
+  assert.ok(
+    actions.some(
+      (item) =>
+        item.href === "/projects?discipline=software#project-archive-heading",
+    ),
+  );
+  for (const item of actions) {
+    const url = new URL(item.href, "https://akb.invalid");
+    assert.equal(url.origin, "https://akb.invalid");
+  }
+  assert.equal(
+    actions.some((item) => item.label === "Open Untrusted external action"),
+    false,
+  );
+  assert.ok(actions.length <= 3);
+
+  const sanitized = createAevaActions({
+    question: "What evidence supports that?",
+    intent: "skill-evidence",
+    citations: [
+      {
+        id: "sanitized",
+        title: "Projects",
+        url: "/projects?redirect=https://example.com#project-archive-heading",
+        kind: "portfolio",
+      },
+    ],
+  });
+  assert.equal(sanitized[0]?.href, "/projects#project-archive-heading");
 });

@@ -68,10 +68,12 @@ export async function saveSharedExchange(input: {
 
 export async function endSharedConversation(publicId: string): Promise<void> {
   if (!process.env.DATABASE_URL) return;
-  await prisma.aevaConversation.updateMany({
-    where: { publicId, shared: true },
-    data: { endedAt: new Date() },
-  });
+  await prisma.aevaConversation
+    .updateMany({
+      where: { publicId, shared: true },
+      data: { endedAt: new Date() },
+    })
+    .catch(() => undefined);
 }
 
 export async function recordKnowledgeGap(

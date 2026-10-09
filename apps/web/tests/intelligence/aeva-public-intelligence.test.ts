@@ -181,8 +181,14 @@ test("site actions are deterministic, internal and user initiated", () => {
         item.href === "/projects?discipline=software#project-archive-heading",
     ),
   );
-  assert.ok(actions.every((item) => item.href.startsWith("/")));
-  assert.ok(actions.every((item) => !item.href.includes("example.com")));
+  for (const item of actions) {
+    const url = new URL(item.href, "https://akb.invalid");
+    assert.equal(url.origin, "https://akb.invalid");
+  }
+  assert.equal(
+    actions.some((item) => item.label === "Open Untrusted external action"),
+    false,
+  );
   assert.ok(actions.length <= 3);
 
   const sanitized = createAevaActions({

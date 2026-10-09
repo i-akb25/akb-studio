@@ -19,11 +19,12 @@ export const aevaCapabilities = {
   },
   private: {
     portfolioSearch: true,
-    privateRetrieval: false,
+    privateRetrieval: true,
     githubRead: false,
     veyraRead: false,
     emailRead: false,
     calendarRead: false,
+    adminDataRead: false,
     externalWrite: false,
   },
 } as const;

@@ -18,6 +18,7 @@ function boundedInteger(
 
 export const aevaServerConfig = {
   publicEnabled: enabled("AEVA_PUBLIC_ENABLED"),
+  privateEnabled: enabled("AEVA_PRIVATE_ENABLED"),
   voiceEnabled: enabled("AEVA_VOICE_ENABLED"),
   maxRetrievalChunks: boundedInteger("AEVA_MAX_RETRIEVAL_CHUNKS", 4, 1, 5),
   maxConversationTurns: boundedInteger("AEVA_MAX_CONVERSATION_TURNS", 8, 2, 12),

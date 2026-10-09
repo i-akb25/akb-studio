@@ -21,8 +21,12 @@ const PORTFOLIO =
   /\b(?:anurag|ace|akb|project|portfolio|experience|skill|work|journal|knowledge|pravaah|resume|electrical|automation|robotics|software|drone|adhayan|codevet)\b/i;
 const GREETING =
   /^(?:hi|hello|hey|good (?:morning|afternoon|evening)|namaste)(?:[\s,!.'-]+.*)?$/i;
+const VISITOR_INTRODUCTION =
+  /^(?:i am|i'm|my name is)\s+[a-z][a-z'-]{1,30}[.!?\s]*$/i;
+const AEVA_CAPABILITY =
+  /^(?:what (?:do|can) you do|what you do|how can you help(?: me)?|what can you help(?: me)? with)[.!?\s]*$/i;
 const CASUAL =
-  /^(?:i(?:'m| am) (?:good|fine|great|okay|ok)|how are you|thanks?|thank you|nice to meet you|who are you)[.!?\s]*$/i;
+  /^(?:i(?:'m| am) (?:good|fine|great|okay|ok)|(?:hey[, ]+)?how are you|thanks?|thank you|nice to meet you|who are you)[.!?\s]*$/i;
 const SKILL_EVIDENCE =
   /\b(?:where|which project|show|evidence|demonstrate[sd]?)\b.{0,60}\b(?:use[sd]?|skill|experience|react|next\.js|typescript|javascript|python|prisma|postgres(?:ql)?|neon|gemini|pixhawk|arduino|matlab)\b/i;
 const TIMELINE =
@@ -57,7 +61,13 @@ export function classifyAevaIntent(input: {
       });
     }
   }
-  if (GREETING.test(question) || CASUAL.test(question)) return "conversation";
+  if (
+    GREETING.test(question) ||
+    CASUAL.test(question) ||
+    VISITOR_INTRODUCTION.test(question) ||
+    AEVA_CAPABILITY.test(question)
+  )
+    return "conversation";
   if (question.length <= 80 && input.history?.length) {
     const previousQuestion = [...input.history]
       .reverse()
@@ -116,12 +126,14 @@ export function conversationalReply(
       nameInQuestion[0].toUpperCase() + nameInQuestion.slice(1).toLowerCase();
     return `Hello ${name}, good to meet you. How are you?`;
   }
-  if (/^how are you[.!?\s]*$/i.test(question))
+  if (/^(?:hey[, ]+)?how are you[.!?\s]*$/i.test(question))
     return `I’m doing well${name ? `, ${name}` : ""}. What would you like to explore in AKB Studio?`;
   if (/^(?:thanks?|thank you)[.!?\s]*$/i.test(question))
     return `You’re welcome${name ? `, ${name}` : ""}.`;
   if (/who are you/i.test(question))
     return "I’m Aeva, AKB Studio’s disclosed AI portfolio assistant. I can help you inspect Anurag’s published work, technical decisions and role evidence.";
+  if (AEVA_CAPABILITY.test(question))
+    return "I help visitors explore Anurag’s published projects, engineering decisions, skills, writing and role evidence. I can also answer current public-information questions when live web search is enabled.";
   if (GREETING.test(question))
     return `Hello${name ? ` ${name}` : ""}. What would you like to know about Anurag’s work?`;
   return undefined;

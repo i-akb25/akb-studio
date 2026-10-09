@@ -5,7 +5,8 @@ import { searchPortfolioKnowledgeGraph } from "@/features/intelligence/model";
 import { getPortfolioKnowledgeGraph } from "@/features/intelligence/server/portfolio-knowledge-graph";
 import { prisma } from "@/server/db/prisma";
 import { aevaServerConfig } from "../config/server-config";
-import type { AevaCitation } from "../model";
+import { rankRetrievalCandidate } from "../core/retrieval-ranking";
+import type { AevaCitation, AevaQueryPlan } from "../model";
 import {
   type AevaProvenance,
   canConsumerRetrieve,
@@ -229,9 +230,11 @@ export function citationFromCandidate(
 }
 
 export async function retrieveAevaContext(
-  question: string,
+  query: string | AevaQueryPlan,
   requestedLimit?: number,
 ) {
+  const question = typeof query === "string" ? query : query.expandedQuery;
+  const plan = typeof query === "string" ? undefined : query;
   const limit = Math.min(
     requestedLimit ?? aevaServerConfig.maxRetrievalChunks,
     aevaServerConfig.maxRetrievalChunks,
@@ -241,15 +244,33 @@ export async function retrieveAevaContext(
     ...(await managedCandidates(question)),
   ];
   const seen = new Set<string>();
+  const perSource = new Map<string, number>();
   return combined
-    .filter((item) => item.score >= 4)
+    .map((item) => {
+      const score = rankRetrievalCandidate(
+        {
+          title: item.title,
+          content: item.content,
+          score: item.score,
+          updatedAt: item.updatedAt,
+          authority: item.provenance.authority,
+        },
+        plan,
+      );
+      return score === null ? null : { ...item, score };
+    })
+    .filter((item): item is RetrievalCandidate => item !== null)
     .sort(
       (left, right) =>
         right.score - left.score || left.id.localeCompare(right.id),
     )
     .filter((item) => {
       if (seen.has(item.provenance.contentHash)) return false;
+      const sourceCount = perSource.get(item.provenance.sourceId) ?? 0;
+      const sourceLimit = plan?.responseShape === "comparison" ? 1 : 2;
+      if (sourceCount >= sourceLimit) return false;
       seen.add(item.provenance.contentHash);
+      perSource.set(item.provenance.sourceId, sourceCount + 1);
       return true;
     })
     .slice(0, limit);

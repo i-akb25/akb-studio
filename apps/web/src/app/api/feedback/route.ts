@@ -1,6 +1,6 @@
 import { z } from "zod";
 import {
-  acceptAevaRequest,
+  acceptAevaFeedbackRequest,
   hasValidAevaOrigin,
 } from "@/features/aeva/server/aeva-guard";
 import { POLICY_VERSIONS } from "@/features/legal/policy-registry";
@@ -27,7 +27,7 @@ const schema = z
 export async function POST(request: Request) {
   if (!hasValidAevaOrigin(request))
     return Response.json({ error: "Invalid request" }, { status: 403 });
-  if (!(await acceptAevaRequest(request)))
+  if (!(await acceptAevaFeedbackRequest(request)))
     return Response.json(
       { error: "Too many requests. Please wait before trying again." },
       { status: 429, headers: { "Retry-After": "900" } },

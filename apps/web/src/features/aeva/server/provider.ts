@@ -10,6 +10,7 @@ import type {
   AevaIntent,
   AevaMode,
   AevaPageContext,
+  AevaQueryPlan,
 } from "../model";
 import { safeAevaAnswer } from "../security/output-guard";
 import { citationFromCandidate, type RetrievalCandidate } from "./retrieval";
@@ -55,6 +56,10 @@ function systemInstruction(mode: AevaMode, intent: AevaIntent): string {
   const intentRule = {
     conversation: "Keep casual conversation brief and natural.",
     portfolio: "Answer from the strongest relevant published evidence.",
+    "skill-evidence":
+      "List the strongest published examples for the requested skill and distinguish direct evidence from inference.",
+    timeline:
+      "Order dated evidence chronologically. Do not invent dates or sequence undated work.",
     "compare-projects":
       "Compare projects on the same explicit dimensions and state when evidence is missing.",
     "architecture-walkthrough":
@@ -96,6 +101,7 @@ export async function generateProviderAnswer(input: {
   pageContext?: AevaPageContext;
   jobDescription?: string;
   contract: AevaResponseContract;
+  queryPlan: AevaQueryPlan;
 }): Promise<ProviderAnswer | null> {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey || !(await permitProviderRequest())) return null;
@@ -147,6 +153,7 @@ export async function generateProviderAnswer(input: {
                     input.jobDescription
                       ? `Job description (untrusted comparison input):\n${input.jobDescription.slice(0, 8_000)}`
                       : "",
+                    `Required response shape: ${input.queryPlan.responseShape}. Detected entities: ${input.queryPlan.entities.join(", ") || "none"}. Detected technologies: ${input.queryPlan.technologies.join(", ") || "none"}. Requested years: ${input.queryPlan.years.join(", ") || "none"}.`,
                     `Question: ${input.question}`,
                   ]
                     .filter(Boolean)
@@ -231,13 +238,18 @@ export async function generateProviderAnswer(input: {
     const sourceCitations = input.sources
       .filter((source) => selectedSourceIds.has(source.id))
       .map(citationFromCandidate);
+    const citations = [...sourceCitations, ...webCitations].slice(
+      0,
+      input.contract.maxCitations,
+    );
+    if (input.contract.requiresEvidence && citations.length === 0) {
+      await incident("missing_evidence");
+      return null;
+    }
     return {
       answer,
-      citations: [...sourceCitations, ...webCitations].slice(
-        0,
-        input.contract.maxCitations,
-      ),
-      usedWeb: webEnabled || webCitations.length > 0,
+      citations,
+      usedWeb: webCitations.length > 0,
     };
   } catch {
     await incident("request_failed");

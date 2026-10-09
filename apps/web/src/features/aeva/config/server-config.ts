@@ -18,13 +18,6 @@ function boundedInteger(
 
 export const aevaServerConfig = {
   publicEnabled: enabled("AEVA_PUBLIC_ENABLED"),
-  privateEnabled: enabled("AEVA_PRIVATE_ENABLED"),
-  documentIngestionEnabled: enabled("AEVA_DOCUMENT_INGESTION_ENABLED"),
-  actionsEnabled: enabled("AEVA_ACTIONS_ENABLED"),
-  externalActionsEnabled: enabled("AEVA_EXTERNAL_ACTIONS_ENABLED"),
-  monitorEnabled: enabled("AEVA_MONITOR_ENABLED"),
-  socialEnabled: enabled("AEVA_SOCIAL_ENABLED"),
-  emailEnabled: enabled("AEVA_EMAIL_ENABLED"),
   voiceEnabled: enabled("AEVA_VOICE_ENABLED"),
   maxRetrievalChunks: boundedInteger("AEVA_MAX_RETRIEVAL_CHUNKS", 4, 1, 5),
   maxConversationTurns: boundedInteger("AEVA_MAX_CONVERSATION_TURNS", 8, 2, 12),

@@ -60,6 +60,8 @@ test("public capabilities fail closed for privileged operations", () => {
   assert.equal(aevaCapabilities.public.connectorAccess, false);
   assert.equal(aevaCapabilities.public.externalWrite, false);
   assert.equal(aevaCapabilities.public.adminAccess, false);
+  assert.equal(aevaCapabilities.public.navigation, false);
+  assert.equal(aevaCapabilities.public.projectFiltering, false);
 });
 
 test("vague follow-ups remain scoped to the previous user subject", () => {

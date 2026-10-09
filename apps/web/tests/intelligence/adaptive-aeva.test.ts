@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { resolveFollowUpQuestion } from "../../src/features/aeva/core/response-contract";
 import {
   classifyAevaIntent,
   conversationalReply,
@@ -71,5 +72,27 @@ test("inherits the previous intent for a vague follow-up", () => {
       ],
     }),
     "architecture-walkthrough",
+  );
+});
+
+test("uses a short location as clarification for a live-information question", () => {
+  const history = [
+    { role: "user" as const, text: "What is today's weather?" },
+    {
+      role: "assistant" as const,
+      text: "Please provide a location and enable live web search.",
+    },
+  ];
+  assert.equal(
+    classifyAevaIntent({ question: "Patna", mode: "explore", history }),
+    "live-information",
+  );
+  assert.equal(
+    resolveFollowUpQuestion("Patna", history),
+    "What is today's weather? Location clarification: Patna",
+  );
+  assert.equal(
+    resolveFollowUpQuestion("Will it rain?", history),
+    "Will it rain?",
   );
 });

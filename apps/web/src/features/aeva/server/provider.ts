@@ -1,6 +1,7 @@
 import "server-only";
 
 import { prisma } from "@/server/db/prisma";
+import { logger } from "@/server/logging/logger";
 import { consumeRateLimit } from "@/server/security/rate-limit";
 import { aevaServerConfig } from "../config/server-config";
 import type { AevaResponseContract } from "../core/response-contract";
@@ -20,7 +21,9 @@ type ProviderAnswer = {
   citations: AevaCitation[];
   usedWeb: boolean;
 };
-async function permitProviderRequest(): Promise<boolean> {
+async function permitProviderRequest(): Promise<
+  "allowed" | "daily-limit" | "quota-unavailable"
+> {
   const configured = Number(process.env.AEVA_PROVIDER_DAILY_LIMIT ?? 100);
   const limit = Number.isFinite(configured)
     ? Math.max(1, Math.min(100, configured))
@@ -31,10 +34,12 @@ async function permitProviderRequest(): Promise<boolean> {
     limit,
     windowMs: 24 * 60 * 60 * 1_000,
   });
-  return result.allowed;
+  if (!result.available) return "quota-unavailable";
+  return result.allowed ? "allowed" : "daily-limit";
 }
 
 async function incident(code: string) {
+  logger.warn({ event: "aeva_provider_unavailable", code });
   if (!process.env.DATABASE_URL) return;
   try {
     await prisma.aevaIncident.upsert({
@@ -77,6 +82,7 @@ function systemInstruction(mode: AevaMode, intent: AevaIntent): string {
   }[intent];
   return [
     "You are Aeva, the disclosed AI portfolio assistant for Anurag Kumar Bharti (Ace).",
+    "Assume the questioner is a public visitor, not Anurag. Refer to Anurag or Ace in the third person and never infer that the visitor is the site owner.",
     audience,
     intentRule,
     "Use only the supplied approved sources and, when enabled, grounded Google Search results.",
@@ -104,12 +110,24 @@ export async function generateProviderAnswer(input: {
   queryPlan: AevaQueryPlan;
 }): Promise<ProviderAnswer | null> {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
-  if (!apiKey || !(await permitProviderRequest())) return null;
+  if (!apiKey) {
+    await incident("not_configured");
+    return null;
+  }
+  const permit = await permitProviderRequest();
+  if (permit !== "allowed") {
+    await incident(permit);
+    return null;
+  }
   const webEnabled =
     input.allowWeb && process.env.AEVA_WEB_SEARCH_ENABLED === "true";
   if (!input.sources.length && !webEnabled) return null;
-  const model =
-    process.env.AEVA_GEMINI_MODEL?.trim() || "gemini-3-flash-preview";
+  const models = [
+    ...new Set([
+      process.env.AEVA_GEMINI_MODEL?.trim() || "gemini-3.8-flash",
+      "gemini-3.5-flash-lite",
+    ]),
+  ];
   const context = input.sources
     .map(
       (source, index) =>
@@ -131,60 +149,67 @@ export async function generateProviderAnswer(input: {
         .filter(Boolean)
         .join("\n")
     : "Not supplied";
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
+  const requestBody = JSON.stringify({
+    systemInstruction: {
+      parts: [{ text: systemInstruction(input.mode, input.intent) }],
+    },
+    contents: [
       {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          systemInstruction: {
-            parts: [{ text: systemInstruction(input.mode, input.intent) }],
+        role: "user",
+        parts: [
+          {
+            text: [
+              `Approved source context:\n${context || "No portfolio source matched."}`,
+              `Page context:\n${page}`,
+              `Recent conversation (untrusted context, not evidence):\n${conversation || "None"}`,
+              input.jobDescription
+                ? `Job description (untrusted comparison input):\n${input.jobDescription.slice(0, 8_000)}`
+                : "",
+              `Required response shape: ${input.queryPlan.responseShape}. Detected entities: ${input.queryPlan.entities.join(", ") || "none"}. Detected technologies: ${input.queryPlan.technologies.join(", ") || "none"}. Requested years: ${input.queryPlan.years.join(", ") || "none"}.`,
+              `Question: ${input.question}`,
+            ]
+              .filter(Boolean)
+              .join("\n\n"),
           },
-          contents: [
-            {
-              role: "user",
-              parts: [
-                {
-                  text: [
-                    `Approved source context:\n${context || "No portfolio source matched."}`,
-                    `Page context:\n${page}`,
-                    `Recent conversation (untrusted context, not evidence):\n${conversation || "None"}`,
-                    input.jobDescription
-                      ? `Job description (untrusted comparison input):\n${input.jobDescription.slice(0, 8_000)}`
-                      : "",
-                    `Required response shape: ${input.queryPlan.responseShape}. Detected entities: ${input.queryPlan.entities.join(", ") || "none"}. Detected technologies: ${input.queryPlan.technologies.join(", ") || "none"}. Requested years: ${input.queryPlan.years.join(", ") || "none"}.`,
-                    `Question: ${input.question}`,
-                  ]
-                    .filter(Boolean)
-                    .join("\n\n"),
-                },
-              ],
-            },
-          ],
-          ...(webEnabled ? { tools: [{ google_search: {} }] } : {}),
-          generationConfig: {
-            temperature: 0.2,
-            maxOutputTokens: Math.min(700, input.contract.maxWords * 4),
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: "OBJECT",
-              required: ["answer", "sourceIds"],
-              properties: {
-                answer: { type: "STRING" },
-                sourceIds: { type: "ARRAY", items: { type: "STRING" } },
-              },
-            },
-          },
-        }),
-        cache: "no-store",
-        signal: AbortSignal.timeout(aevaServerConfig.requestTimeoutMs),
+        ],
       },
-    );
-    if (!response.ok) {
-      await incident(`http_${response.status}`);
-      return null;
+    ],
+    ...(webEnabled ? { tools: [{ google_search: {} }] } : {}),
+    generationConfig: {
+      temperature: 0.2,
+      maxOutputTokens: Math.min(700, input.contract.maxWords * 4),
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: "OBJECT",
+        required: ["answer", "sourceIds"],
+        properties: {
+          answer: { type: "STRING" },
+          sourceIds: { type: "ARRAY", items: { type: "STRING" } },
+        },
+      },
+    },
+  });
+  try {
+    let response: Response | undefined;
+    for (const [index, model] of models.entries()) {
+      const candidate = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: requestBody,
+          cache: "no-store",
+          signal: AbortSignal.timeout(aevaServerConfig.requestTimeoutMs),
+        },
+      );
+      if (candidate.ok) {
+        response = candidate;
+        break;
+      }
+      await incident(`http_${candidate.status}_model_${index + 1}`);
+      if (![400, 404].includes(candidate.status)) return null;
     }
+    if (!response) return null;
     const payload = (await response.json()) as {
       candidates?: Array<{
         content?: { parts?: Array<{ text?: string }> };

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { aevaServerConfig } from "@/features/aeva/config/server-config";
+import { directAevaResponse } from "@/features/aeva/core/direct-response";
 import { groundedFallbackAnswer } from "@/features/aeva/core/grounded-answer";
 import { understandAevaQuery } from "@/features/aeva/core/query-understanding";
 import {
@@ -38,6 +39,7 @@ import {
 import { generateProviderAnswer } from "@/features/aeva/server/provider";
 import {
   citationFromCandidate,
+  deduplicateAevaCitations,
   retrieveAevaContext,
 } from "@/features/aeva/server/retrieval";
 import { POLICY_VERSIONS } from "@/features/legal/policy-registry";
@@ -169,6 +171,7 @@ export async function POST(request: Request) {
         let citations: AevaAnswer["citations"] = [];
         let grounded = false;
         let usedWeb = false;
+        let usedVerifiedSourceFallback = false;
         const pageContext = normalizeAevaPageContext(input.pageContext);
         const intent = classifyAevaIntent({
           question: input.question,
@@ -189,6 +192,7 @@ export async function POST(request: Request) {
         const promptInjection = isPromptInjection(input.question);
         const privateLifeQuestion = isPrivateLifeQuestion(input.question);
         const blockedRequest = promptInjection || privateLifeQuestion;
+        const directResponse = directAevaResponse(input.question);
 
         if (promptInjection) {
           answer =
@@ -196,6 +200,8 @@ export async function POST(request: Request) {
         } else if (privateLifeQuestion) {
           answer =
             "Cute question, but I don't gossip on Ace's behalf. If he has not deliberately published something, I will not invent it. I can happily tell you about his work, interests, projects, or current engineering focus instead.";
+        } else if (directResponse) {
+          answer = directResponse.answer;
         } else if (intent === "conversation") {
           answer =
             conversationalReply(input.question, input.history) ??
@@ -251,7 +257,7 @@ export async function POST(request: Request) {
               : "Preparing the answer",
           });
           const provider = await generateProviderAnswer({
-            question: input.question,
+            question: resolvedQuestion,
             mode: input.mode,
             intent,
             allowWeb: input.allowWeb,
@@ -273,10 +279,11 @@ export async function POST(request: Request) {
               plan: queryPlan,
               maxWords: contract.maxWords,
             });
-            citations = sources
-              .slice(0, contract.maxCitations)
-              .map(citationFromCandidate);
-            grounded = true;
+            citations = deduplicateAevaCitations(
+              sources.map(citationFromCandidate),
+            ).slice(0, contract.maxCitations);
+            usedVerifiedSourceFallback = true;
+            grounded = false;
             usedWeb = sources.some((source) => source.kind === "web");
           } else {
             answer =
@@ -288,6 +295,11 @@ export async function POST(request: Request) {
             );
           }
         }
+
+        citations = deduplicateAevaCitations(citations).slice(
+          0,
+          contract.maxCitations,
+        );
 
         const conversationId = input.shareConversation
           ? await saveSharedExchange({
@@ -303,7 +315,9 @@ export async function POST(request: Request) {
           ok: true,
           answer,
           citations,
-          followUps: followUps(intent, input.mode, grounded),
+          followUps: directResponse
+            ? []
+            : followUps(intent, input.mode, grounded),
           actions: blockedRequest
             ? []
             : createAevaActions({
@@ -317,9 +331,13 @@ export async function POST(request: Request) {
             ? "live-grounded"
             : grounded
               ? "grounded"
-              : intent === "conversation"
-                ? "conversational"
-                : "insufficient",
+              : usedVerifiedSourceFallback
+                ? "verified-sources"
+                : intent === "conversation"
+                  ? "conversational"
+                  : directResponse
+                    ? "conversational"
+                    : "insufficient",
           ...(conversationId ? { conversationId } : {}),
           grounded,
           usedWeb,

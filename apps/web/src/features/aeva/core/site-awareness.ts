@@ -80,7 +80,11 @@ export function createAevaActions(input: {
 
   if (/\b(?:resume|cv|curriculum vitae)\b/i.test(question)) {
     candidates.push(
-      action({ kind: "navigate", label: "Open the resume", href: "/resume" }),
+      action({
+        kind: "navigate",
+        label: "Open Anurag’s resume",
+        href: "/resume",
+      }),
     );
   }
   if (

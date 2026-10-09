@@ -498,6 +498,7 @@ test("interactive controls recover from failures and block duplicate submissions
     studio,
     operations,
     aevaAdmin,
+    aevaExperience,
     aevaFeedback,
     media,
     preferences,
@@ -509,7 +510,8 @@ test("interactive controls recover from failures and block duplicate submissions
     webSource("src/features/admin/components/studio-workspace.tsx"),
     webSource("src/features/admin/components/operations-console.tsx"),
     webSource("src/features/admin/components/aeva-memory-console.tsx"),
-    webSource("src/features/aeva/components/answer-feedback.tsx"),
+    webSource("src/features/aeva/components/aeva-experience.tsx"),
+    webSource("src/features/aeva/components/conversation-feedback.tsx"),
     webSource("src/features/admin/components/media-console.tsx"),
     webSource("src/features/legal/components/privacy-preferences.tsx"),
     webSource("src/features/offline/components/install-app-control.tsx"),
@@ -537,12 +539,15 @@ test("interactive controls recover from failures and block duplicate submissions
     assert.match(source, /disabled=\{busy\}/);
   }
 
-  assert.match(
-    aevaFeedback,
-    /const \[feedbackBusy, setFeedbackBusy\] = useState\(false\)/,
-  );
-  assert.match(aevaFeedback, /finally \{\s*setFeedbackBusy\(false\)/);
-  assert.match(aevaFeedback, /disabled=\{feedbackBusy/);
+  assert.match(aevaFeedback, /const \[busy, setBusy\] = useState\(false\)/);
+  assert.match(aevaFeedback, /finally \{\s*setBusy\(false\)/);
+  assert.match(aevaFeedback, /disabled=\{!selected \|\| busy/);
+  assert.match(aevaFeedback, /How was this conversation\?/);
+  assert.match(aevaFeedback, /includeTranscript/);
+  assert.match(aevaExperience, /Report chat/);
+  assert.match(aevaExperience, /Search and privacy settings/);
+  assert.match(aevaExperience, /lg:overflow-y-auto/);
+  assert.doesNotMatch(aevaExperience, /AnswerFeedback/);
   assert.match(media, /await navigator\.clipboard\.writeText\(id\)/);
   assert.match(media, /The asset ID could not be copied/);
   assert.match(preferences, /browser is blocking preference storage/);

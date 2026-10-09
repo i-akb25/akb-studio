@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
+import { directAevaResponse } from "../../src/features/aeva/core/direct-response";
 import { groundedFallbackAnswer } from "../../src/features/aeva/core/grounded-answer";
 import { understandAevaQuery } from "../../src/features/aeva/core/query-understanding";
 import { rankRetrievalCandidate } from "../../src/features/aeva/core/retrieval-ranking";
@@ -69,7 +70,8 @@ test("deterministic grounded synthesis obeys its word budget", () => {
     ],
   });
   assert.ok(answer.trim().split(/\s+/).length <= 24);
-  assert.match(answer, /Published comparison evidence/);
+  assert.match(answer, /reliable conversational answer/);
+  assert.doesNotMatch(answer, /detailed published software/);
 });
 
 test("authority and freshness reorder relevant evidence but never admit irrelevant evidence", () => {
@@ -118,6 +120,11 @@ test("provider and feedback paths enforce evidence and independent quotas", asyn
   ]);
   assert.match(provider, /requiresEvidence && citations\.length === 0/);
   assert.match(provider, /usedWeb: webCitations\.length > 0/);
+  assert.match(provider, /gemini-3\.8-flash/);
+  assert.match(provider, /gemini-3\.5-flash-lite/);
+  assert.match(provider, /aeva_provider_unavailable/);
+  assert.match(provider, /\[400, 404\]/);
+  assert.match(provider, /public visitor, not Anurag/);
   assert.match(guard, /aeva:chat:address/);
   assert.match(guard, /aeva:feedback:address/);
   assert.match(feedback, /acceptAevaFeedbackRequest/);
@@ -204,4 +211,19 @@ test("site actions are deterministic, internal and user initiated", () => {
     ],
   });
   assert.equal(sanitized[0]?.href, "/projects#project-archive-heading");
+});
+
+test("visitor navigation requests receive direct answers without source dumps", () => {
+  assert.match(
+    directAevaResponse("Show me the resume")?.answer ?? "",
+    /Anurag’s interactive resume/,
+  );
+  assert.match(
+    directAevaResponse("How can I contact Anurag?")?.answer ?? "",
+    /public Contact page/,
+  );
+  assert.match(
+    directAevaResponse("https://akbanurag.vercel.app/aeva")?.answer ?? "",
+    /pasted URL/,
+  );
 });

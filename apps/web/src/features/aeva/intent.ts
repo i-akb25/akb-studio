@@ -58,6 +58,18 @@ export function classifyAevaIntent(input: {
     }
   }
   if (GREETING.test(question) || CASUAL.test(question)) return "conversation";
+  if (question.length <= 80 && input.history?.length) {
+    const previousQuestion = [...input.history]
+      .reverse()
+      .find((turn) => turn.role === "user")?.text;
+    if (
+      previousQuestion &&
+      LIVE_INFORMATION.test(previousQuestion) &&
+      !LIVE_INFORMATION.test(question)
+    ) {
+      return "live-information";
+    }
+  }
   if (isCurrentActivityQuestion(question)) return "portfolio";
   if (INTERVIEW.test(question)) return "interview";
   if (

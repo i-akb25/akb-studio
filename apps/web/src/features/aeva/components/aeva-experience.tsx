@@ -1,13 +1,13 @@
 "use client";
 
-import { ArrowUpRight, LoaderCircle, Send, Square } from "lucide-react";
+import { ArrowUpRight, Flag, LoaderCircle, Send, Square } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { trackConversion } from "@/features/analytics/components/conversion-tracker";
 import { POLICY_VERSIONS } from "@/features/legal/policy-registry";
 import type { AevaAction, AevaAnswer, AevaCitation, AevaMode } from "../model";
-import { AnswerFeedback } from "./answer-feedback";
+import { ConversationFeedback } from "./conversation-feedback";
 import { VoiceControls } from "./voice-controls";
 
 type Message = {
@@ -24,6 +24,14 @@ const starters = [
   "What is Ace currently building?",
 ];
 
+const evidenceLabels: Record<AevaAnswer["evidenceState"], string> = {
+  grounded: "Verified published sources",
+  "live-grounded": "Live grounded sources",
+  "verified-sources": "Relevant verified sources",
+  conversational: "Conversation",
+  insufficient: "No reliable evidence",
+};
+
 export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [question, setQuestion] = useState("");
@@ -36,15 +44,22 @@ export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
   const [status, setStatus] = useState("");
   const [followUps, setFollowUps] = useState<string[]>([]);
   const [ended, setEnded] = useState(false);
+  const [showReport, setShowReport] = useState(false);
   const questionRef = useRef<HTMLTextAreaElement>(null);
+  const transcriptRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const latestMessage = messages.at(-1);
-
-    if (!status && latestMessage?.role === "assistant" && !ended) {
-      questionRef.current?.focus();
-    }
-  }, [ended, messages, status]);
+    if (!messages.length) return;
+    const frame = requestAnimationFrame(() => {
+      transcriptRef.current?.scrollTo({
+        top: transcriptRef.current.scrollHeight,
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "auto"
+          : "smooth",
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [messages]);
 
   function pageContext() {
     const parameters = new URLSearchParams(window.location.search);
@@ -151,11 +166,17 @@ export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ conversationId }),
     }).catch(() => undefined);
+    setShowReport(false);
     setEnded(true);
   }
 
+  const latestResponseId = messages.findLast(
+    (message) => message.role === "assistant" && message.responseId,
+  )?.responseId;
+  const reportTranscript = messages.map(({ role, text }) => ({ role, text }));
+
   return (
-    <main className="relative overflow-hidden border-b border-border bg-background">
+    <main className="relative border-b border-border bg-background">
       <div
         aria-hidden="true"
         className="absolute inset-x-0 top-0 h-px bg-accent-warm/50"
@@ -192,8 +213,8 @@ export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
           </div>
         </aside>
 
-        <div className="flex min-w-0 flex-col px-5 py-8 sm:px-8 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:px-12 lg:py-6 lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden xl:px-16">
-          <header className="sticky top-0 z-10 flex flex-wrap items-start justify-between gap-5 border-b border-border bg-background pb-5">
+        <div className="flex min-w-0 flex-col px-5 py-8 sm:px-8 lg:h-full lg:min-h-0 lg:px-12 lg:py-6 xl:px-16">
+          <header className="z-10 flex shrink-0 flex-wrap items-start justify-between gap-5 border-b border-border bg-background pb-5">
             <div>
               <p className="font-mono text-[0.65rem] tracking-[0.16em] text-accent-warm uppercase">
                 AI disclosure · sources before certainty
@@ -247,7 +268,8 @@ export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
           ) : null}
 
           <div
-            className="min-h-[18rem] py-6 lg:min-h-[20rem]"
+            ref={transcriptRef}
+            className="min-h-[18rem] py-6 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-2 lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden"
             aria-busy={Boolean(status)}
           >
             {!messages.length ? (
@@ -301,7 +323,7 @@ export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
                     </p>
                     {message.role === "assistant" && message.evidenceState ? (
                       <p className="mt-3 font-mono text-[0.6rem] tracking-[0.12em] text-muted uppercase">
-                        {message.evidenceState.replace("-", " ")}
+                        {evidenceLabels[message.evidenceState]}
                       </p>
                     ) : null}
                     {message.citations?.length ? (
@@ -364,9 +386,6 @@ export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
                         ))}
                       </ul>
                     ) : null}
-                    {message.role === "assistant" && message.responseId ? (
-                      <AnswerFeedback responseId={message.responseId} />
-                    ) : null}
                   </li>
                 ))}
               </ol>
@@ -399,15 +418,25 @@ export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
             ) : null}
           </div>
 
-          {ended ? (
-            <section className="border-t border-border pt-6">
-              <p className="text-sm text-muted">
-                Conversation ended. Feedback remains attached to each Aeva
-                answer.
-              </p>
+          {showReport && latestResponseId ? (
+            <ConversationFeedback
+              responseId={latestResponseId}
+              variant="report"
+              transcript={reportTranscript}
+              onClose={() => setShowReport(false)}
+            />
+          ) : ended && latestResponseId ? (
+            <ConversationFeedback
+              responseId={latestResponseId}
+              variant="feedback"
+              transcript={reportTranscript}
+            />
+          ) : ended ? (
+            <section className="shrink-0 border-t border-border pt-6">
+              <p className="text-sm text-muted">Conversation ended.</p>
             </section>
           ) : (
-            <footer className="border-t border-border pt-6">
+            <footer className="shrink-0 border-t border-border bg-background pt-5">
               <form
                 onSubmit={(event) => {
                   event.preventDefault();
@@ -476,62 +505,78 @@ export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
                   />
                 ) : null}
               </form>
-              <div className="mt-4 grid gap-3 text-xs leading-5 text-muted sm:grid-cols-2">
-                <label className="flex items-start gap-2">
-                  <input
-                    type="checkbox"
-                    checked={allowWeb}
-                    onChange={(event) => setAllowWeb(event.target.checked)}
-                    className="mt-1 size-4 shrink-0"
-                  />
-                  <span>
-                    Search the live web. Your question and relevant public
-                    material will be sent to Google Gemini.
-                  </span>
-                </label>
-                <label className="flex items-start gap-2">
-                  <input
-                    type="checkbox"
-                    checked={shareConversation}
-                    onChange={(event) =>
-                      setShareConversation(event.target.checked)
-                    }
-                    className="mt-1 size-4 shrink-0"
-                  />
-                  <span>
-                    Share this conversation with Ace. Redacted text is encrypted
-                    and retained for at most 30 days.
-                  </span>
-                </label>
-                <label className="flex items-start gap-2">
-                  <input
-                    type="checkbox"
-                    checked={shareUnknownQuestion}
-                    onChange={(event) =>
-                      setShareUnknownQuestion(event.target.checked)
-                    }
-                    className="mt-1 size-4 shrink-0"
-                  />
-                  <span>
-                    If unanswered, share a redacted anonymous sample. Otherwise
-                    only an anonymous counter is kept.
-                  </span>
-                </label>
-                <p>
-                  Without consent, conversation history stays only in this page
-                  and is not written to Neon. Aeva is intended for adults; an
-                  under-18 visitor should use the contact route and complete its
-                  safety declaration instead.
-                </p>
+              <details className="mt-3 border-t border-border/60 pt-3 text-xs text-muted">
+                <summary className="cursor-pointer font-medium text-foreground/80">
+                  Search and privacy settings
+                </summary>
+                <div className="mt-3 grid gap-3 leading-5 sm:grid-cols-2">
+                  <label className="flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      checked={allowWeb}
+                      onChange={(event) => setAllowWeb(event.target.checked)}
+                      className="mt-1 size-4 shrink-0"
+                    />
+                    <span>
+                      Search the live web. Your question and relevant public
+                      material will be sent to Google Gemini.
+                    </span>
+                  </label>
+                  <label className="flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      checked={shareConversation}
+                      onChange={(event) =>
+                        setShareConversation(event.target.checked)
+                      }
+                      className="mt-1 size-4 shrink-0"
+                    />
+                    <span>
+                      Share this conversation with Ace. Redacted text is
+                      encrypted and retained for at most 30 days.
+                    </span>
+                  </label>
+                  <label className="flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      checked={shareUnknownQuestion}
+                      onChange={(event) =>
+                        setShareUnknownQuestion(event.target.checked)
+                      }
+                      className="mt-1 size-4 shrink-0"
+                    />
+                    <span>
+                      If unanswered, share a redacted anonymous sample.
+                      Otherwise only an anonymous counter is kept.
+                    </span>
+                  </label>
+                  <p>
+                    Without consent, conversation history stays only in this
+                    page and is not written to Neon. Aeva is intended for
+                    adults; an under-18 visitor should use the contact route and
+                    complete its safety declaration instead.
+                  </p>
+                </div>
+              </details>
+              <div className="mt-3 flex flex-wrap items-center gap-5">
+                <button
+                  type="button"
+                  onClick={endChat}
+                  className="inline-flex min-h-10 items-center gap-2 rounded-sm text-sm font-medium text-muted hover:text-foreground"
+                >
+                  <Square className="size-3" aria-hidden="true" />
+                  End chat
+                </button>
+                <button
+                  type="button"
+                  disabled={!latestResponseId}
+                  onClick={() => setShowReport(true)}
+                  className="inline-flex min-h-10 items-center gap-2 rounded-sm text-sm font-medium text-muted hover:text-foreground disabled:opacity-40"
+                >
+                  <Flag className="size-3" aria-hidden="true" />
+                  Report chat
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={endChat}
-                className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-sm text-sm font-medium text-muted hover:text-foreground"
-              >
-                <Square className="size-3" aria-hidden="true" />
-                End chat
-              </button>
             </footer>
           )}
         </div>

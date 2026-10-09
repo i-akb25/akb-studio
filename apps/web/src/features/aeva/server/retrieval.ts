@@ -3,6 +3,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { searchPortfolioKnowledgeGraph } from "@/features/intelligence/model";
 import { getPortfolioKnowledgeGraph } from "@/features/intelligence/server/portfolio-knowledge-graph";
+import { publishedProjects } from "@/features/projects/data/project-registry";
 import { prisma } from "@/server/db/prisma";
 import { aevaServerConfig } from "../config/server-config";
 import { rankRetrievalCandidate } from "../core/retrieval-ranking";
@@ -100,6 +101,12 @@ async function portfolioCandidates(
   question: string,
 ): Promise<RetrievalCandidate[]> {
   const graph = await getPortfolioKnowledgeGraph();
+  const projectPriority = new Map(
+    publishedProjects.map((project) => [
+      `project:${project.slug}`,
+      project.tier === "flagship" ? 12 : project.tier === "standard" ? 5 : 0,
+    ]),
+  );
   const nodes = new Map(graph.nodes.map((node) => [node.id, node]));
   return searchPortfolioKnowledgeGraph(graph, question, 10).flatMap((match) => {
     const related = match.relatedNodeIds
@@ -119,7 +126,9 @@ async function portfolioCandidates(
         kind: "portfolio",
         content: chunk,
         score:
-          match.score + lexicalScore(tokens(question), match.node.title, chunk),
+          match.score +
+          lexicalScore(tokens(question), match.node.title, chunk) +
+          (projectPriority.get(match.node.id) ?? 0),
         provenance: {
           sourceId: match.node.provenance?.sourceId ?? match.node.id,
           route: match.node.url ?? "/aeva",
@@ -227,6 +236,18 @@ export function citationFromCandidate(
     sourceId: source.provenance.sourceId,
     contentHash: source.provenance.contentHash,
   };
+}
+
+export function deduplicateAevaCitations(
+  citations: readonly AevaCitation[],
+): AevaCitation[] {
+  const seen = new Set<string>();
+  return citations.filter((citation) => {
+    const key = `${citation.kind}:${citation.url.split("#", 1)[0]}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 export async function retrieveAevaContext(

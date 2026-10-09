@@ -79,6 +79,7 @@ export type AevaAnswer = {
   evidenceState:
     | "grounded"
     | "live-grounded"
+    | "verified-sources"
     | "conversational"
     | "insufficient";
   conversationId?: string;

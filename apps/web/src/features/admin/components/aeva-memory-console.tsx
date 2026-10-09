@@ -28,14 +28,17 @@ type Source = {
   title: string;
   url: string;
   notes: string | null;
+  publicAllowed: boolean;
 };
 
 export function AevaMemoryConsole({
   memories,
   sources,
+  canManagePrivate,
 }: {
   memories: Memory[];
   sources: Source[];
+  canManagePrivate: boolean;
 }) {
   const router = useRouter();
   const [status, setStatus] = useState("");
@@ -54,8 +57,15 @@ export function AevaMemoryConsole({
     setBusy(true);
     setStatus("Saving…");
     try {
-      const values = Object.fromEntries(new FormData(form).entries());
+      const values: Record<string, unknown> = Object.fromEntries(
+        new FormData(form).entries(),
+      );
       if (!values.id) delete values.id;
+      if (resource === "source") {
+        values.publicAllowed = canManagePrivate
+          ? values.publicAllowed === "on"
+          : true;
+      }
       await submit({ resource, ...values });
       setStatus(
         "Saved. Public retrieval rules apply immediately to published entries.",
@@ -75,8 +85,8 @@ export function AevaMemoryConsole({
       <section>
         <h2>Personal memory</h2>
         <p>
-          Only PUBLIC_AEVA and RESPONSE_POLICY entries marked PUBLISHED can
-          reach public answers. OWNER_ONLY is never retrieved publicly.
+          PUBLIC_AEVA entries can reach public answers. OWNER_ONLY entries use
+          the independent private domain and are never retrieved publicly.
         </p>
         <label>
           <span>Edit an existing entry or create a new one</span>
@@ -121,12 +131,15 @@ export function AevaMemoryConsole({
             <span>Visibility</span>
             <select
               name="visibility"
-              defaultValue={selectedMemory?.visibility ?? "OWNER_ONLY"}
+              defaultValue={
+                selectedMemory?.visibility ??
+                (canManagePrivate ? "OWNER_ONLY" : "PUBLIC_AEVA")
+              }
             >
               <option>PUBLIC_AEVA</option>
-              <option>RESPONSE_POLICY</option>
-              <option>OWNER_ONLY</option>
-              <option>ARCHIVED</option>
+              {canManagePrivate ? <option>RESPONSE_POLICY</option> : null}
+              {canManagePrivate ? <option>OWNER_ONLY</option> : null}
+              {canManagePrivate ? <option>ARCHIVED</option> : null}
             </select>
           </label>
           <label>
@@ -216,6 +229,16 @@ export function AevaMemoryConsole({
               maxLength={5000}
             />
           </label>
+          {canManagePrivate ? (
+            <label>
+              <input
+                name="publicAllowed"
+                type="checkbox"
+                defaultChecked={selectedSource?.publicAllowed ?? true}
+              />
+              <span>Allow this source in public Aeva</span>
+            </label>
+          ) : null}
           <button type="submit" disabled={busy}>
             {busy
               ? "Saving…"

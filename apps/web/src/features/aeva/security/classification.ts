@@ -34,9 +34,22 @@ export function canConsumerRetrieve(
   consumer: AevaConsumer,
 ): boolean {
   if (!provenance.published || !provenance.allowAeva) return false;
-  if (provenance.classification !== "public") return false;
-  if (provenance.sensitivity !== "public") return false;
-  return provenance.allowedConsumers.includes(consumer);
+  if (!provenance.allowedConsumers.includes(consumer)) return false;
+  if (consumer === "public_aeva") {
+    return (
+      provenance.classification === "public" &&
+      provenance.sensitivity === "public"
+    );
+  }
+  if (consumer === "private_aeva") {
+    return (
+      (provenance.classification === "public" &&
+        provenance.sensitivity === "public") ||
+      (provenance.classification === "owner_private" &&
+        provenance.sensitivity === "private")
+    );
+  }
+  return false;
 }
 
 export function containsEmbeddedInstruction(value: string): boolean {

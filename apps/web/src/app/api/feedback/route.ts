@@ -9,9 +9,16 @@ import { RequestSecurityError, readJsonBody } from "@/server/security/request";
 
 const schema = z
   .object({
-    rating: z.enum(["helpful", "not-helpful", "mixed"]),
-    message: z.string().trim().max(1_000).optional(),
-    conversationId: z.string().uuid().optional(),
+    responseId: z.string().uuid(),
+    reason: z.enum([
+      "helpful",
+      "not-helpful",
+      "incorrect",
+      "too-much-detail",
+      "not-enough-detail",
+      "privacy-concern",
+    ]),
+    comment: z.string().trim().max(500).optional(),
     page: z.string().trim().max(300).default("/aeva"),
     policyVersion: z.literal(POLICY_VERSIONS.aeva),
   })
@@ -35,7 +42,21 @@ export async function POST(request: Request) {
     );
   }
   try {
-    const result = await callPublishingService("feedback_submit", input);
+    const rating =
+      input.reason === "helpful"
+        ? "helpful"
+        : input.reason === "not-helpful"
+          ? "not-helpful"
+          : "mixed";
+    const result = await callPublishingService("feedback_submit", {
+      rating,
+      reason: input.reason,
+      responseId: input.responseId,
+      message: input.comment,
+      page: input.page,
+      policyVersion: input.policyVersion,
+      priority: input.reason === "privacy-concern" ? "urgent" : "normal",
+    });
     if (!result.ok) throw new Error("feedback_unavailable");
     return Response.json({
       ok: true,

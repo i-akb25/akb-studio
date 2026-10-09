@@ -1,5 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
+import { aevaServerConfig } from "@/features/aeva/config/server-config";
+import {
+  createResponseContract,
+  resolveFollowUpQuestion,
+} from "@/features/aeva/core/response-contract";
 import {
   classifyAevaIntent,
   conversationalReply,
@@ -25,7 +30,10 @@ import {
   saveSharedExchange,
 } from "@/features/aeva/server/persistence";
 import { generateProviderAnswer } from "@/features/aeva/server/provider";
-import { retrieveAevaContext } from "@/features/aeva/server/retrieval";
+import {
+  citationFromCandidate,
+  retrieveAevaContext,
+} from "@/features/aeva/server/retrieval";
 import { POLICY_VERSIONS } from "@/features/legal/policy-registry";
 import type { RoleFitAnalysis } from "@/features/recruiter/model";
 import { analyzePublishedRoleFit } from "@/features/recruiter/server/role-fit";
@@ -51,7 +59,7 @@ const inputSchema = z
           })
           .strict(),
       )
-      .max(8)
+      .max(aevaServerConfig.maxConversationTurns)
       .default([]),
     pageContext: z
       .object({
@@ -125,10 +133,19 @@ function deterministicAnswer(
         `${source.title}: ${source.excerpt ?? source.content.slice(0, 180)}`,
     )
     .join("\n\n");
-  return `Here’s what I found in Ace's published work:\n\n${evidence}\n\nOpen the source links below for the full context.`;
+  return `Here is the most relevant published evidence:\n\n${evidence}`;
 }
 
 export async function POST(request: Request) {
+  if (!aevaServerConfig.publicEnabled) {
+    return Response.json(
+      {
+        error:
+          "Aeva is temporarily unavailable while its public knowledge boundary is verified.",
+      },
+      { status: 503, headers: { "Cache-Control": "no-store" } },
+    );
+  }
   if (!hasValidAevaOrigin(request))
     return new Response("Invalid request", { status: 403 });
   if (!(await acceptAevaRequest(request)))
@@ -163,7 +180,13 @@ export async function POST(request: Request) {
           question: input.question,
           mode: input.mode,
           pageContext: input.pageContext,
+          history: input.history,
         });
+        const contract = createResponseContract(intent, input.mode);
+        const resolvedQuestion = resolveFollowUpQuestion(
+          input.question,
+          input.history,
+        );
 
         if (isPromptInjection(input.question)) {
           answer =
@@ -209,13 +232,14 @@ export async function POST(request: Request) {
         } else {
           const sources = await retrieveAevaContext(
             [
-              retrievalQuery(input.question, intent, input.pageContext),
+              retrievalQuery(resolvedQuestion, intent, input.pageContext),
               intent === "interview"
                 ? input.jobDescription?.slice(0, 1_000)
                 : "",
             ]
               .filter(Boolean)
               .join(" "),
+            contract.retrievalLimit,
           );
           send({
             type: "status",
@@ -232,6 +256,7 @@ export async function POST(request: Request) {
             history: input.history,
             pageContext: input.pageContext,
             jobDescription: input.jobDescription,
+            contract,
           });
           if (provider) {
             answer = provider.answer;
@@ -240,9 +265,9 @@ export async function POST(request: Request) {
             usedWeb = provider.usedWeb;
           } else if (sources.length) {
             answer = deterministicAnswer(sources);
-            citations = sources.map(
-              ({ content: _content, score: _score, ...source }) => source,
-            );
+            citations = sources
+              .slice(0, contract.maxCitations)
+              .map(citationFromCandidate);
             grounded = true;
             usedWeb = sources.some((source) => source.kind === "web");
           } else {

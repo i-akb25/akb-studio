@@ -41,6 +41,9 @@ const HEADERS = Object.freeze({
     "page",
     "policyVersion",
     "submittedAt",
+    "reason",
+    "responseId",
+    "priority",
   ],
   PublicationQueue: [
     "publicationId",
@@ -247,11 +250,14 @@ function feedbackSubmit_(request) {
   append_(sheet_(SHEETS.feedback), {
     feedbackId: "FDB-" + Utilities.getUuid(),
     rating: rating,
-    message: text_(request.message || "", 1000),
-    conversationId: text_(request.conversationId || "", 80),
+    message: text_(request.message || "", 500),
+    conversationId: "",
     page: text_(request.page || "/aeva", 300),
     policyVersion: text_(request.policyVersion, 80),
     submittedAt: new Date().toISOString(),
+    reason: identifier_(request.reason || rating, 40),
+    responseId: identifier_(request.responseId, 80),
+    priority: request.reason === "privacy-concern" ? "urgent" : "normal",
   });
   return { ok: true };
 }
@@ -372,6 +378,9 @@ function sheet_(name) {
   const headers = HEADERS[name];
   if (!headers) throw new Error("Unknown sheet");
   if (sheet.getLastRow() === 0) sheet.appendRow(headers);
+  else if (name === SHEETS.feedback && sheet.getLastColumn() < headers.length) {
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  }
   return sheet;
 }
 

@@ -14,7 +14,7 @@ const INTERVIEW =
 const COMPARE =
   /\b(?:compare|comparison|difference|versus|\bvs\.?\b).{0,80}\b(?:project|projects|adhayan|drone|codevet|akb studio|quadcopter)\b/i;
 const ARCHITECTURE =
-  /\b(?:architecture walkthrough|walk me through|system design|request flow|data flow|how (?:it|the system) works)\b/i;
+  /\b(?:architecture(?: walkthrough)?|walk me through|system design|request flow|data flow|how (?:it|the system) works)\b/i;
 const EXPLAIN_PAGE =
   /\b(?:explain (?:this|the) page|what am i (?:looking at|reading)|summarize (?:this|the) page|this section)\b/i;
 const PORTFOLIO =
@@ -34,8 +34,25 @@ export function classifyAevaIntent(input: {
   question: string;
   mode: AevaMode;
   pageContext?: AevaPageContext;
+  history?: readonly AevaConversationTurn[];
 }): AevaIntent {
   const question = input.question.trim();
+  if (
+    /^(?:yes|yeah|okay|ok|continue|go on|more|tell me more|explain more)[.!?\s]*$/i.test(
+      question,
+    )
+  ) {
+    const previous = [...(input.history ?? [])]
+      .reverse()
+      .find((turn) => turn.role === "user" && turn.text.trim() !== question);
+    if (previous) {
+      return classifyAevaIntent({
+        question: previous.text,
+        mode: input.mode,
+        pageContext: input.pageContext,
+      });
+    }
+  }
   if (GREETING.test(question) || CASUAL.test(question)) return "conversation";
   if (isCurrentActivityQuestion(question)) return "portfolio";
   if (INTERVIEW.test(question)) return "interview";

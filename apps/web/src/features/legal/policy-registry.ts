@@ -6,7 +6,7 @@ export const POLICY_VERSIONS = {
   cookies: "2026-09-20.1",
   data: "2026-09-17.1",
   contact: "2026-09-20.2",
-  aeva: "2026-09-19.1",
+  aeva: "2026-10-08.1",
   vartalap: "2026-09-17.1",
   subscription: "2026-09-17.1",
   privacyRequest: "2026-09-17.1",

@@ -1,5 +1,5 @@
 export function isPromptInjection(question: string): boolean {
-  return /(?:ignore|override|reveal|print|repeat).{0,35}(?:system|developer|hidden|prompt|instruction)|(?:admin|private database|secret key|environment variable)/i.test(
+  return /(?:ignore|override|bypass|reveal|print|repeat|exfiltrate).{0,50}(?:system|developer|hidden|prompt|instruction|restriction|policy)|(?:admin (?:record|data)|private (?:database|data|document|memory|contact)|secret key|environment variable|oauth token|contact submission|authentication record)/i.test(
     question,
   );
 }

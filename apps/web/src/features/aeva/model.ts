@@ -51,6 +51,13 @@ export type AevaPageContext = {
   sectionLabel?: string;
 };
 
+export type AevaAction = {
+  id: string;
+  kind: "navigate" | "filter-projects" | "highlight-section";
+  label: string;
+  href: string;
+};
+
 export type AevaCitation = {
   id: string;
   title: string;
@@ -67,8 +74,8 @@ export type AevaAnswer = {
   answer: string;
   citations: AevaCitation[];
   followUps: string[];
+  actions: AevaAction[];
   intent: AevaIntent;
-  highlights: string[];
   evidenceState:
     | "grounded"
     | "live-grounded"

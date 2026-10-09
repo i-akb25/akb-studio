@@ -3,7 +3,6 @@ import test from "node:test";
 import {
   classifyAevaIntent,
   conversationalReply,
-  pageHighlights,
   retrievalQuery,
 } from "../../src/features/aeva/intent";
 
@@ -58,7 +57,6 @@ test("adds page context only for explain-page requests", () => {
     retrievalQuery("Explain this page", "explain-page", context),
     /Automated Drone Delivery/,
   );
-  assert.deepEqual(pageHighlights("explain-page", context), ["architecture"]);
   assert.equal(retrievalQuery("Hello", "conversation", context), "Hello");
 });
 

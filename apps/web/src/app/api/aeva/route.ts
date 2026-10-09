@@ -9,10 +9,13 @@ import {
   resolveFollowUpQuestion,
 } from "@/features/aeva/core/response-contract";
 import {
+  createAevaActions,
+  normalizeAevaPageContext,
+} from "@/features/aeva/core/site-awareness";
+import {
   classifyAevaIntent,
   conversationalReply,
   isCurrentActivityQuestion,
-  pageHighlights,
   retrievalQuery,
 } from "@/features/aeva/intent";
 import {
@@ -166,10 +169,11 @@ export async function POST(request: Request) {
         let citations: AevaAnswer["citations"] = [];
         let grounded = false;
         let usedWeb = false;
+        const pageContext = normalizeAevaPageContext(input.pageContext);
         const intent = classifyAevaIntent({
           question: input.question,
           mode: input.mode,
-          pageContext: input.pageContext,
+          pageContext,
           history: input.history,
         });
         const contract = createResponseContract(intent, input.mode);
@@ -178,15 +182,18 @@ export async function POST(request: Request) {
           input.history,
         );
         const queryPlan = understandAevaQuery({
-          question: retrievalQuery(resolvedQuestion, intent, input.pageContext),
+          question: retrievalQuery(resolvedQuestion, intent, pageContext),
           intent,
           mode: input.mode,
         });
+        const promptInjection = isPromptInjection(input.question);
+        const privateLifeQuestion = isPrivateLifeQuestion(input.question);
+        const blockedRequest = promptInjection || privateLifeQuestion;
 
-        if (isPromptInjection(input.question)) {
+        if (promptInjection) {
           answer =
             "I can't reveal private instructions, secrets, admin data, or bypass my source boundaries. I can still help with Ace's public work or a general web question.";
-        } else if (isPrivateLifeQuestion(input.question)) {
+        } else if (privateLifeQuestion) {
           answer =
             "Cute question, but I don't gossip on Ace's behalf. If he has not deliberately published something, I will not invent it. I can happily tell you about his work, interests, projects, or current engineering focus instead.";
         } else if (intent === "conversation") {
@@ -250,7 +257,7 @@ export async function POST(request: Request) {
             allowWeb: input.allowWeb,
             sources,
             history: input.history,
-            pageContext: input.pageContext,
+            pageContext,
             jobDescription: input.jobDescription,
             contract,
             queryPlan,
@@ -297,8 +304,15 @@ export async function POST(request: Request) {
           answer,
           citations,
           followUps: followUps(intent, input.mode, grounded),
+          actions: blockedRequest
+            ? []
+            : createAevaActions({
+                question: input.question,
+                intent,
+                citations,
+                pageContext,
+              }),
           intent,
-          highlights: pageHighlights(intent, input.pageContext),
           evidenceState: usedWeb
             ? "live-grounded"
             : grounded
@@ -332,8 +346,8 @@ export async function POST(request: Request) {
             answer: "I can’t answer that right now. Please try again shortly.",
             citations: [],
             followUps: [],
+            actions: [],
             intent: "general-knowledge",
-            highlights: [],
             evidenceState: "insufficient",
             grounded: false,
             usedWeb: false,

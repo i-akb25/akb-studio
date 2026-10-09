@@ -3,7 +3,7 @@
 import { ArrowUpRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { projectDisciplineLabels } from "../data/project-registry";
 import {
@@ -17,6 +17,7 @@ import {
 
 type ProjectsExplorerProps = {
   projects: readonly ProjectRecord[];
+  initialFilter?: ProjectFilter;
 };
 
 type ProjectFilter = "all" | ProjectDiscipline;
@@ -292,8 +293,39 @@ function ProjectEntry({
   );
 }
 
-export function ProjectsExplorer({ projects }: ProjectsExplorerProps) {
-  const [activeFilter, setActiveFilter] = useState<ProjectFilter>("all");
+export function ProjectsExplorer({
+  projects,
+  initialFilter = "all",
+}: ProjectsExplorerProps) {
+  const [activeFilter, setActiveFilter] =
+    useState<ProjectFilter>(initialFilter);
+
+  useEffect(() => {
+    const synchronizeFromUrl = () => {
+      const value = new URL(window.location.href).searchParams.get(
+        "discipline",
+      );
+      setActiveFilter(
+        PROJECT_DISCIPLINES.includes(value as ProjectDiscipline)
+          ? (value as ProjectDiscipline)
+          : "all",
+      );
+    };
+    window.addEventListener("popstate", synchronizeFromUrl);
+    return () => window.removeEventListener("popstate", synchronizeFromUrl);
+  }, []);
+
+  function selectFilter(filter: ProjectFilter) {
+    setActiveFilter(filter);
+    const url = new URL(window.location.href);
+    if (filter === "all") url.searchParams.delete("discipline");
+    else url.searchParams.set("discipline", filter);
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${url.pathname}${url.search}${url.hash}`,
+    );
+  }
 
   const filteredProjects = useMemo(() => {
     if (activeFilter === "all") {
@@ -348,7 +380,7 @@ export function ProjectsExplorer({ projects }: ProjectsExplorerProps) {
             <button
               type="button"
               aria-pressed={activeFilter === "all"}
-              onClick={() => setActiveFilter("all")}
+              onClick={() => selectFilter("all")}
               className="inline-flex min-h-11 items-center justify-center rounded-md border border-foreground/12 px-4 py-2 text-sm font-medium text-foreground/68 transition-colors duration-200 hover:border-foreground/28 hover:text-foreground aria-pressed:border-foreground aria-pressed:bg-foreground aria-pressed:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-4 focus-visible:ring-offset-background motion-reduce:transition-none"
             >
               All
@@ -367,7 +399,7 @@ export function ProjectsExplorer({ projects }: ProjectsExplorerProps) {
                   key={discipline}
                   type="button"
                   aria-pressed={activeFilter === discipline}
-                  onClick={() => setActiveFilter(discipline)}
+                  onClick={() => selectFilter(discipline)}
                   className="inline-flex min-h-11 items-center justify-center rounded-md border border-foreground/12 px-4 py-2 text-sm font-medium text-foreground/68 transition-colors duration-200 hover:border-foreground/28 hover:text-foreground aria-pressed:border-foreground aria-pressed:bg-foreground aria-pressed:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-4 focus-visible:ring-offset-background motion-reduce:transition-none"
                 >
                   {projectDisciplineLabels[discipline]}
@@ -408,7 +440,7 @@ export function ProjectsExplorer({ projects }: ProjectsExplorerProps) {
               {projects.length > 0 ? (
                 <button
                   type="button"
-                  onClick={() => setActiveFilter("all")}
+                  onClick={() => selectFilter("all")}
                   className="mt-5 inline-flex min-h-11 items-center rounded-sm text-sm font-semibold text-foreground underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-4 focus-visible:ring-offset-background"
                 >
                   Show all projects

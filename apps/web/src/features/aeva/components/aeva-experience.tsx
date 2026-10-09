@@ -6,9 +6,8 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { trackConversion } from "@/features/analytics/components/conversion-tracker";
 import { POLICY_VERSIONS } from "@/features/legal/policy-registry";
-import type { AevaAnswer, AevaCitation, AevaMode } from "../model";
+import type { AevaAction, AevaAnswer, AevaCitation, AevaMode } from "../model";
 import { AnswerFeedback } from "./answer-feedback";
-import { AEVA_HIGHLIGHT_EVENT } from "./screen-awareness";
 import { VoiceControls } from "./voice-controls";
 
 type Message = {
@@ -16,7 +15,7 @@ type Message = {
   text: string;
   citations?: AevaCitation[];
   evidenceState?: AevaAnswer["evidenceState"];
-  highlights?: string[];
+  actions?: AevaAction[];
   responseId?: string;
 };
 const starters = [
@@ -47,24 +46,16 @@ export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
     }
   }, [ended, messages, status]);
 
-  useEffect(() => {
-    const highlights = messages.at(-1)?.highlights;
-    if (!highlights?.length) return;
-    window.dispatchEvent(
-      new CustomEvent<string[]>(AEVA_HIGHLIGHT_EVENT, { detail: highlights }),
-    );
-  }, [messages]);
-
   function pageContext() {
     const parameters = new URLSearchParams(window.location.search);
     const sourcePath = parameters.get("from");
     const path = sourcePath?.startsWith("/") ? sourcePath : "/aeva";
     const sectionId = parameters.get("section") ?? undefined;
     const sectionLabel = parameters.get("sectionLabel") ?? undefined;
-    const title = parameters.get("title") ?? document.title;
+    const title = parameters.get("title") ?? undefined;
     return {
       path,
-      title: title.slice(0, 160),
+      ...(title ? { title: title.slice(0, 160) } : {}),
       ...(sectionId && /^[a-z0-9][a-z0-9-_]{0,79}$/i.test(sectionId)
         ? { sectionId }
         : {}),
@@ -131,7 +122,7 @@ export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
                 text: payload.result.answer,
                 citations: payload.result.citations,
                 evidenceState: payload.result.evidenceState,
-                highlights: payload.result.highlights,
+                actions: payload.result.actions,
                 responseId: payload.result.requestId,
               },
             ]);
@@ -348,6 +339,27 @@ export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
                                 Updated {citation.updatedAt.slice(0, 10)}
                               </span>
                             ) : null}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                    {message.actions?.length ? (
+                      <ul
+                        className="mt-4 flex flex-wrap gap-2"
+                        aria-label="Suggested site actions"
+                      >
+                        {message.actions.map((item) => (
+                          <li key={item.id}>
+                            <Link
+                              href={item.href}
+                              className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-border px-3 py-2 text-xs font-medium text-foreground transition-colors hover:border-accent-warm hover:text-accent-warm"
+                            >
+                              {item.label}
+                              <ArrowUpRight
+                                className="size-3"
+                                aria-hidden="true"
+                              />
+                            </Link>
                           </li>
                         ))}
                       </ul>

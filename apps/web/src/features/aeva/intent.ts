@@ -130,11 +130,3 @@ export function retrievalQuery(
     .filter(Boolean)
     .join(" ");
 }
-
-export function pageHighlights(
-  intent: AevaIntent,
-  pageContext?: AevaPageContext,
-): string[] {
-  if (intent !== "explain-page" || !pageContext?.sectionId) return [];
-  return [pageContext.sectionId];
-}

@@ -158,6 +158,10 @@ export function SiteHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const contextualHref = (href: string) =>
+    href === "/aeva" && pathname !== "/aeva"
+      ? `/aeva?from=${encodeURIComponent(pathname)}`
+      : href;
 
   useEffect(() => {
     const updateHeader = () => {
@@ -254,7 +258,7 @@ export function SiteHeader() {
                 return (
                   <li key={item.href}>
                     <Link
-                      href={item.href}
+                      href={contextualHref(item.href)}
                       prefetch={false}
                       aria-current={active ? "page" : undefined}
                       className={`relative inline-flex h-10 items-center rounded-full px-3.5 text-[13px] font-medium transition-colors duration-200 ${
@@ -383,7 +387,7 @@ export function SiteHeader() {
                   return (
                     <li key={item.href}>
                       <Link
-                        href={item.href}
+                        href={contextualHref(item.href)}
                         prefetch={false}
                         aria-current={active ? "page" : undefined}
                         onClick={() => setMenuOpen(false)}

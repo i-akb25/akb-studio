@@ -4,7 +4,12 @@ import { createHmac } from "node:crypto";
 import { Prisma } from "@generated/prisma/client";
 import { prisma } from "@/server/db/prisma";
 
-type RateLimitDecision = { allowed: boolean; retryAfter: number; key: string };
+type RateLimitDecision = {
+  allowed: boolean;
+  available: boolean;
+  retryAfter: number;
+  key: string;
+};
 
 function secret(): string {
   const configured =
@@ -33,7 +38,7 @@ export async function consumeRateLimit(input: {
   try {
     key = rateLimitKey(input.scope, input.identifier);
   } catch {
-    return { allowed: false, retryAfter: 60, key: "" };
+    return { allowed: false, available: false, retryAfter: 60, key: "" };
   }
   const now = new Date();
   const expiresAt = new Date(now.getTime() + input.windowMs);
@@ -59,9 +64,10 @@ export async function consumeRateLimit(input: {
       RETURNING "count", "expiresAt"
     `);
     const row = rows[0];
-    if (!row) return { allowed: false, retryAfter: 60, key };
+    if (!row) return { allowed: false, available: false, retryAfter: 60, key };
     return {
       allowed: row.count <= input.limit,
+      available: true,
       retryAfter: Math.max(
         1,
         Math.ceil((new Date(row.expiresAt).getTime() - now.getTime()) / 1_000),
@@ -69,7 +75,7 @@ export async function consumeRateLimit(input: {
       key,
     };
   } catch {
-    return { allowed: false, retryAfter: 60, key };
+    return { allowed: false, available: false, retryAfter: 60, key };
   }
 }
 

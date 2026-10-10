@@ -82,8 +82,11 @@ test("Admin writes use atomic audit mutations", async () => {
   }
 
   const audit = await webSource("src/features/admin/server/audit.ts");
-  assert.doesNotMatch(audit, /pg_advisory_xact_lock/);
-  assert.doesNotMatch(audit, /isolationLevel/);
+  assert.match(audit, /pg_advisory_xact_lock/);
+  assert.ok(
+    audit.indexOf("await lockAuditChain(tx)") <
+      audit.indexOf("const result = await mutation(tx)"),
+  );
 });
 
 test("Admin logout and secondary public routes are reachable", async () => {

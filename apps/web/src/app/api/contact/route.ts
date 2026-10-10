@@ -10,6 +10,10 @@ import {
   verifyTurnstile,
 } from "@/features/contact/server/contact-guard";
 import { contactSubmissionSchema } from "@/features/contact/server/contact-schema";
+import {
+  boundedRetentionDays,
+  retentionDeadline,
+} from "@/features/operations/retention-policy";
 import { prisma } from "@/server/db/prisma";
 
 export const runtime = "nodejs";
@@ -131,11 +135,13 @@ export async function POST(request: Request) {
 
   const reference = referenceId();
   const isMinor = parsed.data.ageGroup === "minor";
-  const retentionDays = Math.max(
+  const retentionDays = boundedRetentionDays(
+    process.env.CONTACT_RETENTION_DAYS,
+    180,
     1,
-    Number(process.env.CONTACT_RETENTION_DAYS ?? 180),
+    365,
   );
-  const retentionUntil = new Date(Date.now() + retentionDays * 86_400_000);
+  const retentionUntil = retentionDeadline(new Date(), retentionDays);
   let submissionId: string;
   try {
     const submission = await prisma.contactSubmission.create({

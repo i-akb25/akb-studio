@@ -7,7 +7,6 @@ import {
 } from "@/features/admin/server/admin-auth";
 import { runAuditedMutation } from "@/features/admin/server/audit";
 import { getStudioHealthFindings } from "@/features/admin/server/studio-health";
-import { prisma } from "@/server/db/prisma";
 import { readJsonBody } from "@/server/security/request";
 
 const inputSchema = z.discriminatedUnion("action", [
@@ -66,6 +65,8 @@ const inputSchema = z.discriminatedUnion("action", [
     })
     .strict(),
 ]);
+
+class OperationConflict extends Error {}
 
 export async function POST(request: Request) {
   const session = await getAdminSession();
@@ -138,31 +139,31 @@ export async function POST(request: Request) {
         }),
       );
     } else if (input.action === "add-reminder") {
-      const consent = await prisma.consentRecord.findFirst({
-        where: {
-          submissionId: input.submissionId,
-          consentType: "follow_up_reminder",
-          granted: true,
-          withdrawnAt: null,
-        },
-        select: { id: true },
-      });
-      if (!consent)
-        return NextResponse.json(
-          { error: "This contact did not grant follow-up consent" },
-          { status: 409 },
-        );
       entityType = "FollowUpReminder";
       result = await runAuditedMutation(
-        (tx) =>
-          tx.followUpReminder.create({
+        async (tx) => {
+          const consent = await tx.consentRecord.findFirst({
+            where: {
+              submissionId: input.submissionId,
+              consentType: "follow_up_reminder",
+              granted: true,
+              withdrawnAt: null,
+            },
+            select: { id: true },
+          });
+          if (!consent)
+            throw new OperationConflict(
+              "This contact did not grant follow-up consent",
+            );
+          return tx.followUpReminder.create({
             data: {
               submissionId: input.submissionId,
               dueAt: new Date(input.dueAt),
               note: input.note,
               actorId: session.user.id,
             },
-          }),
+          });
+        },
         (saved) => ({
           actorId: session.user.id,
           action: "CREATE",
@@ -173,14 +174,20 @@ export async function POST(request: Request) {
     } else if (input.action === "set-reminder-state") {
       entityType = "FollowUpReminder";
       result = await runAuditedMutation(
-        (tx) =>
-          tx.followUpReminder.update({
-            where: { id: input.id },
+        async (tx) => {
+          const updated = await tx.followUpReminder.updateMany({
+            where: { id: input.id, state: "PENDING" },
             data: {
               state: input.state,
               completedAt: input.state === "COMPLETED" ? new Date() : null,
             },
-          }),
+          });
+          if (updated.count !== 1)
+            throw new OperationConflict(
+              "This reminder is no longer pending. Refresh and try again.",
+            );
+          return { id: input.id };
+        },
         (saved) => ({
           actorId: session.user.id,
           action: "UPDATE",
@@ -197,19 +204,16 @@ export async function POST(request: Request) {
           { error: "Finding is no longer active" },
           { status: 409 },
         );
-      const existing = await prisma.studioSuggestion.findFirst({
-        where: { findingId: finding.id, state: "PENDING" },
-        select: { id: true },
-      });
-      if (existing)
-        return NextResponse.json(
-          { error: "This finding already awaits review" },
-          { status: 409 },
-        );
       entityType = "StudioSuggestion";
       result = await runAuditedMutation(
-        (tx) =>
-          tx.studioSuggestion.create({
+        async (tx) => {
+          const existing = await tx.studioSuggestion.findFirst({
+            where: { findingId: finding.id, state: "PENDING" },
+            select: { id: true },
+          });
+          if (existing)
+            throw new OperationConflict("This finding already awaits review");
+          return tx.studioSuggestion.create({
             data: {
               findingId: finding.id,
               title: finding.title,
@@ -217,7 +221,8 @@ export async function POST(request: Request) {
               proposedAction: finding.proposedAction,
               evidence: finding.evidence,
             },
-          }),
+          });
+        },
         (saved) => ({
           actorId: session.user.id,
           action: "CREATE",
@@ -228,15 +233,21 @@ export async function POST(request: Request) {
     } else if (input.action === "review-suggestion") {
       entityType = "StudioSuggestion";
       result = await runAuditedMutation(
-        (tx) =>
-          tx.studioSuggestion.update({
-            where: { id: input.id },
+        async (tx) => {
+          const updated = await tx.studioSuggestion.updateMany({
+            where: { id: input.id, state: "PENDING" },
             data: {
               state: input.state,
               reviewedBy: session.user.id,
               reviewedAt: new Date(),
             },
-          }),
+          });
+          if (updated.count !== 1)
+            throw new OperationConflict(
+              "This suggestion has already been reviewed. Refresh the page.",
+            );
+          return { id: input.id };
+        },
         (saved) => ({
           actorId: session.user.id,
           action: "UPDATE",
@@ -273,6 +284,8 @@ export async function POST(request: Request) {
     }
     return NextResponse.json({ ok: true, result });
   } catch (error) {
+    if (error instanceof OperationConflict)
+      return NextResponse.json({ error: error.message }, { status: 409 });
     return adminErrorResponse(error, {
       event: "admin_studio_operation_failed",
       fallback: "The Studio change could not be saved. Refresh and try again.",

@@ -24,11 +24,13 @@ export function StudioWorkspace({
   findings,
   suggestions,
   reminders,
+  canManageGovernance,
 }: {
   contacts: Option[];
   findings: Option[];
   suggestions: Option[];
   reminders: Option[];
+  canManageGovernance: boolean;
 }) {
   const router = useRouter();
   const [status, setStatus] = useState("");
@@ -189,118 +191,122 @@ export function StudioWorkspace({
           <p>No pending reminders.</p>
         )}
       </section>
-      <section>
-        <h2>Approval queue</h2>
-        {findings.length ? (
-          <form
-            onSubmit={(event) =>
-              run(event, (v) => ({
-                action: "queue-suggestion",
-                findingId: v.findingId,
-              }))
-            }
-          >
-            <label>
-              <span>Current finding</span>
-              <select name="findingId">
-                {findings.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button type="submit" disabled={busy}>
-              Queue proposed action
-            </button>
-          </form>
-        ) : (
-          <p>No current health findings.</p>
-        )}
-        {suggestions.length ? (
-          <form
-            onSubmit={(event) =>
-              run(event, (v) => ({
-                action: "review-suggestion",
-                id: v.id,
-                state: v.state,
-              }))
-            }
-          >
-            <label>
-              <span>Pending suggestion</span>
-              <select name="id">
-                {suggestions.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>Decision</span>
-              <select name="state">
-                <option>APPROVED</option>
-                <option>REJECTED</option>
-              </select>
-            </label>
-            <button type="submit" disabled={busy}>
-              Record decision
-            </button>
-          </form>
-        ) : (
-          <p>
-            No suggestions await review. Approval never applies a change
-            automatically.
-          </p>
-        )}
-      </section>
-      <section>
-        <h2>Recovery verification</h2>
-        <form
-          onSubmit={(event) =>
-            run(event, (v) => ({
-              action: "record-recovery",
-              backupLabel: v.backupLabel,
-              backupCreatedAt: new Date(
-                String(v.backupCreatedAt),
-              ).toISOString(),
-              restoreTestedAt: new Date(
-                String(v.restoreTestedAt),
-              ).toISOString(),
-              outcome: v.outcome,
-              notes: v.notes || undefined,
-            }))
-          }
-        >
-          <label>
-            <span>Backup label</span>
-            <input name="backupLabel" required />
-          </label>
-          <label>
-            <span>Backup created</span>
-            <input name="backupCreatedAt" type="datetime-local" required />
-          </label>
-          <label>
-            <span>Restore tested</span>
-            <input name="restoreTestedAt" type="datetime-local" required />
-          </label>
-          <label>
-            <span>Outcome</span>
-            <select name="outcome">
-              <option>PASS</option>
-              <option>FAIL</option>
-            </select>
-          </label>
-          <label>
-            <span>Notes</span>
-            <textarea name="notes" />
-          </label>
-          <button type="submit" disabled={busy}>
-            Record restore drill
-          </button>
-        </form>
-      </section>
+      {canManageGovernance ? (
+        <>
+          <section>
+            <h2>Approval queue</h2>
+            {findings.length ? (
+              <form
+                onSubmit={(event) =>
+                  run(event, (v) => ({
+                    action: "queue-suggestion",
+                    findingId: v.findingId,
+                  }))
+                }
+              >
+                <label>
+                  <span>Current finding</span>
+                  <select name="findingId">
+                    {findings.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button type="submit" disabled={busy}>
+                  Queue proposed action
+                </button>
+              </form>
+            ) : (
+              <p>No current health findings.</p>
+            )}
+            {suggestions.length ? (
+              <form
+                onSubmit={(event) =>
+                  run(event, (v) => ({
+                    action: "review-suggestion",
+                    id: v.id,
+                    state: v.state,
+                  }))
+                }
+              >
+                <label>
+                  <span>Pending suggestion</span>
+                  <select name="id">
+                    {suggestions.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>Decision</span>
+                  <select name="state">
+                    <option>APPROVED</option>
+                    <option>REJECTED</option>
+                  </select>
+                </label>
+                <button type="submit" disabled={busy}>
+                  Record decision
+                </button>
+              </form>
+            ) : (
+              <p>
+                No suggestions await review. Approval never applies a change
+                automatically.
+              </p>
+            )}
+          </section>
+          <section>
+            <h2>Recovery verification</h2>
+            <form
+              onSubmit={(event) =>
+                run(event, (v) => ({
+                  action: "record-recovery",
+                  backupLabel: v.backupLabel,
+                  backupCreatedAt: new Date(
+                    String(v.backupCreatedAt),
+                  ).toISOString(),
+                  restoreTestedAt: new Date(
+                    String(v.restoreTestedAt),
+                  ).toISOString(),
+                  outcome: v.outcome,
+                  notes: v.notes || undefined,
+                }))
+              }
+            >
+              <label>
+                <span>Backup label</span>
+                <input name="backupLabel" required />
+              </label>
+              <label>
+                <span>Backup created</span>
+                <input name="backupCreatedAt" type="datetime-local" required />
+              </label>
+              <label>
+                <span>Restore tested</span>
+                <input name="restoreTestedAt" type="datetime-local" required />
+              </label>
+              <label>
+                <span>Outcome</span>
+                <select name="outcome">
+                  <option>PASS</option>
+                  <option>FAIL</option>
+                </select>
+              </label>
+              <label>
+                <span>Notes</span>
+                <textarea name="notes" />
+              </label>
+              <button type="submit" disabled={busy}>
+                Record restore drill
+              </button>
+            </form>
+          </section>
+        </>
+      ) : null}
     </div>
   );
 }

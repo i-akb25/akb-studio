@@ -1,8 +1,8 @@
 import "server-only";
 
-import { createHash } from "node:crypto";
-import type { AuditAction, Prisma } from "@generated/prisma/client";
+import { type AuditAction, Prisma } from "@generated/prisma/client";
 import { prisma } from "@/server/db/prisma";
+import { hashAuditEntry } from "./audit-integrity";
 
 type AuditInput = {
   actorId?: string;
@@ -13,18 +13,16 @@ type AuditInput = {
   after?: Prisma.InputJsonValue;
 };
 
-function canonical(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
-  if (value && typeof value === "object") {
-    return `{${Object.entries(value)
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([key, item]) => `${JSON.stringify(key)}:${canonical(item)}`)
-      .join(",")}}`;
-  }
-  return JSON.stringify(value) ?? "null";
+async function lockAuditChain(tx: Prisma.TransactionClient) {
+  await tx.$queryRaw(Prisma.sql`SELECT pg_advisory_xact_lock(109545, 2202)`);
 }
 
-async function appendAudit(tx: Prisma.TransactionClient, input: AuditInput) {
+async function appendAudit(
+  tx: Prisma.TransactionClient,
+  input: AuditInput,
+  locked = false,
+) {
+  if (!locked) await lockAuditChain(tx);
   const previous = await tx.auditLog.findFirst({
     where: { entryHash: { not: null } },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -43,12 +41,10 @@ async function appendAudit(tx: Prisma.TransactionClient, input: AuditInput) {
     entityId: safeInput.entityId ?? null,
     before: safeInput.before ?? null,
     after: safeInput.after ?? null,
-    createdAt: createdAt.toISOString(),
+    createdAt,
     previousHash,
   };
-  const entryHash = createHash("sha256")
-    .update(canonical(payload))
-    .digest("hex");
+  const entryHash = hashAuditEntry(payload);
   return tx.auditLog.create({
     data: { ...safeInput, createdAt, previousHash, entryHash },
   });
@@ -70,8 +66,9 @@ export async function runAuditedMutation<T>(
   audit: (result: T) => AuditInput,
 ) {
   return prisma.$transaction(async (tx) => {
+    await lockAuditChain(tx);
     const result = await mutation(tx);
-    await appendAudit(tx, audit(result));
+    await appendAudit(tx, audit(result), true);
     return result;
   });
 }

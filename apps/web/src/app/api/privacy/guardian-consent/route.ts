@@ -4,6 +4,10 @@ import { recordAuditInTransaction } from "@/features/admin/server/audit";
 import { deliverContactNotification } from "@/features/contact/server/contact-delivery";
 import { hasValidContactOrigin } from "@/features/contact/server/contact-guard";
 import { contactSubmissionSchema } from "@/features/contact/server/contact-schema";
+import {
+  boundedRetentionDays,
+  retentionDeadline,
+} from "@/features/operations/retention-policy";
 import { prisma } from "@/server/db/prisma";
 import { RequestSecurityError, readJsonBody } from "@/server/security/request";
 
@@ -98,9 +102,11 @@ export async function POST(request: Request) {
       { status: 409 },
     );
 
-  const retentionDays = Math.max(
+  const retentionDays = boundedRetentionDays(
+    process.env.CONTACT_RETENTION_DAYS,
+    180,
     1,
-    Number(process.env.CONTACT_RETENTION_DAYS ?? 180),
+    365,
   );
   await prisma.$transaction([
     prisma.consentRecord.update({
@@ -116,7 +122,7 @@ export async function POST(request: Request) {
       where: { id: consent.submissionId },
       data: {
         state: "NEW",
-        retentionUntil: new Date(Date.now() + retentionDays * 86_400_000),
+        retentionUntil: retentionDeadline(new Date(), retentionDays),
         statusEvents: {
           create: {
             fromState: "PENDING_GUARDIAN",

@@ -47,6 +47,41 @@ test("keeps a visitor name only inside supplied session context", () => {
   );
 });
 
+test("understands a visitor saying their name followed by here", () => {
+  const introduction = "Hey Avika here";
+  assert.equal(
+    classifyAevaIntent({
+      question: introduction,
+      mode: "explore",
+      history: [],
+    }),
+    "conversation",
+  );
+  assert.equal(
+    conversationalReply(introduction, []),
+    "Hello Avika, good to meet you. How are you?",
+  );
+  assert.equal(
+    conversationalReply("How are you", [{ role: "user", text: introduction }]),
+    "I’m doing well, Avika. What would you like to explore in AKB Studio?",
+  );
+});
+
+test("live questions never fall back to unrelated portfolio sources", async () => {
+  const route = await import("node:fs/promises").then(({ readFile }) =>
+    readFile(
+      new URL("../../src/app/api/aeva/route.ts", import.meta.url),
+      "utf8",
+    ),
+  );
+  assert.match(
+    route,
+    /intent === "live-information"\s*\? \[\]\s*:\s*await retrieveAevaContext/,
+  );
+  assert.match(route, /Live web search is unavailable right now/);
+  assert.match(route, /I won’t substitute unrelated portfolio pages/);
+});
+
 test("keeps introductions and capability questions out of retrieval", () => {
   for (const question of [
     "hey how are you",

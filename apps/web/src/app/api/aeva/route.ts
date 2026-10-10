@@ -91,6 +91,7 @@ function followUps(
   intent: AevaIntent,
   mode: AevaMode,
   grounded: boolean,
+  allowWeb: boolean,
 ): string[] {
   if (intent === "conversation")
     return [
@@ -102,6 +103,22 @@ function followUps(
       "Start a role-grounded interview.",
       "Which evidence should I inspect first?",
     ];
+  if (intent === "live-information") {
+    if (grounded)
+      return [
+        "Would you like a shorter current summary?",
+        "Should I check another city or current topic?",
+      ];
+    return allowWeb
+      ? [
+          "Try this live question again shortly.",
+          "Ask about Anurag's published work instead.",
+        ]
+      : [
+          "Enable live web and ask again.",
+          "Ask about Anurag's published work instead.",
+        ];
+  }
   if (!grounded)
     return [
       "Would you like to share this question anonymously as a knowledge gap?",
@@ -246,10 +263,10 @@ export async function POST(request: Request) {
               input.jobDescription.slice(0, 1_000),
             ].join(" ");
           }
-          const sources = await retrieveAevaContext(
-            queryPlan,
-            contract.retrievalLimit,
-          );
+          const sources =
+            intent === "live-information"
+              ? []
+              : await retrieveAevaContext(queryPlan, contract.retrievalLimit);
           send({
             type: "status",
             message: input.allowWeb
@@ -273,6 +290,9 @@ export async function POST(request: Request) {
             citations = provider.citations;
             grounded = citations.length > 0;
             usedWeb = provider.usedWeb;
+          } else if (intent === "live-information") {
+            answer =
+              "Live web search is unavailable right now, so I can’t verify the current answer safely. Please try again shortly. I won’t substitute unrelated portfolio pages or guess from stale information.";
           } else if (sources.length) {
             answer = groundedFallbackAnswer({
               sources,
@@ -317,7 +337,7 @@ export async function POST(request: Request) {
           citations,
           followUps: directResponse
             ? []
-            : followUps(intent, input.mode, grounded),
+            : followUps(intent, input.mode, grounded, input.allowWeb),
           actions: blockedRequest
             ? []
             : createAevaActions({

@@ -33,7 +33,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, readonly AdminPermission[]> = {
 };
 
 function roleOf(value: unknown): AdminRole | null {
-  return typeof value === "string" && value in ROLE_PERMISSIONS
+  return typeof value === "string" && Object.hasOwn(ROLE_PERMISSIONS, value)
     ? (value as AdminRole)
     : null;
 }

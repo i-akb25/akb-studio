@@ -1,13 +1,10 @@
 import "server-only";
 
-export class RequestSecurityError extends Error {
-  constructor(
-    readonly status: 400 | 413 | 415,
-    message: string,
-  ) {
-    super(message);
-  }
-}
+export {
+  RequestSecurityError,
+  readJsonBody,
+  readLimitedBody,
+} from "./body-limit";
 
 export function hasTrustedOrigin(request: Request): boolean {
   const fetchSite = request.headers.get("sec-fetch-site");
@@ -25,28 +22,6 @@ export function hasTrustedOrigin(request: Request): boolean {
     } catch {}
   }
   return allowed.has(origin);
-}
-
-export async function readJsonBody(
-  request: Request,
-  maximumBytes: number,
-): Promise<unknown> {
-  const contentType = request.headers.get("content-type")?.toLowerCase() ?? "";
-  if (!contentType.startsWith("application/json"))
-    throw new RequestSecurityError(415, "Unsupported request format.");
-
-  const declaredBytes = Number(request.headers.get("content-length") ?? 0);
-  if (Number.isFinite(declaredBytes) && declaredBytes > maximumBytes)
-    throw new RequestSecurityError(413, "Request is too large.");
-
-  const raw = await request.text();
-  if (new TextEncoder().encode(raw).byteLength > maximumBytes)
-    throw new RequestSecurityError(413, "Request is too large.");
-  try {
-    return JSON.parse(raw) as unknown;
-  } catch {
-    throw new RequestSecurityError(400, "Invalid request.");
-  }
 }
 
 export function clientAddress(request: Request): string {

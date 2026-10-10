@@ -54,6 +54,10 @@ export function acceptAevaFeedbackRequest(request: Request): Promise<boolean> {
   return acceptRequest(request, "aeva:feedback:address", 30);
 }
 
+export function acceptAevaEndRequest(request: Request): Promise<boolean> {
+  return acceptRequest(request, "aeva:end:address", 12);
+}
+
 export const hasValidAevaOrigin = hasTrustedOrigin;
 
 // Detection improves the reply, but is never treated as the security boundary.

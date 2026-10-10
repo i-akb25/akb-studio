@@ -14,6 +14,9 @@ const required = [
   "integrations/google-apps-script/Code.gs",
   "integrations/google-apps-script/README.md",
   "README.md",
+  "apps/web/src/app/admin/(protected)/release/page.tsx",
+  "apps/web/src/features/aeva/core/provider-contract.ts",
+  "scripts/quality/production-smoke.mjs",
 ];
 const missing = required.filter((path) => !existsSync(path));
 const pkg = JSON.parse(readFileSync("package.json", "utf8"));
@@ -36,4 +39,6 @@ if (missing.length || missingScripts.length) {
   );
   process.exit(1);
 }
-console.log("V1 release contract is complete.");
+console.log(
+  "3.0 release files and scripts are present. Live acceptance is still required.",
+);

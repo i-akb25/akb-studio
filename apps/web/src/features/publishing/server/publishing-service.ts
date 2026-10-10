@@ -1,7 +1,7 @@
 import "server-only";
 
-import { createHmac } from "node:crypto";
 import { recordOperationalHealth } from "@/server/analytics/metrics";
+import { signedPublishingRequest } from "./publishing-signature";
 
 type PublishingAction =
   | "subscribe"
@@ -32,17 +32,6 @@ function requireEnv(name: string): string {
   return value;
 }
 
-function stableJson(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
-  if (value && typeof value === "object") {
-    const entries = Object.entries(value as Record<string, unknown>)
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`);
-    return `{${entries.join(",")}}`;
-  }
-  return JSON.stringify(value);
-}
-
 export async function callPublishingService<T>(
   action: PublishingAction,
   payload: Record<string, unknown> = {},
@@ -51,17 +40,20 @@ export async function callPublishingService<T>(
   const serviceToken = requireEnv("AKB_PUBLISHING_SERVICE_TOKEN");
   const signingSecret = requireEnv("APPS_SCRIPT_SIGNING_SECRET");
   const timestamp = Date.now();
-  const unsigned = { action, ...payload };
-  const signature = createHmac("sha256", signingSecret)
-    .update(`${timestamp}.${stableJson(unsigned)}`)
-    .digest("hex");
+  const envelope = signedPublishingRequest({
+    action,
+    payload,
+    serviceToken,
+    signingSecret,
+    timestamp,
+  });
 
   let response: Response;
   try {
     response = await fetch(url, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ ...unsigned, serviceToken, timestamp, signature }),
+      body: JSON.stringify(envelope),
       cache: "no-store",
       signal: AbortSignal.timeout(8_000),
     });
@@ -86,7 +78,25 @@ export async function callPublishingService<T>(
     };
   }
 
-  const result = (await response.json()) as ServiceResponse<T>;
+  let result: ServiceResponse<T>;
+  try {
+    const payload: unknown = await response.json();
+    if (
+      !payload ||
+      typeof payload !== "object" ||
+      !("ok" in payload) ||
+      typeof payload.ok !== "boolean"
+    )
+      throw new Error("invalid_service_response");
+    result = payload as ServiceResponse<T>;
+  } catch {
+    await recordOperationalHealth({
+      key: "publishing_service",
+      status: "degraded",
+      summary: "Publishing service returned an invalid response",
+    });
+    return { ok: false, error: "publishing_service_invalid_response" };
+  }
 
   await recordOperationalHealth({
     key: "publishing_service",

@@ -1,6 +1,6 @@
 {
   "name": "akb-studio",
-  "version": "1.0.0",
+  "version": "3.0.0",
   "private": true,
   "scripts": {
     "dev": "turbo dev",
@@ -17,6 +17,7 @@
     "quality:links": "node scripts/quality/check-links.mjs",
     "quality:secrets": "node scripts/quality/check-secrets.mjs",
     "quality:release": "node scripts/quality/check-release.mjs",
+    "quality:production": "node scripts/quality/production-smoke.mjs",
     "quality:all": "pnpm lint && pnpm typecheck && pnpm test && pnpm quality:links && pnpm quality:secrets && pnpm quality:release"
   },
   "devDependencies": {

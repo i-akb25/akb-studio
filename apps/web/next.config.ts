@@ -14,7 +14,7 @@ const contentSecurityPolicy = [
   "media-src 'self' blob: https://res.cloudinary.com",
   "font-src 'self' data:",
   "connect-src 'self' https://challenges.cloudflare.com",
-  "frame-src https://challenges.cloudflare.com https://drive.google.com",
+  "frame-src 'self' https://challenges.cloudflare.com https://drive.google.com https://res.cloudinary.com",
   "worker-src 'self' blob:",
   "manifest-src 'self'",
   ...(process.env.NODE_ENV === "production"
@@ -29,7 +29,7 @@ const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
   {
     key: "Permissions-Policy",
-    value: "camera=(), microphone=(), geolocation=()",
+    value: `camera=(), microphone=${process.env.AEVA_VOICE_ENABLED?.trim().toLowerCase() === "true" ? "(self)" : "()"}, geolocation=()`,
   },
   { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
   { key: "Cross-Origin-Resource-Policy", value: "same-site" },

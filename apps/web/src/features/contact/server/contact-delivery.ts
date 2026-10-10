@@ -13,7 +13,7 @@ function dailyLimit(): number {
     process.env.CONTACT_EMAIL_DAILY_LIMIT ?? DEFAULT_DAILY_LIMIT,
   );
   return Number.isFinite(configured) && configured > 0
-    ? Math.min(Math.floor(configured), DEFAULT_DAILY_LIMIT)
+    ? Math.max(1, Math.min(Math.floor(configured), DEFAULT_DAILY_LIMIT))
     : DEFAULT_DAILY_LIMIT;
 }
 

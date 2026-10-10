@@ -1,28 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import Script from "next/script";
 import { FirstSessionBrandIntro } from "@/features/loader/components/first-session-brand-intro";
 import { createBrandIntroBootstrapScript } from "@/features/loader/loader-config";
 import { getPublicSiteSettings } from "@/features/seo/server/site-settings";
 import { getSiteOrigin } from "@/features/seo/site-config";
 import { createThemeBootstrapScript } from "@/features/theme/theme-config";
+import "./fonts.css";
 import "./globals.css";
-
-const fontBody = Inter({
-  subsets: ["latin"],
-  variable: "--font-body",
-});
-
-const fontDisplay = Space_Grotesk({
-  subsets: ["latin"],
-  variable: "--font-display",
-});
-
-const fontMono = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-mono",
-  preload: false,
-});
 
 const siteOrigin = getSiteOrigin();
 const metadataBase = siteOrigin ?? new URL("http://localhost:3000");
@@ -117,11 +101,23 @@ type RootLayoutProps = Readonly<{
 
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
-    <html
-      lang="en"
-      suppressHydrationWarning
-      className={`${fontBody.variable} ${fontDisplay.variable} ${fontMono.variable}`}
-    >
+    <html lang="en" suppressHydrationWarning className="akb-fonts">
+      <head>
+        <link
+          rel="preload"
+          href="/fonts/inter-latin.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
+        <link
+          rel="preload"
+          href="/fonts/space-grotesk-latin.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
+      </head>
       <body>
         <Script id="akb-studio-theme" strategy="beforeInteractive">
           {createThemeBootstrapScript()}

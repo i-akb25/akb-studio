@@ -38,7 +38,8 @@ export function OfflineWorkspace() {
   useEffect(() => {
     try {
       const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
-      if (Array.isArray(parsed)) setRecords(parsed.filter(isOfflineRecord));
+      if (Array.isArray(parsed))
+        setRecords(parsed.filter(isOfflineRecord).map(sanitizeRecord));
     } catch {
       setStatus(
         "The local workspace could not be read. No data was sent anywhere.",
@@ -102,14 +103,23 @@ export function OfflineWorkspace() {
 
   async function importRecords(file: File) {
     try {
+      if (file.size > 5 * 1024 * 1024) {
+        setStatus("Import failed: the export must be smaller than 5 MB.");
+        return;
+      }
       const value = JSON.parse(await file.text()) as { records?: unknown };
-      const incoming = Array.isArray(value.records)
-        ? value.records.filter(isOfflineRecord).map(sanitizeRecord)
-        : [];
-      persist(mergeOfflineRecords(records, incoming));
-      setStatus(
-        `Imported ${incoming.length} records. Equal-revision differences were preserved as conflict copies.`,
-      );
+      if (
+        !value ||
+        !Array.isArray(value.records) ||
+        value.records.length > 1000 ||
+        !value.records.every(isOfflineRecord)
+      )
+        throw new Error("Invalid export");
+      const incoming = value.records.map(sanitizeRecord);
+      if (persist(mergeOfflineRecords(records, incoming)))
+        setStatus(
+          `Imported ${incoming.length} records. Equal-revision differences were preserved as conflict copies.`,
+        );
     } catch {
       setStatus("Import failed: select a valid AKB offline JSON export.");
     }

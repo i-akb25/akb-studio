@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ContentAttachment } from "../model";
 
 type EvidenceViewerProps = { attachments: ContentAttachment[] };
@@ -13,19 +13,44 @@ function attachmentUrl(attachment: ContentAttachment): string | undefined {
   if (attachment.storage === "google-drive" && attachment.fileId) {
     return `https://drive.google.com/file/d/${encodeURIComponent(attachment.fileId)}/view`;
   }
-  return attachment.url;
+  if (!attachment.url) return undefined;
+  try {
+    const url = new URL(attachment.url, "https://akb.invalid");
+    if (url.protocol !== "https:" || url.username || url.password)
+      return undefined;
+    return attachment.url;
+  } catch {
+    return undefined;
+  }
+}
+
+export function attachmentPreviewUrl(
+  attachment: ContentAttachment,
+): string | undefined {
+  if (attachment.storage === "google-drive" && attachment.fileId)
+    return drivePreviewUrl(attachment.fileId);
+  const href = attachmentUrl(attachment);
+  if (!href) return undefined;
+  const url = new URL(href, "https://akb.invalid");
+  return url.origin === "https://akb.invalid" ||
+    url.hostname === "res.cloudinary.com"
+    ? href
+    : undefined;
 }
 
 export function EvidenceViewer({ attachments }: EvidenceViewerProps) {
   const [active, setActive] = useState<ContentAttachment | null>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
     if (!active) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setActive(null);
+    const previous = document.activeElement;
+    const dialog = dialogRef.current;
+    if (dialog && !dialog.open) dialog.showModal();
+    return () => {
+      dialog?.close();
+      if (previous instanceof HTMLElement) previous.focus();
     };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
   }, [active]);
 
   if (!attachments.length) return null;
@@ -60,9 +85,10 @@ export function EvidenceViewer({ attachments }: EvidenceViewerProps) {
         ))}
       </div>
       {active ? (
-        <div
-          className="fixed inset-0 z-[100] grid place-items-center p-4 sm:p-8"
-          role="dialog"
+        <dialog
+          ref={dialogRef}
+          onCancel={() => setActive(null)}
+          className="fixed inset-0 z-[100] m-0 h-full max-h-none w-full max-w-none place-items-center bg-transparent p-4 open:grid sm:p-8"
           aria-modal="true"
           aria-label={active.title}
         >
@@ -96,29 +122,23 @@ export function EvidenceViewer({ attachments }: EvidenceViewerProps) {
               </div>
             </header>
             <div className="min-h-[65vh] flex-1 bg-white">
-              {active.storage === "google-drive" && active.fileId ? (
+              {attachmentPreviewUrl(active) ? (
                 <iframe
-                  src={drivePreviewUrl(active.fileId)}
-                  title={active.title}
-                  allow="autoplay"
-                  referrerPolicy="no-referrer"
-                  className="h-[78vh] w-full border-0"
-                />
-              ) : active.url ? (
-                <iframe
-                  src={active.url}
+                  src={attachmentPreviewUrl(active)}
                   title={active.title}
                   referrerPolicy="no-referrer"
                   className="h-[78vh] w-full border-0"
                 />
               ) : (
                 <div className="grid h-[65vh] place-items-center p-8 text-center text-black/70">
-                  This attachment does not have a public-safe viewer source yet.
+                  {attachmentUrl(active)
+                    ? "This source does not support an embedded preview here. Use Open in new tab."
+                    : "This attachment does not have a public-safe viewer source yet."}
                 </div>
               )}
             </div>
           </div>
-        </div>
+        </dialog>
       ) : null}
     </section>
   );

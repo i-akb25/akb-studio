@@ -100,7 +100,13 @@ export function VoiceControls({
     setMessage(
       "Listening for one question. Nothing is recorded in the background.",
     );
-    recognition.start();
+    try {
+      recognition.start();
+    } catch {
+      recognitionRef.current = null;
+      setListening(false);
+      setMessage("Voice input could not start. Use the text field instead.");
+    }
   }
 
   function speakAnswer() {

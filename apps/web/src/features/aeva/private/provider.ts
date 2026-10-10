@@ -3,6 +3,10 @@ import "server-only";
 import { logger } from "@/server/logging/logger";
 import { consumeRateLimit } from "@/server/security/rate-limit";
 import { aevaServerConfig } from "../config/server-config";
+import {
+  parseProviderAnswer,
+  providerThinkingConfig,
+} from "../core/provider-contract";
 import type { AevaConversationTurn } from "../model";
 import { safeAevaAnswer } from "../security/output-guard";
 import type { PrivateAevaCandidate } from "./retrieval";
@@ -98,7 +102,8 @@ export async function generatePrivateAevaAnswer(input: {
     .slice(-6)
     .map((turn) => `${turn.role.toUpperCase()}: ${turn.text.slice(0, 800)}`)
     .join("\n");
-  const body = JSON.stringify({
+  const body = {
+    store: false,
     systemInstruction: {
       parts: [
         {
@@ -112,6 +117,7 @@ export async function generatePrivateAevaAnswer(input: {
             "Do not perform writes or external actions. This foundation is read-only.",
             "If evidence is missing, say so directly. Never reproduce a complete source record.",
             "Return JSON with exactly answer (string) and sourceIds (array of supplied source IDs actually used).",
+            "Keep the answer under 220 words.",
           ].join(" "),
         },
       ],
@@ -128,7 +134,7 @@ export async function generatePrivateAevaAnswer(input: {
     ],
     generationConfig: {
       temperature: 0.15,
-      maxOutputTokens: 700,
+      maxOutputTokens: 2_048,
       responseMimeType: "application/json",
       responseSchema: {
         type: "OBJECT",
@@ -139,17 +145,28 @@ export async function generatePrivateAevaAnswer(input: {
         },
       },
     },
-  });
+  };
   try {
+    const signal = AbortSignal.timeout(aevaServerConfig.requestTimeoutMs);
     for (const [index, model] of models.entries()) {
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body,
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey,
+          },
+          body: JSON.stringify({
+            ...body,
+            generationConfig: {
+              ...body.generationConfig,
+              ...providerThinkingConfig(model),
+            },
+          }),
           cache: "no-store",
-          signal: AbortSignal.timeout(aevaServerConfig.requestTimeoutMs),
+          signal,
+          redirect: "error",
         },
       );
       if (!response.ok) {
@@ -161,17 +178,24 @@ export async function generatePrivateAevaAnswer(input: {
         return null;
       }
       const payload = (await response.json()) as {
-        candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+        candidates?: Array<{
+          finishReason?: string;
+          content?: { parts?: Array<{ text?: string; thought?: boolean }> };
+        }>;
       };
+      const finishReason = payload.candidates?.[0]?.finishReason;
+      if (finishReason && finishReason !== "STOP") return null;
       const raw = payload.candidates?.[0]?.content?.parts
+        ?.filter((part) => !part.thought)
         ?.map((part) => part.text ?? "")
         .join("")
         .trim();
       if (!raw) return null;
-      const parsed = JSON.parse(raw) as {
-        answer?: unknown;
-        sourceIds?: unknown;
-      };
+      const parsed = parseProviderAnswer(
+        raw,
+        input.sources.map((source) => source.id),
+      );
+      if (!parsed) return null;
       const answer =
         typeof parsed.answer === "string"
           ? safeAevaAnswer(parsed.answer, 220)

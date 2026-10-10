@@ -4,6 +4,12 @@ import { prisma } from "@/server/db/prisma";
 import { logger } from "@/server/logging/logger";
 import { consumeRateLimit } from "@/server/security/rate-limit";
 import { aevaServerConfig } from "../config/server-config";
+import {
+  type GoogleGroundingMetadata,
+  groundedWebCitations,
+  parseProviderAnswer,
+  providerThinkingConfig,
+} from "../core/provider-contract";
 import type { AevaResponseContract } from "../core/response-contract";
 import type {
   AevaCitation,
@@ -108,20 +114,21 @@ export async function generateProviderAnswer(input: {
   jobDescription?: string;
   contract: AevaResponseContract;
   queryPlan: AevaQueryPlan;
+  signal?: AbortSignal;
 }): Promise<ProviderAnswer | null> {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) {
     await incident("not_configured");
     return null;
   }
+  const webEnabled =
+    input.allowWeb && process.env.AEVA_WEB_SEARCH_ENABLED === "true";
+  if (!input.sources.length && !webEnabled) return null;
   const permit = await permitProviderRequest();
   if (permit !== "allowed") {
     await incident(permit);
     return null;
   }
-  const webEnabled =
-    input.allowWeb && process.env.AEVA_WEB_SEARCH_ENABLED === "true";
-  if (!input.sources.length && !webEnabled) return null;
   const models = [
     ...new Set([
       process.env.AEVA_GEMINI_MODEL?.trim() || "gemini-3.8-flash",
@@ -149,7 +156,8 @@ export async function generateProviderAnswer(input: {
         .filter(Boolean)
         .join("\n")
     : "Not supplied";
-  const requestBody = JSON.stringify({
+  const requestBody = {
+    store: false,
     systemInstruction: {
       parts: [{ text: systemInstruction(input.mode, input.intent) }],
     },
@@ -167,6 +175,7 @@ export async function generateProviderAnswer(input: {
                 : "",
               `Required response shape: ${input.queryPlan.responseShape}. Detected entities: ${input.queryPlan.entities.join(", ") || "none"}. Detected technologies: ${input.queryPlan.technologies.join(", ") || "none"}. Requested years: ${input.queryPlan.years.join(", ") || "none"}.`,
               `Question: ${input.question}`,
+              `Keep the answer under ${input.contract.maxWords} words.`,
             ]
               .filter(Boolean)
               .join("\n\n"),
@@ -177,7 +186,7 @@ export async function generateProviderAnswer(input: {
     ...(webEnabled ? { tools: [{ google_search: {} }] } : {}),
     generationConfig: {
       temperature: 0.2,
-      maxOutputTokens: Math.min(700, input.contract.maxWords * 4),
+      maxOutputTokens: 2_048,
       responseMimeType: "application/json",
       responseSchema: {
         type: "OBJECT",
@@ -188,18 +197,32 @@ export async function generateProviderAnswer(input: {
         },
       },
     },
-  });
+  };
   try {
+    const timeout = AbortSignal.timeout(aevaServerConfig.requestTimeoutMs);
+    const signal = input.signal
+      ? AbortSignal.any([input.signal, timeout])
+      : timeout;
     let response: Response | undefined;
     for (const [index, model] of models.entries()) {
       const candidate = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: requestBody,
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey,
+          },
+          body: JSON.stringify({
+            ...requestBody,
+            generationConfig: {
+              ...requestBody.generationConfig,
+              ...providerThinkingConfig(model),
+            },
+          }),
           cache: "no-store",
-          signal: AbortSignal.timeout(aevaServerConfig.requestTimeoutMs),
+          signal,
+          redirect: "error",
         },
       );
       if (candidate.ok) {
@@ -212,14 +235,22 @@ export async function generateProviderAnswer(input: {
     if (!response) return null;
     const payload = (await response.json()) as {
       candidates?: Array<{
-        content?: { parts?: Array<{ text?: string }> };
-        groundingMetadata?: {
-          groundingChunks?: Array<{ web?: { uri?: string; title?: string } }>;
-        };
+        finishReason?: string;
+        content?: { parts?: Array<{ text?: string; thought?: boolean }> };
+        groundingMetadata?: GoogleGroundingMetadata;
       }>;
     };
     const first = payload.candidates?.[0];
+    if (first?.finishReason && first.finishReason !== "STOP") {
+      await incident(
+        first.finishReason === "MAX_TOKENS"
+          ? "output_limit_exceeded"
+          : "provider_stopped",
+      );
+      return null;
+    }
     const raw = first?.content?.parts
+      ?.filter((part) => !part.thought)
       ?.map((part) => part.text ?? "")
       .join("")
       .trim();
@@ -227,11 +258,12 @@ export async function generateProviderAnswer(input: {
       await incident("empty_answer");
       return null;
     }
-    let parsed: { answer?: unknown; sourceIds?: unknown };
-    try {
-      parsed = JSON.parse(raw) as { answer?: unknown; sourceIds?: unknown };
-    } catch {
-      await incident("invalid_json");
+    const parsed = parseProviderAnswer(
+      raw,
+      input.sources.map((source) => source.id),
+    );
+    if (!parsed) {
+      await incident("invalid_response_contract");
       return null;
     }
     const answer =
@@ -242,19 +274,10 @@ export async function generateProviderAnswer(input: {
       await incident("unsafe_answer");
       return null;
     }
-    const webCitations: AevaCitation[] = [];
-    for (const [index, chunk] of (
-      first?.groundingMetadata?.groundingChunks ?? []
-    ).entries()) {
-      if (!chunk.web?.uri) continue;
-      webCitations.push({
-        id: `grounded-web-${index}`,
-        title: chunk.web.title ?? new URL(chunk.web.uri).hostname,
-        url: chunk.web.uri,
-        kind: "web",
-        updatedAt: new Date().toISOString(),
-      });
-    }
+    const webCitations = groundedWebCitations(
+      first?.groundingMetadata,
+      webEnabled,
+    );
     const selectedSourceIds = new Set(
       Array.isArray(parsed.sourceIds)
         ? parsed.sourceIds.filter((id): id is string => typeof id === "string")

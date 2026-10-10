@@ -3,6 +3,7 @@ import { z } from "zod";
 import { aevaServerConfig } from "@/features/aeva/config/server-config";
 import { directAevaResponse } from "@/features/aeva/core/direct-response";
 import { groundedFallbackAnswer } from "@/features/aeva/core/grounded-answer";
+import { evidenceNextQuestions } from "@/features/aeva/core/next-questions";
 import { understandAevaQuery } from "@/features/aeva/core/query-understanding";
 import {
   clampWords,
@@ -67,8 +68,11 @@ const inputSchema = z
           })
           .strict(),
       )
-      .max(aevaServerConfig.maxConversationTurns)
-      .default([]),
+      .max(12)
+      .default([])
+      .transform((history) =>
+        history.slice(-aevaServerConfig.maxConversationTurns),
+      ),
     pageContext: z
       .object({
         path: z.string().trim().startsWith("/").max(300),
@@ -175,12 +179,19 @@ export async function POST(request: Request) {
   }
 
   const encoder = new TextEncoder();
+  let disconnected = false;
   const stream = new ReadableStream({
     async start(controller) {
-      const send = (value: unknown) =>
-        controller.enqueue(
-          encoder.encode(`data: ${JSON.stringify(value)}\n\n`),
-        );
+      const send = (value: unknown) => {
+        if (disconnected || request.signal.aborted) return;
+        try {
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify(value)}\n\n`),
+          );
+        } catch {
+          disconnected = true;
+        }
+      };
       const requestId = randomUUID();
       try {
         send({ type: "status", message: "Looking through the portfolio" });
@@ -213,10 +224,10 @@ export async function POST(request: Request) {
 
         if (promptInjection) {
           answer =
-            "I can't reveal private instructions, secrets, admin data, or bypass my source boundaries. I can still help with Ace's public work or a general web question.";
+            "I can’t share private instructions, credentials or admin records. I can help with Anurag’s published work.";
         } else if (privateLifeQuestion) {
           answer =
-            "Cute question, but I don't gossip on Ace's behalf. If he has not deliberately published something, I will not invent it. I can happily tell you about his work, interests, projects, or current engineering focus instead.";
+            "I don’t have permission to discuss Anurag’s unpublished personal information. I can help with his published work and interests.";
         } else if (directResponse) {
           answer = directResponse.answer;
         } else if (intent === "conversation") {
@@ -284,6 +295,7 @@ export async function POST(request: Request) {
             jobDescription: input.jobDescription,
             contract,
             queryPlan,
+            signal: request.signal,
           });
           if (provider) {
             answer = provider.answer;
@@ -307,7 +319,7 @@ export async function POST(request: Request) {
             usedWeb = sources.some((source) => source.kind === "web");
           } else {
             answer =
-              "I don't have enough published evidence to answer that responsibly. I won't guess. You can let me search the live web, ask about Ace's published work, or share this question anonymously so he knows what visitors want to learn.";
+              "I don’t have enough published evidence to answer that. Try a more specific question, or enable live web for a topic outside the portfolio.";
             await recordKnowledgeGap(
               input.question,
               input.shareUnknownQuestion,
@@ -337,7 +349,9 @@ export async function POST(request: Request) {
           citations,
           followUps: directResponse
             ? []
-            : followUps(intent, input.mode, grounded, input.allowWeb),
+            : evidenceNextQuestions(queryPlan, grounded).length
+              ? evidenceNextQuestions(queryPlan, grounded)
+              : followUps(intent, input.mode, grounded, input.allowWeb),
           actions: blockedRequest
             ? []
             : createAevaActions({
@@ -394,8 +408,15 @@ export async function POST(request: Request) {
           } satisfies AevaAnswer,
         });
       } finally {
-        controller.close();
+        if (!disconnected) {
+          try {
+            controller.close();
+          } catch {}
+        }
       }
+    },
+    cancel() {
+      disconnected = true;
     },
   });
 

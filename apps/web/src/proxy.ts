@@ -17,6 +17,13 @@ export function proxy(request: NextRequest) {
   }
 
   const response = NextResponse.next();
+  if (
+    ["/admin", "/api/admin", "/api/auth"].some((prefix) =>
+      matchesPrefix(pathname, prefix),
+    )
+  ) {
+    response.headers.set("Cache-Control", "private, no-store, max-age=0");
+  }
   if (NOINDEX_PREFIXES.some((prefix) => matchesPrefix(pathname, prefix))) {
     response.headers.set("X-Robots-Tag", NOINDEX_VALUE);
   }

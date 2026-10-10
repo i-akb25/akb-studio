@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { hasValidAevaOrigin } from "@/features/aeva/server/aeva-guard";
+import {
+  acceptAevaEndRequest,
+  hasValidAevaOrigin,
+} from "@/features/aeva/server/aeva-guard";
 import { endSharedConversation } from "@/features/aeva/server/persistence";
 import { RequestSecurityError, readJsonBody } from "@/server/security/request";
 
@@ -10,13 +13,17 @@ const schema = z
 export async function POST(request: Request) {
   if (!hasValidAevaOrigin(request))
     return Response.json({ error: "Invalid request" }, { status: 403 });
+  if (!(await acceptAevaEndRequest(request)))
+    return Response.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": "900" } },
+    );
   try {
     const input = schema.parse(await readJsonBody(request, 1_024));
     if (input.conversationId) await endSharedConversation(input.conversationId);
     return Response.json({
       ok: true,
-      message:
-        "Thank you for talking with Aeva. Your questions help make this portfolio more useful.",
+      message: "This conversation has ended.",
     });
   } catch (error) {
     return Response.json(

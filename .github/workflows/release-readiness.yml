@@ -21,7 +21,7 @@ jobs:
         with:
           version: 11.20.0
           run_install: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -37,4 +37,6 @@ jobs:
           BETTER_AUTH_SECRET: release-readiness-only-release-readiness-only
       - name: Production health probe
         if: inputs.production_url != ''
-        run: curl --fail --silent --show-error --max-time 15 "${{ inputs.production_url }}/api/health"
+        env:
+          PRODUCTION_ORIGIN: ${{ inputs.production_url }}
+        run: node scripts/quality/production-smoke.mjs "$PRODUCTION_ORIGIN"

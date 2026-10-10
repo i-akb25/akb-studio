@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  isOfflineRecord,
   mergeOfflineRecords,
   type OfflineRecord,
 } from "../../src/features/offline/model";
@@ -29,4 +30,27 @@ test("equal-revision differences are preserved as conflict copies", () => {
   const merged = mergeOfflineRecords([base], [conflict]);
   assert.equal(merged.length, 2);
   assert.ok(merged.some((record) => record.title.includes("import conflict")));
+});
+
+test("same-timestamp conflicts never overwrite one another and repeated imports are idempotent", () => {
+  const first = { ...base, body: "first conflict" };
+  const second = { ...base, body: "second conflict" };
+  const merged = mergeOfflineRecords([base], [first, second]);
+  assert.equal(merged.length, 3);
+  assert.equal(new Set(merged.map((record) => record.id)).size, 3);
+  assert.deepEqual(mergeOfflineRecords(merged, [first, second]), merged);
+});
+
+test("offline imports reject malformed URLs, revisions, dates and oversized fields", () => {
+  assert.equal(isOfflineRecord(base), true);
+  for (const patch of [
+    { revision: Infinity },
+    { revision: -1 },
+    { revision: 1.1 },
+    { updatedAt: "invalid" },
+    { url: {} },
+    { body: "x".repeat(10001) },
+  ]) {
+    assert.equal(isOfflineRecord({ ...base, ...patch }), false);
+  }
 });

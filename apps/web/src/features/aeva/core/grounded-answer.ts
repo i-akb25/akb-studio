@@ -23,7 +23,7 @@ export function groundedFallbackAnswer(input: {
   }).format(titles);
   return clampWords(
     pages
-      ? `I couldn’t prepare a reliable conversational answer without risking a misleading summary. I found relevant verified pages for ${pages}; you can inspect them below. I won’t expose partial source fragments as if they were a complete answer.`
+      ? `I couldn’t prepare a reliable conversational answer. You can open the verified pages for ${pages} below, or try again shortly.`
       : "I don’t have enough reliable published evidence to answer that without guessing. Try a more specific portfolio question or enable live web search for current public information.",
     input.maxWords,
   );

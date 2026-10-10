@@ -38,6 +38,12 @@ const groups: Array<{ label: string; items: NavigationItem[] }> = [
     label: "Overview",
     items: [
       {
+        href: "/admin/release",
+        label: "Launch checks",
+        description: "Configuration and release review",
+        icon: ShieldCheck,
+      },
+      {
         href: "/admin/site",
         label: "Site settings",
         description: "Email, metadata and previews",

@@ -1,5 +1,28 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalEnv": [
+    "NEXT_PUBLIC_*",
+    "PUBLIC_SITE_URL",
+    "BETTER_AUTH_*",
+    "DATABASE_URL",
+    "AEVA_*",
+    "GEMINI_API_KEY",
+    "AKB_*",
+    "GITHUB_*",
+    "CLOUDINARY_*",
+    "CONTACT_*",
+    "GMAIL_*",
+    "TURNSTILE_*",
+    "ABUSE_HASH_SECRET",
+    "ANALYTICS_HASH_SECRET",
+    "APPS_SCRIPT_SIGNING_SECRET",
+    "GOOGLE_SITE_VERIFICATION",
+    "LOG_LEVEL",
+    "AUDIT_*",
+    "VERCEL_*",
+    "NODE_ENV"
+  ],
+  "globalDependencies": [".env", ".env.*"],
   "tasks": {
     "dev": {
       "cache": false,
@@ -7,6 +30,7 @@
     },
     "build": {
       "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", ".env", ".env.*"],
       "outputs": [".next/**", "!.next/cache/**"]
     },
     "typecheck": {

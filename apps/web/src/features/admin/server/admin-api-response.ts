@@ -3,6 +3,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { logger, safeErrorFields } from "@/server/logging/logger";
+import { RequestSecurityError } from "@/server/security/request";
 
 type ErrorWithCode = Error & { code?: string };
 
@@ -74,6 +75,9 @@ export function adminErrorResponse(
   const reference = randomUUID().slice(0, 8);
   logger.error({ event: options.event, reference, ...safeErrorFields(error) });
 
+  if (error instanceof RequestSecurityError)
+    return Response.json({ error: error.message }, { status: error.status });
+
   if (error instanceof z.ZodError) {
     const issue = error.issues[0];
     const field = issue?.path.length ? `${issue.path.join(".")}: ` : "";
@@ -85,7 +89,7 @@ export function adminErrorResponse(
     );
   }
 
-  const coded = error as ErrorWithCode;
+  const coded = (error ?? {}) as ErrorWithCode;
   const databaseMessage = coded.code ? databaseMessages[coded.code] : undefined;
   if (databaseMessage) {
     return Response.json(

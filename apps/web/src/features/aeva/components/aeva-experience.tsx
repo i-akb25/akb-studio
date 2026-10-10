@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { trackConversion } from "@/features/analytics/components/conversion-tracker";
 import { POLICY_VERSIONS } from "@/features/legal/policy-registry";
+import { boundedConversationHistory } from "../core/provider-contract";
 import type { AevaAction, AevaAnswer, AevaCitation, AevaMode } from "../model";
 import { ConversationFeedback } from "./conversation-feedback";
 import { VoiceControls } from "./voice-controls";
@@ -47,6 +48,9 @@ export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
   const [showReport, setShowReport] = useState(false);
   const questionRef = useRef<HTMLTextAreaElement>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
+  const requestRef = useRef<AbortController | null>(null);
+
+  useEffect(() => () => requestRef.current?.abort(), []);
 
   useEffect(() => {
     if (!messages.length) return;
@@ -80,7 +84,17 @@ export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
 
   async function ask(value: string) {
     const trimmed = value.trim();
-    if (!trimmed || status || messages.length >= 40) return;
+    if (
+      !trimmed ||
+      status ||
+      requestRef.current ||
+      ended ||
+      messages.length >= 40
+    )
+      return;
+    const abort = new AbortController();
+    requestRef.current = abort;
+    const timeout = window.setTimeout(() => abort.abort(), 60_000);
     setQuestion("");
     setMessages((current) => [...current, { role: "user", text: trimmed }]);
     setStatus("Connecting to Aeva");
@@ -89,6 +103,7 @@ export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
       const response = await fetch("/api/aeva", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: abort.signal,
         body: JSON.stringify({
           question: trimmed,
           mode,
@@ -96,10 +111,7 @@ export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
           shareConversation,
           shareUnknownQuestion,
           conversationId,
-          history: messages.slice(-8).map((message) => ({
-            role: message.role,
-            text: message.text,
-          })),
+          history: boundedConversationHistory(messages),
           pageContext: pageContext(),
           ...(mode === "recruiter" && jobDescription.trim().length >= 40
             ? { jobDescription: jobDescription.trim() }
@@ -111,40 +123,53 @@ export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
-      while (true) {
-        const chunk = await reader.read();
-        if (chunk.done) break;
-        buffer += decoder.decode(chunk.value, { stream: true });
-        const events = buffer.split("\n\n");
-        buffer = events.pop() ?? "";
-        for (const event of events) {
-          const line = event
-            .split("\n")
-            .find((item) => item.startsWith("data: "));
-          if (!line) continue;
-          const payload = JSON.parse(line.slice(6)) as
-            | { type: "status"; message: string }
-            | { type: "answer"; result: AevaAnswer };
-          if (payload.type === "status") setStatus(payload.message);
-          else {
-            trackConversion(
-              payload.result.ok ? "aeva_success" : "aeva_failure",
-            );
-            setMessages((current) => [
-              ...current,
-              {
-                role: "assistant",
-                text: payload.result.answer,
-                citations: payload.result.citations,
-                evidenceState: payload.result.evidenceState,
-                actions: payload.result.actions,
-                responseId: payload.result.requestId,
-              },
-            ]);
-            setFollowUps(payload.result.followUps);
-            setConversationId(payload.result.conversationId ?? conversationId);
+      let receivedAnswer = false;
+      try {
+        while (true) {
+          const chunk = await reader.read();
+          if (chunk.done) break;
+          buffer += decoder.decode(chunk.value, { stream: true });
+          const events = buffer.split("\n\n");
+          buffer = events.pop() ?? "";
+          for (const event of events) {
+            const line = event
+              .split("\n")
+              .find((item) => item.startsWith("data: "));
+            if (!line) continue;
+            const payload = JSON.parse(line.slice(6)) as
+              | { type: "status"; message: string }
+              | { type: "answer"; result: AevaAnswer };
+            if (payload.type === "status") setStatus(payload.message);
+            else {
+              if (receivedAnswer) continue;
+              receivedAnswer = true;
+              trackConversion(
+                payload.result.ok ? "aeva_success" : "aeva_failure",
+              );
+              setMessages((current) => [
+                ...current,
+                {
+                  role: "assistant",
+                  text: payload.result.answer,
+                  citations: payload.result.citations,
+                  evidenceState: payload.result.evidenceState,
+                  actions: payload.result.actions,
+                  responseId: payload.result.requestId,
+                },
+              ]);
+              setFollowUps(payload.result.followUps);
+              setConversationId(
+                payload.result.conversationId ?? conversationId,
+              );
+            }
           }
         }
+        if (!receivedAnswer) throw new Error("incomplete_stream");
+      } catch (error) {
+        if (!receivedAnswer) throw error;
+      } finally {
+        await reader.cancel().catch(() => {});
+        reader.releaseLock();
       }
     } catch {
       trackConversion("aeva_failure");
@@ -152,22 +177,26 @@ export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
         ...current,
         {
           role: "assistant",
-          text: "I couldn't complete that request. Your message remains in this browser, so you can retry when the service is available.",
+          text: "I couldn’t complete that request. Please try again shortly. If sharing was enabled, the request may have reached the server.",
         },
       ]);
     } finally {
+      window.clearTimeout(timeout);
+      if (requestRef.current === abort) requestRef.current = null;
       setStatus("");
     }
   }
 
   async function endChat() {
+    setShowReport(false);
+    setEnded(true);
+    if (!conversationId) return;
     await fetch("/api/aeva/end", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      signal: AbortSignal.timeout(8_000),
       body: JSON.stringify({ conversationId }),
     }).catch(() => undefined);
-    setShowReport(false);
-    setEnded(true);
   }
 
   const latestResponseId = messages.findLast(

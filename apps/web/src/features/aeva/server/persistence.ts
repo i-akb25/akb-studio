@@ -33,40 +33,43 @@ export async function saveSharedExchange(input: {
   const answer = encryptAevaText(redactAevaText(input.answer));
   if (!question || !answer) return undefined;
   try {
-    const conversation = input.conversationId
-      ? await prisma.aevaConversation.findFirst({
-          where: {
-            publicId: input.conversationId,
+    return await prisma.$transaction(async (tx) => {
+      const conversation = input.conversationId
+        ? await tx.aevaConversation.findFirst({
+            where: {
+              publicId: input.conversationId,
+              shared: true,
+              endedAt: null,
+              retentionUntil: { gt: new Date() },
+            },
+          })
+        : null;
+      const active =
+        conversation ??
+        (await tx.aevaConversation.create({
+          data: {
+            publicId: randomUUID(),
+            mode: input.mode,
             shared: true,
-            retentionUntil: { gt: new Date() },
+            consentVersion: input.consentVersion,
+            retentionUntil: retentionDate(),
           },
-        })
-      : null;
-    const active =
-      conversation ??
-      (await prisma.aevaConversation.create({
-        data: {
-          publicId: randomUUID(),
-          mode: input.mode,
-          shared: true,
-          consentVersion: input.consentVersion,
-          retentionUntil: retentionDate(),
-        },
-      }));
-    await prisma.aevaMessage.createMany({
-      data: [
-        { conversationId: active.id, role: "USER", encryptedBody: question },
-        {
-          conversationId: active.id,
-          role: "ASSISTANT",
-          encryptedBody: answer,
-          citations: JSON.parse(
-            JSON.stringify(input.citations),
-          ) as Prisma.InputJsonValue,
-        },
-      ],
+        }));
+      await tx.aevaMessage.createMany({
+        data: [
+          { conversationId: active.id, role: "USER", encryptedBody: question },
+          {
+            conversationId: active.id,
+            role: "ASSISTANT",
+            encryptedBody: answer,
+            citations: JSON.parse(
+              JSON.stringify(input.citations),
+            ) as Prisma.InputJsonValue,
+          },
+        ],
+      });
+      return active.publicId;
     });
-    return active.publicId;
   } catch {
     return undefined;
   }
@@ -76,7 +79,12 @@ export async function endSharedConversation(publicId: string): Promise<void> {
   if (!process.env.DATABASE_URL) return;
   await prisma.aevaConversation
     .updateMany({
-      where: { publicId, shared: true },
+      where: {
+        publicId,
+        shared: true,
+        endedAt: null,
+        retentionUntil: { gt: new Date() },
+      },
       data: { endedAt: new Date() },
     })
     .catch(() => undefined);
@@ -88,8 +96,11 @@ export async function recordKnowledgeGap(
   consentVersion: string,
 ) {
   if (!process.env.DATABASE_URL) return;
-  const secret = process.env.AEVA_ABUSE_HASH_SECRET?.trim();
-  if (!secret) return;
+  const secret =
+    process.env.ABUSE_HASH_SECRET?.trim() ||
+    process.env.CONTACT_ABUSE_HASH_SECRET?.trim() ||
+    process.env.AEVA_ABUSE_HASH_SECRET?.trim();
+  if (!secret || secret.length < 32) return;
   const normalized = redactAevaText(question)
     .toLocaleLowerCase("en-IN")
     .replace(/\s+/g, " ")

@@ -1,6 +1,7 @@
 "use client";
 
 import { type FormEvent, useState } from "react";
+import { boundedConversationHistory } from "@/features/aeva/core/provider-contract";
 
 type Message = { role: "user" | "assistant"; text: string };
 type Reference = { id: string; title: string; label?: string; url?: string };
@@ -24,7 +25,11 @@ export function PrivateAevaConsole() {
       const response = await fetch("/api/admin/aeva/private", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: value, history: messages.slice(-8) }),
+        signal: AbortSignal.timeout(45_000),
+        body: JSON.stringify({
+          question: value,
+          history: boundedConversationHistory(messages),
+        }),
       });
       const result = (await response.json()) as {
         answer?: string;
@@ -119,8 +124,8 @@ export function PrivateAevaConsole() {
       </form>
       <output aria-live="polite">{status}</output>
       <p>
-        Disabled in 2.1: email, calendar, GitHub, VEYRA, contacts, audit
-        records, autonomous actions and external writes.
+        Unavailable in this assistant: email, calendar, GitHub, VEYRA, contacts,
+        audit records, autonomous actions and external writes.
       </p>
     </section>
   );

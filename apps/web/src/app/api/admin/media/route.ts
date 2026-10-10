@@ -14,6 +14,7 @@ import {
   uploadAdminMedia,
 } from "@/features/media/server/cloudinary-media";
 import { prisma } from "@/server/db/prisma";
+import { readLimitedBody } from "@/server/security/request";
 
 export const runtime = "nodejs";
 
@@ -69,7 +70,15 @@ export async function POST(request: Request) {
         { error: "Upload is too large." },
         { status: 413 },
       );
-    const form = await request.formData();
+    const uploadBody = await readLimitedBody(
+      request,
+      Math.floor(4.5 * 1024 * 1024),
+    );
+    const form = await new Request(request.url, {
+      method: "POST",
+      headers: { "Content-Type": request.headers.get("content-type") ?? "" },
+      body: uploadBody as BodyInit,
+    }).formData();
     const file = form.get("file");
     const altText = String(form.get("altText") ?? "").trim();
     const replaceId = String(form.get("replaceId") ?? "").trim() || undefined;

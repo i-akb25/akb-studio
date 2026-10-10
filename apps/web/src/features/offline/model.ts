@@ -25,14 +25,28 @@ export function mergeOfflineRecords(
       record.revision === current.revision &&
       JSON.stringify(record) !== JSON.stringify(current)
     ) {
-      merged.set(
-        `${record.id}-conflict-${Date.parse(record.updatedAt) || Date.now()}`,
-        {
-          ...record,
-          id: `${record.id}-conflict-${Date.parse(record.updatedAt) || Date.now()}`,
-          title: `${record.title} (import conflict)`,
-        },
-      );
+      const prefix = `${record.id}-conflict-${Date.parse(record.updatedAt) || 0}`;
+      let conflictId = prefix;
+      let suffix = 1;
+      while (merged.has(conflictId)) {
+        const existing = merged.get(conflictId);
+        if (
+          existing &&
+          existing.body === record.body &&
+          existing.url === record.url &&
+          existing.revision === record.revision &&
+          existing.kind === record.kind &&
+          existing.updatedAt === record.updatedAt &&
+          existing.title === `${record.title} (import conflict)`
+        )
+          break;
+        conflictId = `${prefix}-${suffix++}`;
+      }
+      merged.set(conflictId, {
+        ...record,
+        id: conflictId,
+        title: `${record.title} (import conflict)`,
+      });
     }
   }
   return [...merged.values()].sort((a, b) =>
@@ -45,10 +59,19 @@ export function isOfflineRecord(value: unknown): value is OfflineRecord {
   const record = value as Partial<OfflineRecord>;
   return Boolean(
     typeof record.id === "string" &&
+      record.id.length > 0 &&
+      record.id.length <= 300 &&
       ["collection", "note", "contact-draft"].includes(record.kind ?? "") &&
       typeof record.title === "string" &&
+      record.title.length <= 200 &&
       typeof record.body === "string" &&
+      record.body.length <= 10_000 &&
+      (record.url === undefined ||
+        (typeof record.url === "string" && record.url.length <= 1_000)) &&
       typeof record.revision === "number" &&
-      typeof record.updatedAt === "string",
+      Number.isSafeInteger(record.revision) &&
+      record.revision >= 1 &&
+      typeof record.updatedAt === "string" &&
+      Number.isFinite(Date.parse(record.updatedAt)),
   );
 }

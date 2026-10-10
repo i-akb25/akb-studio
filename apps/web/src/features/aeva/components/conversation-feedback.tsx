@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { POLICY_VERSIONS } from "@/features/legal/policy-registry";
+import { boundedConversationHistory } from "../core/provider-contract";
 import type { AevaConversationTurn } from "../model";
 
 const feedbackReasons = [
@@ -52,6 +53,7 @@ export function ConversationFeedback({
       const response = await fetch("/api/feedback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(15_000),
         body: JSON.stringify({
           responseId,
           kind: variant,
@@ -61,7 +63,7 @@ export function ConversationFeedback({
           policyVersion: POLICY_VERSIONS.aeva,
           includeTranscript: variant === "report" && includeTranscript,
           ...(variant === "report" && includeTranscript
-            ? { transcript: transcript.slice(-8) }
+            ? { transcript: boundedConversationHistory(transcript) }
             : {}),
         }),
       });

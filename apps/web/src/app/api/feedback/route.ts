@@ -102,7 +102,7 @@ export async function POST(request: Request) {
     return Response.json(
       {
         error:
-          "Feedback is temporarily unavailable. No conversation was exposed.",
+          "Feedback could not be confirmed. Please try again shortly. A consented excerpt may already have reached the service.",
       },
       { status: 503 },
     );

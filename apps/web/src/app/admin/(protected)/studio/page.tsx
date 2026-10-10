@@ -4,7 +4,8 @@ import { getStudioHealthFindings } from "@/features/admin/server/studio-health";
 import { prisma } from "@/server/db/prisma";
 
 export default async function PrivateStudioPage() {
-  await requireAdmin("contact:moderate");
+  const session = await requireAdmin("contact:moderate");
+  const isOwner = session.role === "owner";
   const now = new Date();
   const [contacts, reminders, journeys, suggestions, recovery, findings] =
     await Promise.all([
@@ -32,20 +33,26 @@ export default async function PrivateStudioPage() {
         orderBy: { dueAt: "asc" },
         take: 50,
       }),
-      prisma.anonymousJourney.findMany({
-        where: { retentionUntil: { gt: now } },
-        orderBy: { lastSeenAt: "desc" },
-        take: 500,
-      }),
-      prisma.studioSuggestion.findMany({
-        orderBy: { createdAt: "desc" },
-        take: 50,
-      }),
-      prisma.recoveryVerification.findMany({
-        orderBy: { restoreTestedAt: "desc" },
-        take: 12,
-      }),
-      getStudioHealthFindings(),
+      isOwner
+        ? prisma.anonymousJourney.findMany({
+            where: { retentionUntil: { gt: now } },
+            orderBy: { lastSeenAt: "desc" },
+            take: 500,
+          })
+        : Promise.resolve([]),
+      isOwner
+        ? prisma.studioSuggestion.findMany({
+            orderBy: { createdAt: "desc" },
+            take: 50,
+          })
+        : Promise.resolve([]),
+      isOwner
+        ? prisma.recoveryVerification.findMany({
+            orderBy: { restoreTestedAt: "desc" },
+            take: 12,
+          })
+        : Promise.resolve([]),
+      isOwner ? getStudioHealthFindings() : Promise.resolve([]),
     ]);
   const projectEngagement = new Map<string, number>();
   const categoryEngagement = new Map<string, number>();
@@ -89,97 +96,107 @@ export default async function PrivateStudioPage() {
           <p>No eligible adult contact records.</p>
         )}
       </section>
-      <section>
-        <h2>Anonymous engagement</h2>
-        <p>
-          {journeys.length} consented session summary record(s), retained for no
-          more than 30 days. These records have no contact identifier, IP
-          address or user agent.
-        </p>
-        <dl>
-          <div>
-            <dt>Recorded page views</dt>
-            <dd>{journeys.reduce((sum, item) => sum + item.pageCount, 0)}</dd>
-          </div>
-          <div>
-            <dt>Recorded attention</dt>
-            <dd>
-              {Math.round(
-                journeys.reduce((sum, item) => sum + item.totalSeconds, 0) / 60,
-              )}{" "}
-              min
-            </dd>
-          </div>
-        </dl>
-        <h3>Project reach</h3>
-        <ul>
-          {[...projectEngagement.entries()]
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 10)
-            .map(([slug, count]) => (
-              <li key={slug}>
-                {slug} · {count} session(s)
-              </li>
-            ))}
-        </ul>
-        <h3>Category reach</h3>
-        <ul>
-          {[...categoryEngagement.entries()]
-            .sort((a, b) => b[1] - a[1])
-            .map(([category, count]) => (
-              <li key={category}>
-                {category} · {count} session(s)
-              </li>
-            ))}
-        </ul>
-      </section>
-      <section>
-        <h2>Portfolio health</h2>
-        {findings.length ? (
-          <ul>
-            {findings.map((finding) => (
-              <li key={finding.id}>
-                <strong>{finding.title}</strong> · {finding.detail}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>No current findings from the implemented checks.</p>
-        )}
-      </section>
-      <section>
-        <h2>Suggestion decisions</h2>
-        {suggestions.length ? (
-          <ul>
-            {suggestions.map((item) => (
-              <li key={item.id}>
-                {item.state} · {item.title} · {item.proposedAction}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>No suggestions recorded.</p>
-        )}
-      </section>
-      <section>
-        <h2>Recovery record</h2>
-        {recovery.length ? (
-          <ul>
-            {recovery.map((item) => (
-              <li key={item.id}>
-                {item.restoreTestedAt.toISOString()} · {item.outcome} ·{" "}
-                {item.backupLabel}
-              </li>
-            ))}
-          </ul>
-        ) : (
+      {isOwner ? (
+        <section>
+          <h2>Anonymous engagement</h2>
           <p>
-            No restore drill has been recorded. A backup is not considered
-            verified until a restore test succeeds.
+            {journeys.length} consented session summary record(s), retained for
+            no more than 30 days. These records have no contact identifier, IP
+            address or user agent.
           </p>
-        )}
-      </section>
+          <dl>
+            <div>
+              <dt>Recorded page views</dt>
+              <dd>{journeys.reduce((sum, item) => sum + item.pageCount, 0)}</dd>
+            </div>
+            <div>
+              <dt>Recorded attention</dt>
+              <dd>
+                {Math.round(
+                  journeys.reduce((sum, item) => sum + item.totalSeconds, 0) /
+                    60,
+                )}{" "}
+                min
+              </dd>
+            </div>
+          </dl>
+          <h3>Project reach</h3>
+          <ul>
+            {[...projectEngagement.entries()]
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 10)
+              .map(([slug, count]) => (
+                <li key={slug}>
+                  {slug} · {count} session(s)
+                </li>
+              ))}
+          </ul>
+          <h3>Category reach</h3>
+          <ul>
+            {[...categoryEngagement.entries()]
+              .sort((a, b) => b[1] - a[1])
+              .map(([category, count]) => (
+                <li key={category}>
+                  {category} · {count} session(s)
+                </li>
+              ))}
+          </ul>
+        </section>
+      ) : null}
+      {isOwner ? (
+        <section>
+          <h2>Portfolio health</h2>
+          {findings.length ? (
+            <ul>
+              {findings.map((finding) => (
+                <li key={finding.id}>
+                  <strong>{finding.title}</strong> · {finding.detail}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>No current findings from the implemented checks.</p>
+          )}
+        </section>
+      ) : null}
+      {isOwner ? (
+        <>
+          <section>
+            <h2>Suggestion decisions</h2>
+            {suggestions.length ? (
+              <ul>
+                {suggestions.map((item) => (
+                  <li key={item.id}>
+                    {item.state} · {item.title} · {item.proposedAction}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p>No suggestions recorded.</p>
+            )}
+          </section>
+          <section>
+            <h2>Recovery record</h2>
+            {recovery.length ? (
+              <ul>
+                {recovery.map((item) => (
+                  <li key={item.id}>
+                    {item.restoreTestedAt.toISOString()} · {item.outcome} ·{" "}
+                    {item.backupLabel}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p>
+                No restore drill has been recorded. A backup is not considered
+                verified until a restore test succeeds.
+              </p>
+            )}
+          </section>
+        </>
+      ) : null}
       <StudioWorkspace
+        canManageGovernance={isOwner}
         contacts={contacts.map((item) => ({
           id: item.id,
           label: `${item.reference} · ${item.subject}`,

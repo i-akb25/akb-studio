@@ -1,6 +1,8 @@
+import { requireAdmin } from "@/features/admin/server/admin-auth";
 import { prisma } from "@/server/db/prisma";
 
 export default async function AdminRequestsPage() {
+  await requireAdmin("contact:moderate");
   const [submissions, privacyRequests] = await Promise.all([
     prisma.contactSubmission.findMany({
       orderBy: { createdAt: "desc" },

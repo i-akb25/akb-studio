@@ -1,16 +1,5 @@
-import { createHash } from "node:crypto";
+import { verifyAuditEntries } from "../src/features/admin/server/audit-integrity";
 import { prisma } from "../src/server/db/prisma-client";
-
-function canonical(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
-  if (value && typeof value === "object") {
-    return `{${Object.entries(value)
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([key, item]) => `${JSON.stringify(key)}:${canonical(item)}`)
-      .join(",")}}`;
-  }
-  return JSON.stringify(value) ?? "null";
-}
 
 async function main() {
   const entries = await prisma.auditLog.findMany({
@@ -18,30 +7,12 @@ async function main() {
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
 
-  let prior: string | null = null;
-  for (const [index, entry] of entries.entries()) {
-    if (index > 0 && entry.previousHash !== prior)
-      throw new Error(`Broken audit link at ${entry.id}`);
-    const expected = createHash("sha256")
-      .update(
-        canonical({
-          actorId: entry.actorId,
-          action: entry.action,
-          entityType: entry.entityType,
-          entityId: entry.entityId,
-          before: entry.before,
-          after: entry.after,
-          createdAt: entry.createdAt.toISOString(),
-          previousHash: entry.previousHash,
-        }),
-      )
-      .digest("hex");
-    if (expected !== entry.entryHash)
-      throw new Error(`Audit hash mismatch at ${entry.id}`);
-    prior = entry.entryHash;
-  }
-
-  console.log(`Verified ${entries.length} chained audit event(s).`);
+  const result = verifyAuditEntries(entries);
+  if (!result.valid)
+    throw new Error(`Audit verification failed at ${result.errorId}`);
+  console.log(
+    `Verified ${result.count} chained audit event(s)${result.checkpointed ? " from the retained checkpoint" : ""}.`,
+  );
   await prisma.$disconnect();
 }
 

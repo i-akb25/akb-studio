@@ -2,16 +2,22 @@ import "server-only";
 
 import { createHmac, randomUUID } from "node:crypto";
 import type { Prisma } from "@generated/prisma/client";
+import {
+  boundedRetentionDays,
+  retentionDeadline,
+} from "@/features/operations/retention-policy";
 import { prisma } from "@/server/db/prisma";
 import type { AevaCitation, AevaMode } from "../model";
 import { encryptAevaText, redactAevaText } from "./encryption";
 
 function retentionDate(): Date {
-  const configured = Number(process.env.AEVA_CONVERSATION_RETENTION_DAYS ?? 30);
-  const days = Number.isFinite(configured)
-    ? Math.max(1, Math.min(30, configured))
-    : 30;
-  return new Date(Date.now() + days * 86_400_000);
+  const days = boundedRetentionDays(
+    process.env.AEVA_CONVERSATION_RETENTION_DAYS,
+    30,
+    1,
+    30,
+  );
+  return retentionDeadline(new Date(), days);
 }
 
 export async function saveSharedExchange(input: {

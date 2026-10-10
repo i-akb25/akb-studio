@@ -15,6 +15,7 @@ import {
   NotebookPen,
   ScrollText,
   Settings2,
+  ShieldCheck,
   Sparkles,
   UserRound,
 } from "lucide-react";
@@ -151,6 +152,12 @@ const groups: Array<{ label: string; items: NavigationItem[] }> = [
         label: "Audit log",
         description: "Recorded administrative changes",
         icon: ScrollText,
+      },
+      {
+        href: "/admin/personal-operations",
+        label: "Personal operations",
+        description: "Retention, approvals and recovery",
+        icon: ShieldCheck,
       },
     ],
   },

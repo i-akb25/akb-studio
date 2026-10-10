@@ -15,6 +15,8 @@ import {
 type PravaahConsoleProps = {
   items: readonly FeatureItem[];
   discoveries: readonly FeatureItem[];
+  discoveryStatus: "healthy" | "degraded";
+  discoveryDetail: string;
   anonymousNoteConfigured: boolean;
   mediaAssets: readonly {
     id: string;
@@ -27,6 +29,8 @@ type PravaahConsoleProps = {
 export function PravaahConsole({
   items,
   discoveries,
+  discoveryStatus,
+  discoveryDetail,
   anonymousNoteConfigured,
   mediaAssets,
 }: PravaahConsoleProps) {
@@ -154,6 +158,9 @@ export function PravaahConsole({
           <span>{discoveries.length} PENDING</span>
         </div>
         <h2 id="pravaah-inbox-title">GitHub discoveries</h2>
+        <p role={discoveryStatus === "degraded" ? "alert" : undefined}>
+          Provider status: {discoveryStatus}. {discoveryDetail}
+        </p>
         {discoveries.length ? (
           <div className="akb-admin-list">
             {discoveries.map((item) => (

@@ -13,6 +13,13 @@ test("publishing integrations use approved GitHub APIs without social scraping",
     ),
     readFile(
       new URL(
+        "../../src/features/social-intelligence/server/github-verifier.ts",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+    readFile(
+      new URL(
         "../../src/features/pravaah/server/feature-publisher.ts",
         import.meta.url,
       ),

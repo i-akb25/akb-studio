@@ -117,6 +117,7 @@ export async function POST(request: Request) {
       const externalSource = [
         "github",
         "linkedin",
+        "instagram",
         "x",
         "medium",
         "quora",

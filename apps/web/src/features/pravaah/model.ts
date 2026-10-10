@@ -3,6 +3,7 @@ import { z } from "zod";
 export const FEATURE_SOURCES = [
   "github",
   "linkedin",
+  "instagram",
   "x",
   "medium",
   "quora",
@@ -83,6 +84,7 @@ const sourceHosts: Partial<Record<(typeof FEATURE_SOURCES)[number], string[]>> =
   {
     github: ["github.com"],
     linkedin: ["linkedin.com"],
+    instagram: ["instagram.com"],
     x: ["x.com", "twitter.com"],
     medium: ["medium.com"],
     quora: ["quora.com"],
@@ -139,6 +141,7 @@ export const featureItemSchema = z
     const isExternalSource = [
       "github",
       "linkedin",
+      "instagram",
       "x",
       "medium",
       "quora",
@@ -191,6 +194,7 @@ export function featureSourceLabel(
   const labels: Record<FeatureSource, string> = {
     github: "GitHub",
     linkedin: "LinkedIn",
+    instagram: "Instagram",
     x: "X",
     medium: "Medium",
     quora: "Quora",

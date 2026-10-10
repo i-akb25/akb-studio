@@ -23,6 +23,7 @@ type SignalFilter =
   | "by-akb"
   | "about-akb"
   | "linkedin"
+  | "instagram"
   | "x"
   | "github"
   | "publications"
@@ -35,6 +36,7 @@ const FILTERS: readonly { value: SignalFilter; label: string }[] = [
   { value: "by-akb", label: "Published by me" },
   { value: "about-akb", label: "Written about me" },
   { value: "linkedin", label: "LinkedIn" },
+  { value: "instagram", label: "Instagram" },
   { value: "x", label: "X" },
   { value: "github", label: "GitHub" },
   { value: "publications", label: "Publications" },
@@ -53,6 +55,13 @@ function SourceIcon({ source }: { source: FeatureSource }) {
     return (
       <span className="pravaah-source-mark" aria-hidden="true">
         IN
+      </span>
+    );
+  }
+  if (source === "instagram") {
+    return (
+      <span className="pravaah-source-mark" aria-hidden="true">
+        IG
       </span>
     );
   }
@@ -78,6 +87,7 @@ function formatDate(value: string | undefined): string {
 function matchesFilter(item: FeatureItem, filter: SignalFilter): boolean {
   if (filter === "all") return true;
   if (filter === "linkedin") return item.source === "linkedin";
+  if (filter === "instagram") return item.source === "instagram";
   if (filter === "x") return item.source === "x";
   if (filter === "github") return item.source === "github";
   if (filter === "publications") {

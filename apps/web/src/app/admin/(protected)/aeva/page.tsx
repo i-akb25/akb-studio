@@ -8,6 +8,10 @@ import { prisma } from "@/server/db/prisma";
 export default async function AdminAevaPage() {
   const session = await requireAdmin("content:write");
   const isOwner = session.role === "owner";
+  const providerConfigured = Boolean(process.env.GEMINI_API_KEY?.trim());
+  const liveWebEnabled = process.env.AEVA_WEB_SEARCH_ENABLED === "true";
+  const providerModel =
+    process.env.AEVA_GEMINI_MODEL?.trim() || "gemini-3.8-flash";
   const [memories, sources, gaps, incidents] = await Promise.all([
     prisma.aevaMemory.findMany({
       where: isOwner ? undefined : { visibility: "PUBLIC_AEVA" },
@@ -115,6 +119,21 @@ export default async function AdminAevaPage() {
           ) : (
             <p>No open knowledge gaps.</p>
           )}
+        </section>
+      ) : null}
+      {isOwner ? (
+        <section>
+          <h2>Provider configuration</h2>
+          <p>
+            Gemini credential: {providerConfigured ? "configured" : "missing"}
+            {" · "}Model: {providerModel}
+            {" · "}Live web: {liveWebEnabled ? "enabled" : "disabled"}
+          </p>
+          <p>
+            Credential values are never shown. Live questions require both a
+            valid server credential and{" "}
+            <code>AEVA_WEB_SEARCH_ENABLED=true</code>.
+          </p>
         </section>
       ) : null}
       {isOwner ? (

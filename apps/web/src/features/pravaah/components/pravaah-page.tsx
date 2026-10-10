@@ -40,6 +40,12 @@ const PROFILE_SOURCES: ReadonlyArray<{
     platform: "x",
   },
   {
+    label: "Instagram",
+    handle: "@urr_anurag.akb",
+    href: "https://www.instagram.com/urr_anurag.akb/",
+    platform: "instagram",
+  },
+  {
     label: "GitHub",
     handle: "i-akb25",
     href: "https://github.com/i-akb25",
@@ -132,6 +138,8 @@ export function PravaahPage({ signals, anonymousNoteUrl }: PravaahPageProps) {
         <span>LINKEDIN</span>
         <i aria-hidden="true" />
         <span>X</span>
+        <i aria-hidden="true" />
+        <span>INSTAGRAM</span>
         <i aria-hidden="true" />
         <span>GITHUB</span>
         <i aria-hidden="true" />

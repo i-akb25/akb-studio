@@ -3,6 +3,7 @@ import "server-only";
 import { Buffer } from "node:buffer";
 import { randomUUID } from "node:crypto";
 import { revalidatePath, revalidateTag } from "next/cache";
+import { recordOperationalHealth } from "@/server/analytics/metrics";
 
 import {
   EMPTY_FEATURE_MANIFEST,
@@ -162,7 +163,14 @@ async function mirrorManifest(
   message: string,
 ): Promise<void> {
   const token = writeToken();
-  if (!token) return;
+  if (!token) {
+    await recordOperationalHealth({
+      key: "social_github_mirror",
+      status: "disabled",
+      summary: "No Pravaah mirror write credential is configured.",
+    });
+    return;
+  }
   const path = MANIFEST_PATH.split("/")
     .map((segment) => encodeURIComponent(segment))
     .join("/");
@@ -187,6 +195,11 @@ async function mirrorManifest(
   );
 
   if (!response.ok) throw repositoryError("publish", response.status);
+  await recordOperationalHealth({
+    key: "social_github_mirror",
+    status: "healthy",
+    summary: "The reviewed Pravaah manifest was mirrored successfully.",
+  });
 }
 
 async function writeManifest(
@@ -203,7 +216,15 @@ async function writeManifest(
   // branch-restricted token must not break the authenticated Admin controls.
   try {
     await mirrorManifest(manifest, input.message);
-  } catch {
+  } catch (error) {
+    await recordOperationalHealth({
+      key: "social_github_mirror",
+      status: "degraded",
+      summary:
+        error instanceof Error
+          ? error.message
+          : "The Pravaah mirror update failed.",
+    });
     // Neon is authoritative for Admin changes; the public reader still uses
     // the Git manifest whenever Neon is unavailable.
   }

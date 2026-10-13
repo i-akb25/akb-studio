@@ -158,10 +158,7 @@ async function currentSha(token: string): Promise<string | undefined> {
   return typeof payload.sha === "string" ? payload.sha : undefined;
 }
 
-async function mirrorManifest(
-  manifest: FeatureManifest,
-  message: string,
-): Promise<void> {
+async function mirrorManifest(message: string): Promise<void> {
   const token = writeToken();
   if (!token) {
     await recordOperationalHealth({
@@ -175,6 +172,11 @@ async function mirrorManifest(
     .map((segment) => encodeURIComponent(segment))
     .join("/");
   const sha = await currentSha(token);
+  const latest = await readStoredFeatureManifest();
+  if (!latest)
+    throw new Error(
+      "Pravaah registry could not be read for mirroring. The database update is preserved.",
+    );
   const response = await githubRequest(
     `https://api.github.com/repos/${OWNER}/${REPOSITORY}/contents/${path}`,
     {
@@ -183,7 +185,7 @@ async function mirrorManifest(
       body: JSON.stringify({
         message,
         content: Buffer.from(
-          `${JSON.stringify(manifest, null, 2)}\n`,
+          `${JSON.stringify(latest, null, 2)}\n`,
           "utf8",
         ).toString("base64"),
         branch: REF,
@@ -205,6 +207,7 @@ async function mirrorManifest(
 async function writeManifest(
   manifest: FeatureManifest,
   input: {
+    expectedManifest: FeatureManifest;
     action: "CREATE" | "UPDATE" | "PUBLISH" | "DELETE";
     entityId?: string;
     message: string;
@@ -215,7 +218,7 @@ async function writeManifest(
   // Git remains a recoverable content mirror. A missing, expired or
   // branch-restricted token must not break the authenticated Admin controls.
   try {
-    await mirrorManifest(manifest, input.message);
+    await mirrorManifest(input.message);
   } catch (error) {
     await recordOperationalHealth({
       key: "social_github_mirror",
@@ -262,6 +265,7 @@ export async function featureGitHubDiscovery(
   });
 
   await writeManifest(withItem(manifest, item), {
+    expectedManifest: manifest,
     action: "PUBLISH",
     entityId: item.id,
     message: `Feature GitHub item: ${item.title}`,
@@ -279,6 +283,7 @@ export async function ignoreGitHubDiscovery(externalId: string): Promise<void> {
       ).slice(0, 1000),
     },
     {
+      expectedManifest: manifest,
       action: "UPDATE",
       entityId: externalId,
       message: "Ignore GitHub discovery",
@@ -328,6 +333,7 @@ export async function publishManualFeature(input: {
   const manifest = await writableManifest();
 
   await writeManifest(withItem(manifest, item), {
+    expectedManifest: manifest,
     action: "PUBLISH",
     entityId: item.id,
     message: `Publish Pravaah item: ${item.title}`,
@@ -361,6 +367,7 @@ export async function updateFeatureState(input: {
   const updated = featureItemSchema.parse(candidate);
 
   await writeManifest(withItem(manifest, updated), {
+    expectedManifest: manifest,
     action: "UPDATE",
     entityId: updated.id,
     message: `Update Pravaah item: ${updated.title}`,
@@ -382,6 +389,7 @@ export async function deleteFeatureItem(id: string): Promise<void> {
       items: manifest.items.filter((item) => item.id !== id),
     },
     {
+      expectedManifest: manifest,
       action: "DELETE",
       entityId: current.id,
       message: `Delete Pravaah item: ${current.title}`,

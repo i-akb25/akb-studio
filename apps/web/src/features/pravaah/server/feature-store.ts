@@ -3,6 +3,7 @@ import "server-only";
 import type { AuditAction, Prisma } from "@generated/prisma/client";
 import { runAuditedMutation } from "@/features/admin/server/audit";
 import { prisma } from "@/server/db/prisma";
+import { checkManifestVersion } from "../manifest-version";
 import { type FeatureManifest, featureManifestSchema } from "../model";
 
 function summary(manifest: FeatureManifest) {
@@ -32,6 +33,7 @@ export async function readStoredFeatureManifest(): Promise<
 
 export async function saveStoredFeatureManifest(input: {
   manifest: FeatureManifest;
+  expectedManifest: FeatureManifest;
   action: AuditAction;
   entityId?: string;
   message: string;
@@ -43,6 +45,10 @@ export async function saveStoredFeatureManifest(input: {
         where: { id: "primary" },
         select: { manifest: true },
       });
+      const parsedPrevious = checkManifestVersion(
+        previous?.manifest ?? null,
+        input.expectedManifest,
+      );
       const saved = await tx.pravaahRegistry.upsert({
         where: { id: "primary" },
         create: {
@@ -52,14 +58,9 @@ export async function saveStoredFeatureManifest(input: {
         update: { manifest: manifest as Prisma.InputJsonValue },
         select: { id: true },
       });
-      const parsedPrevious = previous
-        ? featureManifestSchema.safeParse(previous.manifest)
-        : undefined;
       return {
         id: saved.id,
-        before: parsedPrevious?.success
-          ? summary(parsedPrevious.data)
-          : undefined,
+        before: parsedPrevious ? summary(parsedPrevious) : undefined,
       };
     },
     (saved) => ({

@@ -62,3 +62,29 @@ export async function readJsonBody(
     throw new RequestSecurityError(400, "Invalid request.");
   }
 }
+
+export async function readFormBody(
+  request: Request,
+  maximumBytes: number,
+): Promise<FormData> {
+  const mime = request.headers
+    .get("content-type")
+    ?.split(";", 1)[0]
+    ?.trim()
+    .toLowerCase();
+  if (
+    mime !== "multipart/form-data" &&
+    mime !== "application/x-www-form-urlencoded"
+  )
+    throw new RequestSecurityError(415, "Unsupported request format.");
+  const body = await readLimitedBody(request, maximumBytes);
+  try {
+    return await new Request(request.url, {
+      method: "POST",
+      headers: { "Content-Type": request.headers.get("content-type") ?? "" },
+      body: body as BodyInit,
+    }).formData();
+  } catch {
+    throw new RequestSecurityError(400, "Invalid form data.");
+  }
+}

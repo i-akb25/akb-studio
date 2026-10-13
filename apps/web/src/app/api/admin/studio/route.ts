@@ -79,7 +79,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const input = inputSchema.parse(await readJsonBody(request, 8_192));
+    const input = inputSchema.parse(await readJsonBody(request, 16_384));
     if (
       [
         "add-note",

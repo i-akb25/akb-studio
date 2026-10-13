@@ -82,7 +82,8 @@ test("Admin writes use atomic audit mutations", async () => {
   }
 
   const audit = await webSource("src/features/admin/server/audit.ts");
-  assert.match(audit, /pg_advisory_xact_lock/);
+  const lock = await webSource("src/features/admin/server/audit-lock.ts");
+  assert.match(lock, /pg_advisory_xact_lock/);
   assert.ok(
     audit.indexOf("await lockAuditChain(tx)") <
       audit.indexOf("const result = await mutation(tx)"),

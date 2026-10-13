@@ -1,8 +1,9 @@
 import "server-only";
 
-import { type AuditAction, Prisma } from "@generated/prisma/client";
+import type { AuditAction, Prisma } from "@generated/prisma/client";
 import { prisma } from "@/server/db/prisma";
-import { hashAuditEntry } from "./audit-integrity";
+import { hashAuditEntry, nextAuditTimestamp } from "./audit-integrity";
+import { lockAuditChain } from "./audit-lock";
 
 type AuditInput = {
   actorId?: string;
@@ -13,10 +14,6 @@ type AuditInput = {
   after?: Prisma.InputJsonValue;
 };
 
-async function lockAuditChain(tx: Prisma.TransactionClient) {
-  await tx.$queryRaw(Prisma.sql`SELECT pg_advisory_xact_lock(109545, 2202)`);
-}
-
 async function appendAudit(
   tx: Prisma.TransactionClient,
   input: AuditInput,
@@ -26,9 +23,9 @@ async function appendAudit(
   const previous = await tx.auditLog.findFirst({
     where: { entryHash: { not: null } },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    select: { entryHash: true },
+    select: { entryHash: true, createdAt: true },
   });
-  const createdAt = new Date();
+  const createdAt = nextAuditTimestamp(new Date(), previous?.createdAt);
   const safeInput =
     input.entityType === "ContactSubmission"
       ? { ...input, before: undefined, after: undefined }

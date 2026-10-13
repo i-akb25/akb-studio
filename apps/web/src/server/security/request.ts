@@ -2,6 +2,7 @@ import "server-only";
 
 export {
   RequestSecurityError,
+  readFormBody,
   readJsonBody,
   readLimitedBody,
 } from "./body-limit";

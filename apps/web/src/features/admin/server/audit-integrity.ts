@@ -21,6 +21,12 @@ export type AuditIntegrityResult = {
   errorId?: string;
 };
 
+export function nextAuditTimestamp(now: Date, previous?: Date): Date {
+  return new Date(
+    Math.max(now.getTime(), previous ? previous.getTime() + 1 : now.getTime()),
+  );
+}
+
 function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
   if (value && typeof value === "object") {

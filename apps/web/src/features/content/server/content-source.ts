@@ -142,7 +142,9 @@ function isSafeImage(value: unknown): boolean {
   return typeof image.src === "string" && typeof image.alt === "string";
 }
 
-function assertManifest(value: unknown): asserts value is ContentManifest {
+export function assertManifest(
+  value: unknown,
+): asserts value is ContentManifest {
   if (!value || typeof value !== "object") {
     throw new Error("Invalid knowledge manifest");
   }

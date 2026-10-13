@@ -17,6 +17,7 @@ import {
   updateFeatureState,
 } from "@/features/pravaah/server/feature-publisher";
 import { prisma } from "@/server/db/prisma";
+import { readFormBody } from "@/server/security/request";
 
 export const runtime = "nodejs";
 
@@ -34,8 +35,10 @@ function tags(form: FormData): string[] {
 
 function optionalHttpsUrl(raw: string): string | undefined {
   if (!raw) return undefined;
+  if (!URL.canParse(raw)) throw new Error("HTTPS URL required");
   const url = new URL(raw);
-  if (url.protocol !== "https:") throw new Error("HTTPS URL required");
+  if (url.protocol !== "https:" || url.username || url.password)
+    throw new Error("HTTPS URL required");
   return url.href;
 }
 
@@ -72,9 +75,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    if (Number(request.headers.get("content-length") ?? 0) > 64 * 1024)
-      return NextResponse.json({ error: "Request too large" }, { status: 413 });
-    const form = await request.formData();
+    const form = await readFormBody(request, 64 * 1024);
     const action = value(form, "action");
     requestedAction = action;
     if (!action) throw new Error("No Pravaah action was submitted.");
@@ -114,6 +115,8 @@ export async function POST(request: Request) {
       const status = value(form, "status");
       const canonicalUrl = optionalHttpsUrl(value(form, "canonicalUrl"));
       const publishedAt = value(form, "publishedAt");
+      if (publishedAt && !Number.isFinite(new Date(publishedAt).getTime()))
+        throw new Error("Invalid feature item");
       const externalSource = [
         "github",
         "linkedin",

@@ -143,6 +143,45 @@ export function releaseReadiness(env: Environment): ReleaseFinding[] {
       ? "Enabled. Test a current question with live web selected; configuration alone does not verify model access or quota."
       : "Disabled. Current questions receive an explicit unavailable response.",
   });
+  findings.push({
+    id: "private-aeva",
+    label: "Private Aeva",
+    state: enabled("AEVA_PRIVATE_ENABLED") ? "review" : "disabled",
+    detail: enabled("AEVA_PRIVATE_ENABLED")
+      ? "Enabled for authenticated owners. Verify two-factor authentication and owner-only retrieval in production."
+      : "Disabled. The owner-only Aeva console is unavailable.",
+  });
+  findings.push({
+    id: "voice",
+    label: "Aeva voice controls",
+    state: enabled("AEVA_VOICE_ENABLED") ? "review" : "disabled",
+    detail: enabled("AEVA_VOICE_ENABLED")
+      ? "Enabled. Browser speech support and permission prompts still require a manual production check."
+      : "Disabled. Text chat remains available.",
+  });
+  findings.push({
+    id: "social",
+    label: "Social intelligence verification",
+    state: enabled("AEVA_SOCIAL_ENABLED") ? "review" : "disabled",
+    detail: enabled("AEVA_SOCIAL_ENABLED")
+      ? "Enabled for bounded, read-only provider verification. Automatic ingestion and publishing remain disabled."
+      : "Disabled. Manual reviewed Pravaah links remain independent.",
+  });
+  const reservedSwitches = [
+    "AEVA_DOCUMENT_INGESTION_ENABLED",
+    "AEVA_ACTIONS_ENABLED",
+    "AEVA_EXTERNAL_ACTIONS_ENABLED",
+    "AEVA_MONITOR_ENABLED",
+    "AEVA_EMAIL_ENABLED",
+  ].filter(enabled);
+  findings.push({
+    id: "reserved-aeva-switches",
+    label: "Reserved Aeva capability switches",
+    state: reservedSwitches.length ? "blocked" : "disabled",
+    detail: reservedSwitches.length
+      ? `${reservedSwitches.join(", ")} must remain false because no released runtime capability is wired to these switches.`
+      : "Reserved switches are correctly disabled; enabling them would not activate a released capability.",
+  });
   findings.push(
     group(
       "email",

@@ -65,6 +65,10 @@ test("understands a visitor saying their name followed by here", () => {
     conversationalReply("How are you", [{ role: "user", text: introduction }]),
     "I’m doing well, Avika. What would you like to explore in AKB Studio?",
   );
+  assert.equal(
+    conversationalReply("Hello Prajakta here", []),
+    "Hello Prajakta, good to meet you. How are you?",
+  );
 });
 
 test("live questions never fall back to unrelated portfolio sources", async () => {
@@ -130,6 +134,13 @@ test("inherits the previous intent for a vague follow-up", () => {
       ],
     }),
     "architecture-walkthrough",
+  );
+  assert.equal(
+    resolveFollowUpQuestion("Any thing you know", [
+      { role: "user", text: "Tell me about Anurag" },
+      { role: "assistant", text: "A short answer" },
+    ]),
+    "Any thing you know: expand only the previous subject: Tell me about Anurag",
   );
 });
 

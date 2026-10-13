@@ -5,6 +5,7 @@ import { consumeRateLimit } from "@/server/security/rate-limit";
 import { aevaServerConfig } from "../config/server-config";
 import {
   parseProviderAnswer,
+  providerMayTryFallback,
   providerThinkingConfig,
 } from "../core/provider-contract";
 import type { AevaConversationTurn } from "../model";
@@ -89,6 +90,7 @@ export async function generatePrivateAevaAnswer(input: {
       process.env.AEVA_PRIVATE_GEMINI_MODEL?.trim() ||
         process.env.AEVA_GEMINI_MODEL?.trim() ||
         "gemini-3.8-flash",
+      "gemini-3.6-flash",
       "gemini-3.5-flash-lite",
     ]),
   ];
@@ -174,7 +176,7 @@ export async function generatePrivateAevaAnswer(input: {
           event: "private_aeva_provider_unavailable",
           code: `http_${response.status}_model_${index + 1}`,
         });
-        if ([400, 404].includes(response.status)) continue;
+        if (providerMayTryFallback(response.status)) continue;
         return null;
       }
       const payload = (await response.json()) as {

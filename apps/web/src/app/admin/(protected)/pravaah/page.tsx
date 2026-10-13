@@ -1,4 +1,5 @@
 import { PravaahConsole } from "@/features/admin/components/pravaah-console";
+import { resolveAnonymousNoteUrl } from "@/features/pravaah/anonymous-note";
 import { getFeatureManifest } from "@/features/pravaah/server/feature-source";
 import { getGitHubDiscoveryResult } from "@/features/pravaah/server/github-adapter";
 import { prisma } from "@/server/db/prisma";
@@ -40,7 +41,7 @@ export default async function AdminPravaahPage() {
         url: asset.secureUrl,
       }))}
       anonymousNoteConfigured={Boolean(
-        process.env.AKB_ANONYMOUS_NOTE_URL?.trim(),
+        resolveAnonymousNoteUrl(process.env.AKB_ANONYMOUS_NOTE_URL),
       )}
     />
   );

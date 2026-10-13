@@ -8,6 +8,7 @@ import {
   type GoogleGroundingMetadata,
   groundedWebCitations,
   parseProviderAnswer,
+  providerMayTryFallback,
   providerThinkingConfig,
 } from "../core/provider-contract";
 import type { AevaResponseContract } from "../core/response-contract";
@@ -52,6 +53,16 @@ async function incident(code: string) {
       where: { kind_code: { kind: "provider", code } },
       create: { kind: "provider", code },
       update: { occurrences: { increment: 1 }, lastSeenAt: new Date() },
+    });
+  } catch {}
+}
+
+async function resolveProviderIncidents() {
+  if (!process.env.DATABASE_URL) return;
+  try {
+    await prisma.aevaIncident.updateMany({
+      where: { kind: "provider", resolvedAt: null },
+      data: { resolvedAt: new Date() },
     });
   } catch {}
 }
@@ -132,6 +143,7 @@ export async function generateProviderAnswer(input: {
   const models = [
     ...new Set([
       process.env.AEVA_GEMINI_MODEL?.trim() || "gemini-3.8-flash",
+      "gemini-3.6-flash",
       "gemini-3.5-flash-lite",
     ]),
   ];
@@ -198,14 +210,13 @@ export async function generateProviderAnswer(input: {
       },
     },
   };
-  try {
-    const timeout = AbortSignal.timeout(aevaServerConfig.requestTimeoutMs);
-    const signal = input.signal
-      ? AbortSignal.any([input.signal, timeout])
-      : timeout;
-    let response: Response | undefined;
-    for (const [index, model] of models.entries()) {
-      const candidate = await fetch(
+  for (const [index, model] of models.entries()) {
+    try {
+      const timeout = AbortSignal.timeout(aevaServerConfig.requestTimeoutMs);
+      const signal = input.signal
+        ? AbortSignal.any([input.signal, timeout])
+        : timeout;
+      const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
         {
           method: "POST",
@@ -225,82 +236,77 @@ export async function generateProviderAnswer(input: {
           redirect: "error",
         },
       );
-      if (candidate.ok) {
-        response = candidate;
-        break;
+      if (!response.ok) {
+        await incident(`http_${response.status}_model_${index + 1}`);
+        if (providerMayTryFallback(response.status)) continue;
+        return null;
       }
-      await incident(`http_${candidate.status}_model_${index + 1}`);
-      if (![400, 404].includes(candidate.status)) return null;
-    }
-    if (!response) return null;
-    const payload = (await response.json()) as {
-      candidates?: Array<{
-        finishReason?: string;
-        content?: { parts?: Array<{ text?: string; thought?: boolean }> };
-        groundingMetadata?: GoogleGroundingMetadata;
-      }>;
-    };
-    const first = payload.candidates?.[0];
-    if (first?.finishReason && first.finishReason !== "STOP") {
-      await incident(
-        first.finishReason === "MAX_TOKENS"
-          ? "output_limit_exceeded"
-          : "provider_stopped",
+      const payload = (await response.json()) as {
+        candidates?: Array<{
+          finishReason?: string;
+          content?: { parts?: Array<{ text?: string; thought?: boolean }> };
+          groundingMetadata?: GoogleGroundingMetadata;
+        }>;
+      };
+      const first = payload.candidates?.[0];
+      if (first?.finishReason && first.finishReason !== "STOP") {
+        await incident(
+          `${
+            first.finishReason === "MAX_TOKENS"
+              ? "output_limit_exceeded"
+              : "provider_stopped"
+          }_model_${index + 1}`,
+        );
+        continue;
+      }
+      const raw = first?.content?.parts
+        ?.filter((part) => !part.thought)
+        ?.map((part) => part.text ?? "")
+        .join("")
+        .trim();
+      if (!raw) {
+        await incident(`empty_answer_model_${index + 1}`);
+        continue;
+      }
+      const parsed = parseProviderAnswer(
+        raw,
+        input.sources.map((source) => source.id),
       );
-      return null;
+      if (!parsed) {
+        await incident(`invalid_response_contract_model_${index + 1}`);
+        continue;
+      }
+      const answer = safeAevaAnswer(parsed.answer, input.contract.maxWords);
+      if (!answer) {
+        await incident(`unsafe_answer_model_${index + 1}`);
+        continue;
+      }
+      const webCitations = groundedWebCitations(
+        first?.groundingMetadata,
+        webEnabled,
+      );
+      const selectedSourceIds = new Set(parsed.sourceIds);
+      const sourceCitations = input.sources
+        .filter((source) => selectedSourceIds.has(source.id))
+        .map(citationFromCandidate);
+      const citations = [...sourceCitations, ...webCitations].slice(
+        0,
+        input.contract.maxCitations,
+      );
+      if (input.contract.requiresEvidence && citations.length === 0) {
+        await incident(`missing_evidence_model_${index + 1}`);
+        continue;
+      }
+      await resolveProviderIncidents();
+      return {
+        answer,
+        citations,
+        usedWeb: webCitations.length > 0,
+      };
+    } catch {
+      await incident(`request_failed_model_${index + 1}`);
+      if (input.signal?.aborted) return null;
     }
-    const raw = first?.content?.parts
-      ?.filter((part) => !part.thought)
-      ?.map((part) => part.text ?? "")
-      .join("")
-      .trim();
-    if (!raw) {
-      await incident("empty_answer");
-      return null;
-    }
-    const parsed = parseProviderAnswer(
-      raw,
-      input.sources.map((source) => source.id),
-    );
-    if (!parsed) {
-      await incident("invalid_response_contract");
-      return null;
-    }
-    const answer =
-      typeof parsed.answer === "string"
-        ? safeAevaAnswer(parsed.answer, input.contract.maxWords)
-        : null;
-    if (!answer) {
-      await incident("unsafe_answer");
-      return null;
-    }
-    const webCitations = groundedWebCitations(
-      first?.groundingMetadata,
-      webEnabled,
-    );
-    const selectedSourceIds = new Set(
-      Array.isArray(parsed.sourceIds)
-        ? parsed.sourceIds.filter((id): id is string => typeof id === "string")
-        : [],
-    );
-    const sourceCitations = input.sources
-      .filter((source) => selectedSourceIds.has(source.id))
-      .map(citationFromCandidate);
-    const citations = [...sourceCitations, ...webCitations].slice(
-      0,
-      input.contract.maxCitations,
-    );
-    if (input.contract.requiresEvidence && citations.length === 0) {
-      await incident("missing_evidence");
-      return null;
-    }
-    return {
-      answer,
-      citations,
-      usedWeb: webCitations.length > 0,
-    };
-  } catch {
-    await incident("request_failed");
-    return null;
   }
+  return null;
 }

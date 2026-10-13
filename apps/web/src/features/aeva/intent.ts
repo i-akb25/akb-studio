@@ -23,7 +23,8 @@ const GREETING =
   /^(?:hi|hello|hey|good (?:morning|afternoon|evening)|namaste)(?:[\s,!.'-]+.*)?$/i;
 const VISITOR_INTRODUCTION =
   /^(?:i am|i'm|my name is)\s+[a-z][a-z'-]{1,30}[.!?\s]*$/i;
-const VISITOR_HERE = /^(?:hey[, ]+)?[a-z][a-z'-]{1,30}\s+here[.!?\s]*$/i;
+const VISITOR_HERE =
+  /^(?:(?:hey|hi|hello)[, ]+)?[a-z][a-z'-]{1,30}\s+here[.!?\s]*$/i;
 const AEVA_CAPABILITY =
   /^(?:what (?:do|can) you do|what you do|how can you help(?: me)?|what can you help(?: me)? with)[.!?\s]*$/i;
 const CASUAL =
@@ -47,7 +48,7 @@ export function classifyAevaIntent(input: {
 }): AevaIntent {
   const question = input.question.trim();
   if (
-    /^(?:yes|yeah|okay|ok|continue|go on|more|tell me more|explain more)[.!?\s]*$/i.test(
+    /^(?:yes|yeah|okay|ok|continue|go on|more|tell me more|explain more|what else|anything else|any ?thing you know)[.!?\s]*$/i.test(
       question,
     )
   ) {
@@ -106,7 +107,9 @@ function visitorName(
     if (turn.role !== "user") continue;
     const match =
       turn.text.match(/\b(?:i am|i'm|my name is)\s+([a-z][a-z'-]{1,30})\b/i) ??
-      turn.text.match(/^(?:hey[, ]+)?([a-z][a-z'-]{1,30})\s+here[.!?\s]*$/i);
+      turn.text.match(
+        /^(?:(?:hey|hi|hello)[, ]+)?([a-z][a-z'-]{1,30})\s+here[.!?\s]*$/i,
+      );
     if (match?.[1])
       return match[1][0].toUpperCase() + match[1].slice(1).toLowerCase();
   }
@@ -124,7 +127,9 @@ export function conversationalReply(
     question.match(
       /\b(?:i am|i'm|my name is)\s+([a-z][a-z'-]{1,30})\b/i,
     )?.[1] ??
-    question.match(/^(?:hey[, ]+)?([a-z][a-z'-]{1,30})\s+here[.!?\s]*$/i)?.[1];
+    question.match(
+      /^(?:(?:hey|hi|hello)[, ]+)?([a-z][a-z'-]{1,30})\s+here[.!?\s]*$/i,
+    )?.[1];
   if (nameInQuestion) {
     const name =
       nameInQuestion[0].toUpperCase() + nameInQuestion.slice(1).toLowerCase();

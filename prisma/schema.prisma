@@ -483,17 +483,20 @@ model FollowUpReminder {
 }
 
 model AnonymousJourney {
-  id             String   @id @default(cuid())
-  sessionHash    String   @unique
-  categories     String[] @default([])
-  projectSlugs   String[] @default([])
-  pageCount      Int      @default(0)
-  totalSeconds   Int      @default(0)
-  firstSeenAt    DateTime @default(now())
-  lastSeenAt     DateTime @default(now())
-  retentionUntil DateTime
+  id              String   @id @default(cuid())
+  sessionHash     String   @unique
+  categories      String[] @default([])
+  projectSlugs    String[] @default([])
+  lastCategory    String?
+  lastProjectSlug String?
+  pageCount       Int      @default(0)
+  totalSeconds    Int      @default(0)
+  firstSeenAt     DateTime @default(now())
+  lastSeenAt      DateTime @default(now())
+  retentionUntil  DateTime
 
   @@index([lastSeenAt])
+  @@index([lastSeenAt, lastCategory])
   @@index([retentionUntil])
 }
 

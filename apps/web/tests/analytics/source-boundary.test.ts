@@ -26,7 +26,35 @@ test("analytics accepts only normalized public categories", async () => {
     "utf8",
   );
   assert.match(route, /JOURNEY_CATEGORIES/);
+  assert.match(route, /"heartbeat"/);
   assert.doesNotMatch(route, /clientAddress|x-forwarded-for|user-agent/i);
+});
+
+test("live visitor activity remains anonymous and consent gated", async () => {
+  const [tracker, admin, migration] = await Promise.all([
+    readFile(
+      path.join(root, "src/features/analytics/components/journey-tracker.tsx"),
+      "utf8",
+    ),
+    readFile(
+      path.join(root, "src/app/admin/(protected)/analytics/page.tsx"),
+      "utf8",
+    ),
+    readFile(
+      path.join(
+        root,
+        "../../prisma/migrations/20261013100000_live_anonymous_journeys/migration.sql",
+      ),
+      "utf8",
+    ),
+  ]);
+  assert.match(tracker, /hasAnalyticsConsent/);
+  assert.match(tracker, /event: "heartbeat"/);
+  assert.match(admin, /Anonymous visitor activity/);
+  assert.match(admin, /consented browser sessions, not identified people/);
+  assert.doesNotMatch(admin, /email|ipAddress|userAgent/);
+  assert.match(migration, /ALTER TABLE "AnonymousJourney"/);
+  assert.doesNotMatch(migration, /\b(?:DROP|DELETE|TRUNCATE)\b/i);
 });
 
 test("follow-up reminders require explicit unwithdrawn consent", async () => {

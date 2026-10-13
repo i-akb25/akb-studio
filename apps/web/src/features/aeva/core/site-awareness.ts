@@ -137,14 +137,6 @@ export function createAevaActions(input: {
     );
   }
 
-  for (const citation of input.citations) {
-    const href = safePublicHref(citation.url);
-    if (!href) continue;
-    candidates.push(
-      action({ kind: "navigate", label: `Open ${citation.title}`, href }),
-    );
-  }
-
   const seen = new Set<string>();
   return candidates
     .filter((item): item is AevaAction => Boolean(item))

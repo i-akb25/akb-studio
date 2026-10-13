@@ -253,8 +253,8 @@ export function PravaahPage({ signals, anonymousNoteUrl }: PravaahPageProps) {
               <p className="pravaah-kicker">ANONYMOUS / EXTERNAL CHANNEL</p>
               <h2>Leave a note without leaving a name.</h2>
               <p>
-                Opens an independent third-party service. It is not hosted or
-                controlled by AKB Studio.
+                Opens an external form. Review its questions before sharing; do
+                not include sensitive or private information.
               </p>
               <a href={anonymousNoteUrl} rel="noreferrer" target="_blank">
                 Leave an anonymous note

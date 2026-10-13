@@ -1,7 +1,7 @@
 import type { AevaConversationTurn, AevaIntent, AevaMode } from "../model";
 
 const VAGUE_FOLLOW_UP =
-  /^(?:yes|yeah|okay|ok|continue|go on|more|tell me more|explain more)[.!?\s]*$/i;
+  /^(?:yes|yeah|okay|ok|continue|go on|more|tell me more|explain more|what else|anything else|any ?thing you know)[.!?\s]*$/i;
 const QUESTION_LIKE =
   /\b(?:what|when|where|which|who|why|how|can|could|do|does|did|is|are|was|were|will|would|should|rain|snow|hot|cold)\b/i;
 

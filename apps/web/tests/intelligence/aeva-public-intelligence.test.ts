@@ -4,6 +4,7 @@ import path from "node:path";
 import test from "node:test";
 import { directAevaResponse } from "../../src/features/aeva/core/direct-response";
 import { groundedFallbackAnswer } from "../../src/features/aeva/core/grounded-answer";
+import { providerMayTryFallback } from "../../src/features/aeva/core/provider-contract";
 import { understandAevaQuery } from "../../src/features/aeva/core/query-understanding";
 import { rankRetrievalCandidate } from "../../src/features/aeva/core/retrieval-ranking";
 import {
@@ -70,8 +71,9 @@ test("deterministic grounded synthesis obeys its word budget", () => {
     ],
   });
   assert.ok(answer.trim().split(/\s+/).length <= 24);
-  assert.match(answer, /reliable conversational answer/);
-  assert.doesNotMatch(answer, /detailed published software/);
+  assert.match(answer, /published portfolio/);
+  assert.match(answer, /CodeVet/);
+  assert.doesNotMatch(answer, /couldn’t prepare/);
 });
 
 test("authority and freshness reorder relevant evidence but never admit irrelevant evidence", () => {
@@ -121,9 +123,13 @@ test("provider and feedback paths enforce evidence and independent quotas", asyn
   assert.match(provider, /requiresEvidence && citations\.length === 0/);
   assert.match(provider, /usedWeb: webCitations\.length > 0/);
   assert.match(provider, /gemini-3\.8-flash/);
+  assert.match(provider, /gemini-3\.6-flash/);
   assert.match(provider, /gemini-3\.5-flash-lite/);
   assert.match(provider, /aeva_provider_unavailable/);
-  assert.match(provider, /\[400, 404\]/);
+  assert.equal(providerMayTryFallback(429), true);
+  assert.equal(providerMayTryFallback(503), true);
+  assert.equal(providerMayTryFallback(401), false);
+  assert.match(provider, /resolveProviderIncidents/);
   assert.match(provider, /public visitor, not Anurag/);
   assert.match(guard, /aeva:chat:address/);
   assert.match(guard, /aeva:feedback:address/);
@@ -199,7 +205,7 @@ test("site actions are deterministic, internal and user initiated", () => {
   assert.ok(actions.length <= 3);
 
   const sanitized = createAevaActions({
-    question: "What evidence supports that?",
+    question: "Show projects",
     intent: "skill-evidence",
     citations: [
       {
@@ -211,6 +217,20 @@ test("site actions are deterministic, internal and user initiated", () => {
     ],
   });
   assert.equal(sanitized[0]?.href, "/projects#project-archive-heading");
+  assert.equal(sanitized.length, 1);
+});
+
+test("live-web follow-up changes the request option instead of becoming a new topic", async () => {
+  const experience = await readFile(
+    path.resolve(
+      import.meta.dirname,
+      "../../src/features/aeva/components/aeva-experience.tsx",
+    ),
+    "utf8",
+  );
+  assert.match(experience, /LIVE_WEB_FOLLOW_UP/);
+  assert.match(experience, /allowWeb: true/);
+  assert.match(experience, /previousQuestion/);
 });
 
 test("visitor navigation requests receive direct answers without source dumps", () => {

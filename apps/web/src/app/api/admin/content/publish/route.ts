@@ -9,6 +9,7 @@ import {
   parseKnowledgeKind,
 } from "@/features/content/model";
 import { callPublishingService } from "@/features/publishing/server/publishing-service";
+import { readFormBody } from "@/server/security/request";
 
 export const runtime = "nodejs";
 
@@ -42,9 +43,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    if (Number(request.headers.get("content-length") ?? 0) > 5 * 1024 * 1024)
-      return NextResponse.json({ error: "Request too large" }, { status: 413 });
-    const form = await request.formData();
+    const form = await readFormBody(request, 4 * 1024 * 1024 + 256 * 1024);
     const kind = String(form.get("kind") ?? "");
     const knowledgeKind = parseKnowledgeKind(
       String(form.get("knowledgeKind") ?? "note"),
@@ -55,6 +54,8 @@ export async function POST(request: Request) {
     const sourceLabel = String(form.get("sourceLabel") ?? "").trim();
     const sourceType = String(form.get("sourceType") ?? "original");
     const sourceUrlValue = String(form.get("sourceUrl") ?? "").trim();
+    if (sourceUrlValue && !URL.canParse(sourceUrlValue))
+      throw new Error("Invalid publication source URL");
     const sourceUrl = sourceUrlValue ? new URL(sourceUrlValue) : undefined;
 
     if (
@@ -68,7 +69,10 @@ export async function POST(request: Request) {
       sourceLabel.length < 2 ||
       sourceLabel.length > 180 ||
       !SOURCE_TYPES.includes(sourceType as ContentSource["type"]) ||
-      (sourceUrl && sourceUrl.protocol !== "https:")
+      (sourceUrl &&
+        (sourceUrl.protocol !== "https:" ||
+          sourceUrl.username ||
+          sourceUrl.password))
     ) {
       throw new Error("Invalid publication metadata");
     }
@@ -113,7 +117,7 @@ export async function POST(request: Request) {
         publishedAt: result.publishedAt,
         notificationRequested: true,
         scheduledAt: String(form.get("scheduledAt") ?? "").trim() || undefined,
-      });
+      }).catch(() => ({ ok: false }));
       if (!notification.ok)
         warning =
           "The content was published, but its notification could not be queued.";

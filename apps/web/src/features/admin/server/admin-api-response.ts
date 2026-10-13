@@ -4,36 +4,9 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { logger, safeErrorFields } from "@/server/logging/logger";
 import { RequestSecurityError } from "@/server/security/request";
+import { databaseFailure } from "./database-errors";
 
 type ErrorWithCode = Error & { code?: string };
-
-const databaseMessages: Record<string, { message: string; status: number }> = {
-  P1001: {
-    message: "The database is temporarily unreachable. Try again shortly.",
-    status: 503,
-  },
-  P1017: {
-    message: "The database connection closed unexpectedly. Try again.",
-    status: 503,
-  },
-  P2021: {
-    message:
-      "The required database table is not available yet. Apply the approved production migration and try again.",
-    status: 503,
-  },
-  P2002: {
-    message: "A record with the same unique value already exists.",
-    status: 409,
-  },
-  P2003: {
-    message: "A referenced record or media asset does not exist.",
-    status: 409,
-  },
-  P2025: {
-    message: "The record no longer exists. Refresh the page and try again.",
-    status: 404,
-  },
-};
 
 const safeOperationalMessages = [
   /^Cloudinary is not configured$/,
@@ -50,6 +23,7 @@ const safeOperationalMessages = [
   /^Missing knowledge repository write token$/,
   /^HTTPS URL required$/,
   /^Pravaah repository /,
+  /^Pravaah registry /,
   /^Choose a ready image from the media library\.$/,
   /^Choose an image before saving\.$/,
   /^The selected image needs useful alternative text\.$/,
@@ -58,6 +32,11 @@ const safeOperationalMessages = [
   /^Invalid feature item$/,
   /^GitHub discovery is unavailable$/,
   /^No Pravaah action was submitted\.$/,
+  /^A valid file and description are required$/,
+  /^This gallery already contains 25 images\.$/,
+  /^Gallery image was not found\.$/,
+  /^Knowledge repository /,
+  /^Publication conflict:/,
 ];
 
 function isSafeOperationalMessage(message: string): boolean {
@@ -90,13 +69,19 @@ export function adminErrorResponse(
   }
 
   const coded = (error ?? {}) as ErrorWithCode;
-  const databaseMessage = coded.code ? databaseMessages[coded.code] : undefined;
+  const databaseMessage = databaseFailure(coded.code);
   if (databaseMessage) {
     return Response.json(
-      { error: databaseMessage.message },
+      { error: `${databaseMessage.message} Reference ${reference}.` },
       { status: databaseMessage.status },
     );
   }
+
+  if (
+    error instanceof Error &&
+    /^(?:Publication conflict:|Pravaah registry changed)/.test(error.message)
+  )
+    return Response.json({ error: error.message }, { status: 409 });
 
   if (error instanceof Error && isSafeOperationalMessage(error.message)) {
     return Response.json({ error: error.message }, { status: 400 });
@@ -114,7 +99,7 @@ export function adminErrorResponse(
     if (normalized.includes("timeout") || normalized.includes("timed out"))
       return Response.json(
         {
-          error: `The provider did not respond in time. Nothing was published. Reference ${reference}.`,
+          error: `The operation did not finish in time. Check the current record before retrying. Reference ${reference}.`,
         },
         { status: 504 },
       );

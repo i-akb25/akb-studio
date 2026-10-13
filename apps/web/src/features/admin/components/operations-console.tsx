@@ -344,8 +344,8 @@ export function OperationsConsole({
               displayName: d.displayName,
               headline: d.headline,
               biography: d.biography,
-              location: d.location || undefined,
-              email: d.email || undefined,
+              location: d.location,
+              email: d.email,
               dpAssetId: d.dpAssetId || undefined,
               state: d.state,
             }))

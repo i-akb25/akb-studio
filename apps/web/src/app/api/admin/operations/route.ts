@@ -7,6 +7,7 @@ import {
   getAdminSession,
 } from "@/features/admin/server/admin-auth";
 import { runAuditedMutation } from "@/features/admin/server/audit";
+import { nullableOptionalText } from "@/features/admin/server/optional-fields";
 import { prisma } from "@/server/db/prisma";
 import { readJsonBody } from "@/server/security/request";
 
@@ -31,7 +32,7 @@ const profile = base.extend({
   headline: z.string().trim().min(3).max(180),
   biography: z.string().trim().min(20).max(5000),
   location: z.string().trim().max(120).optional(),
-  email: z.string().email().optional(),
+  email: z.union([z.string().trim().email(), z.literal("")]).optional(),
   dpAssetId: z.string().optional(),
   state,
 });
@@ -146,7 +147,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request" }, { status: 403 });
   }
   try {
-    const input = jsonBody(await readJsonBody(request, 32_768));
+    const input = jsonBody(await readJsonBody(request, 65_536));
     if (
       input.resource !== "contact" &&
       !["owner", "editor"].includes(session.role)
@@ -224,8 +225,8 @@ export async function POST(request: Request) {
               displayName: input.displayName,
               headline: input.headline,
               biography: input.biography,
-              location: input.location,
-              email: input.email,
+              location: nullableOptionalText(input.location),
+              email: nullableOptionalText(input.email),
               dpAssetId: input.dpAssetId || null,
               state: input.state,
               publishedAt: input.state === "PUBLISHED" ? new Date() : null,
@@ -378,7 +379,10 @@ export async function POST(request: Request) {
             })),
           });
           await database.projectLink.deleteMany({
-            where: { projectId: saved.id },
+            where: {
+              projectId: saved.id,
+              kind: { in: ["repository", "demo"] },
+            },
           });
           const links = [
             {

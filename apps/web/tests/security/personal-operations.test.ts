@@ -81,7 +81,8 @@ test("audit verification detects tampering and accepts a retained checkpoint", (
 
 test("audited writes serialize the hash chain before mutating data", async () => {
   const audit = await source("../../src/features/admin/server/audit.ts");
-  assert.match(audit, /pg_advisory_xact_lock/);
+  const lock = await source("../../src/features/admin/server/audit-lock.ts");
+  assert.match(lock, /pg_advisory_xact_lock/);
   assert.ok(
     audit.indexOf("await lockAuditChain(tx)") <
       audit.indexOf("const result = await mutation(tx)"),

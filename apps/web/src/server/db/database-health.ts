@@ -2,7 +2,8 @@ import "server-only";
 
 import { prisma } from "@/server/db/prisma";
 
-const FREE_ALLOWANCE_BYTES = 500 * 1024 * 1024;
+// Conservative local warning budget, not a claim about the provider's plan.
+const STORAGE_WARNING_BUDGET_BYTES = 500 * 1024 * 1024;
 
 export type DatabaseHealth = {
   available: boolean;
@@ -12,13 +13,24 @@ export type DatabaseHealth = {
   warning: "none" | "notice" | "warning" | "critical" | "unavailable";
 };
 
-function withTimeout<T>(promise: Promise<T>, milliseconds: number): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error("database_timeout")), milliseconds),
-    ),
-  ]);
+async function withTimeout<T>(
+  promise: Promise<T>,
+  milliseconds: number,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error("database_timeout")),
+          milliseconds,
+        );
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export async function getDatabaseHealth(): Promise<DatabaseHealth> {
@@ -26,7 +38,7 @@ export async function getDatabaseHealth(): Promise<DatabaseHealth> {
     return {
       available: false,
       bytes: null,
-      allowanceBytes: FREE_ALLOWANCE_BYTES,
+      allowanceBytes: STORAGE_WARNING_BUDGET_BYTES,
       percent: null,
       warning: "unavailable",
     };
@@ -40,7 +52,7 @@ export async function getDatabaseHealth(): Promise<DatabaseHealth> {
       2_500,
     );
     const bytes = Number(rows[0]?.bytes ?? 0);
-    const percent = (bytes / FREE_ALLOWANCE_BYTES) * 100;
+    const percent = (bytes / STORAGE_WARNING_BUDGET_BYTES) * 100;
     const warning =
       percent >= 90
         ? "critical"
@@ -52,7 +64,7 @@ export async function getDatabaseHealth(): Promise<DatabaseHealth> {
     return {
       available: true,
       bytes,
-      allowanceBytes: FREE_ALLOWANCE_BYTES,
+      allowanceBytes: STORAGE_WARNING_BUDGET_BYTES,
       percent,
       warning,
     };
@@ -60,7 +72,7 @@ export async function getDatabaseHealth(): Promise<DatabaseHealth> {
     return {
       available: false,
       bytes: null,
-      allowanceBytes: FREE_ALLOWANCE_BYTES,
+      allowanceBytes: STORAGE_WARNING_BUDGET_BYTES,
       percent: null,
       warning: "unavailable",
     };

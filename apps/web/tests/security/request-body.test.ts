@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   RequestSecurityError,
+  readFormBody,
   readJsonBody,
   readLimitedBody,
 } from "../../src/server/security/body-limit";
@@ -33,6 +34,55 @@ test("JSON accepts parameters but rejects look-alike MIME types", async () => {
     (error: unknown) =>
       error instanceof RequestSecurityError && error.status === 400,
   );
+});
+
+test("bounded form parsing handles uploads and rejects malformed or oversized bodies", async () => {
+  const form = new FormData();
+  form.set("title", "A reviewed article");
+  form.set(
+    "document",
+    new File(["content"], "note.txt", { type: "text/plain" }),
+  );
+  await assert.rejects(
+    readFormBody(request("broken", "text/plain"), 4096),
+    (error: unknown) =>
+      error instanceof RequestSecurityError && error.status === 415,
+  );
+  const valid = new Request("https://example.com/api", {
+    method: "POST",
+    body: form,
+  });
+  const mime = valid.headers.get("content-type") ?? "";
+  const bytes = await valid.arrayBuffer();
+  const data = await readFormBody(request(bytes, mime), 4096);
+  assert.equal(data.get("title"), "A reviewed article");
+  assert.equal((data.get("document") as File).name, "note.txt");
+  await assert.rejects(
+    readFormBody(request(bytes, mime), 20),
+    (error: unknown) =>
+      error instanceof RequestSecurityError && error.status === 413,
+  );
+  await assert.rejects(
+    readFormBody(
+      request("broken", "multipart/form-data; boundary=missing"),
+      4096,
+    ),
+    (error: unknown) =>
+      error instanceof RequestSecurityError && error.status === 400,
+  );
+});
+
+test("Aeva save body budget accepts the maximum Unicode memory text", async () => {
+  const body = JSON.stringify({
+    resource: "memory",
+    title: "Education",
+    content: "अ".repeat(8000),
+    visibility: "PUBLIC_AEVA",
+    state: "PUBLISHED",
+    sourceUrl: "https://example.com",
+  });
+  assert.ok(new TextEncoder().encode(body).length > 16384);
+  assert.deepEqual(await readJsonBody(request(body), 65536), JSON.parse(body));
 });
 
 test("body limit counts UTF-8 bytes, not string length", async () => {

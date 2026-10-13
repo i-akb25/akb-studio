@@ -5,6 +5,7 @@ import {
   getAdminSession,
 } from "@/features/admin/server/admin-auth";
 import { runAuditedMutation } from "@/features/admin/server/audit";
+import { nullableOptionalText } from "@/features/admin/server/optional-fields";
 import { prisma } from "@/server/db/prisma";
 import { readJsonBody } from "@/server/security/request";
 
@@ -26,13 +27,13 @@ const memory = z
       .trim()
       .max(120)
       .optional()
-      .transform((value) => value || undefined),
+      .transform(nullableOptionalText),
     sourceUrl: z
       .string()
       .trim()
       .max(2_048)
       .optional()
-      .transform((value) => value || undefined)
+      .transform(nullableOptionalText)
       .refine(
         (value) =>
           !value || (URL.canParse(value) && value.startsWith("https://")),
@@ -55,7 +56,7 @@ const source = z
       .trim()
       .max(5_000)
       .optional()
-      .transform((value) => value || undefined),
+      .transform(nullableOptionalText),
     publicAllowed: z.boolean().default(true),
   })
   .strict();
@@ -70,7 +71,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   try {
     assertSameOrigin(request);
-    const input = inputSchema.parse(await readJsonBody(request, 16_384));
+    const input = inputSchema.parse(await readJsonBody(request, 65_536));
     if (input.resource === "memory") {
       if (session.role !== "owner" && input.visibility !== "PUBLIC_AEVA") {
         return Response.json({ error: "Forbidden" }, { status: 403 });

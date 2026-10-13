@@ -36,6 +36,7 @@ export function ContentConsole({ entries }: { entries: AdminContentEntry[] }) {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (busy) return;
     const form = event.currentTarget;
     if (!preview) {
       buildPreview(form);
@@ -46,9 +47,13 @@ export function ContentConsole({ entries }: { entries: AdminContentEntry[] }) {
     setResult("");
 
     try {
+      const payload = new FormData(form);
+      const documentFile = payload.get("document");
+      if (documentFile instanceof File && documentFile.size > 4 * 1024 * 1024)
+        throw new Error("Document exceeds the 4 MB editorial upload limit.");
       const response = await fetch("/api/admin/content/publish", {
         method: "POST",
-        body: new FormData(form),
+        body: payload,
       });
 
       const data = (await response.json().catch(() => null)) as {
@@ -222,7 +227,7 @@ export function ContentConsole({ entries }: { entries: AdminContentEntry[] }) {
           </label>
 
           <label className="akb-admin-span-2">
-            <span>Upload .md, .txt or .docx</span>
+            <span>Upload .md, .txt or .docx (maximum 4 MB)</span>
             <input type="file" name="document" accept=".md,.txt,.docx" />
           </label>
 

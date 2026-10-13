@@ -34,7 +34,14 @@ const sections: readonly LegalSection[] = [
         I use submitted information only to provide the feature you requested,
         reply to you, prevent abuse, meet legal obligations, and keep essential
         operational records. I do not sell personal information, use it for
-        targeted advertising, or add contact enquiries to a mailing list.
+        targeted advertising, or add contact enquiries to a mailing list. When
+        email notifications are enabled, contact details and enquiry content are
+        sent through the owner's connected Gmail account to the configured
+        inbox. Visitors are not asked to connect their own Google accounts. This
+        integration sends email; it does not read the owner's inbox. OAuth
+        credentials are kept in server configuration, and the owner can revoke
+        access through their Google Account. Google API data is not used to
+        train AI models.
       </p>
     ),
   },

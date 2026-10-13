@@ -61,8 +61,11 @@ export default async function OperationsPage() {
         database.bytes !== null &&
         database.percent !== null ? (
           <p>
-            {(database.bytes / 1024 / 1024).toFixed(1)} MB of 500 MB used (
-            {database.percent.toFixed(1)}%).
+            Database size: {(database.bytes / 1024 / 1024).toFixed(1)} MiB.
+            Local monitoring budget:{" "}
+            {(database.allowanceBytes / 1024 / 1024).toFixed(0)} MiB (
+            {database.percent.toFixed(1)}% used). Check Neon Console for actual
+            plan limits.
           </p>
         ) : (
           <p>

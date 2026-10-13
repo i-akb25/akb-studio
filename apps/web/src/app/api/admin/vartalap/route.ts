@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 403 });
   }
-  const body = (await readJsonBody(request, 8_192).catch(() => null)) as {
+  const body = (await readJsonBody(request, 24_576).catch(() => null)) as {
     questionId?: unknown;
     reply?: unknown;
     public?: unknown;

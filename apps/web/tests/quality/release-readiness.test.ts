@@ -35,6 +35,18 @@ test("origin mismatch is blocked and enabled web is never called verified", () =
   );
 });
 
+test("release diagnostics reject reserved switches that pretend to enable capabilities", () => {
+  const findings = releaseReadiness({
+    AEVA_DOCUMENT_INGESTION_ENABLED: "true",
+    AEVA_EXTERNAL_ACTIONS_ENABLED: "true",
+  });
+  const reserved = findings.find(
+    (item) => item.id === "reserved-aeva-switches",
+  );
+  assert.equal(reserved?.state, "blocked");
+  assert.match(reserved?.detail ?? "", /must remain false/);
+});
+
 test("release diagnostics are owner-only and private routes are non-cacheable", async () => {
   const page = await readFile(
     path.resolve(

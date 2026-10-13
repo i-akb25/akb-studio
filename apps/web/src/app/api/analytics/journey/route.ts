@@ -13,7 +13,7 @@ export const runtime = "nodejs";
 
 const inputSchema = z
   .object({
-    event: z.enum(["view", "duration"]),
+    event: z.enum(["view", "duration", "heartbeat"]),
     anonymousSessionId: z.string().uuid(),
     category: z.enum(JOURNEY_CATEGORIES),
     projectSlug: z
@@ -24,7 +24,7 @@ const inputSchema = z
     seconds: z.number().int().min(1).max(1_800).optional(),
   })
   .strict()
-  .refine((value) => value.event === "view" || value.seconds !== undefined);
+  .refine((value) => value.event !== "duration" || value.seconds !== undefined);
 
 export async function POST(request: Request) {
   if (!hasTrustedOrigin(request)) return new Response(null, { status: 403 });
@@ -75,6 +75,8 @@ export async function POST(request: Request) {
         sessionHash,
         categories,
         projectSlugs,
+        lastCategory: input.data.category,
+        lastProjectSlug: input.data.projectSlug,
         pageCount: input.data.event === "view" ? 1 : 0,
         totalSeconds: input.data.seconds ?? 0,
         retentionUntil,
@@ -82,6 +84,12 @@ export async function POST(request: Request) {
       update: {
         categories,
         projectSlugs,
+        ...(input.data.event === "duration"
+          ? {}
+          : {
+              lastCategory: input.data.category,
+              lastProjectSlug: input.data.projectSlug ?? null,
+            }),
         pageCount: { increment: input.data.event === "view" ? 1 : 0 },
         totalSeconds: { increment: input.data.seconds ?? 0 },
         lastSeenAt: now,

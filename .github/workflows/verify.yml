@@ -21,6 +21,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Git attribution gate
+        run: node scripts/quality/check-git-attribution.mjs
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6

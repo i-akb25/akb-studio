@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { POLICY_VERSIONS } from "@/features/legal/policy-registry";
 import { publicJourneyTarget } from "../model";
 
@@ -51,14 +51,37 @@ function transmit(payload: Record<string, unknown>) {
 
 export function JourneyTracker() {
   const pathname = usePathname();
+  const [analyticsEnabled, setAnalyticsEnabled] = useState(false);
+
+  useEffect(() => {
+    setAnalyticsEnabled(hasAnalyticsConsent());
+    function preferenceChanged(event: Event) {
+      const detail = (event as CustomEvent<{ analytics?: boolean }>).detail;
+      const enabled = detail?.analytics === true;
+      setAnalyticsEnabled(enabled);
+      if (!enabled) sessionStorage.removeItem(SESSION_KEY);
+    }
+    window.addEventListener("akb:privacy-preferences", preferenceChanged);
+    return () =>
+      window.removeEventListener("akb:privacy-preferences", preferenceChanged);
+  }, []);
 
   useEffect(() => {
     const target = publicJourneyTarget(pathname);
-    if (!target || !hasAnalyticsConsent()) return;
+    if (!target || !analyticsEnabled) return;
     const anonymousSessionId = sessionId();
     const startedAt = Date.now();
     transmit({ event: "view", anonymousSessionId, ...target });
+    const heartbeat = () => {
+      if (document.visibilityState === "visible" && hasAnalyticsConsent()) {
+        transmit({ event: "heartbeat", anonymousSessionId, ...target });
+      }
+    };
+    const heartbeatTimer = window.setInterval(heartbeat, 30_000);
+    document.addEventListener("visibilitychange", heartbeat);
     return () => {
+      window.clearInterval(heartbeatTimer);
+      document.removeEventListener("visibilitychange", heartbeat);
       if (!hasAnalyticsConsent()) return;
       const seconds = Math.min(
         1_800,
@@ -66,17 +89,7 @@ export function JourneyTracker() {
       );
       transmit({ event: "duration", anonymousSessionId, seconds, ...target });
     };
-  }, [pathname]);
-
-  useEffect(() => {
-    function preferenceChanged(event: Event) {
-      const detail = (event as CustomEvent<{ analytics?: boolean }>).detail;
-      if (!detail?.analytics) sessionStorage.removeItem(SESSION_KEY);
-    }
-    window.addEventListener("akb:privacy-preferences", preferenceChanged);
-    return () =>
-      window.removeEventListener("akb:privacy-preferences", preferenceChanged);
-  }, []);
+  }, [analyticsEnabled, pathname]);
 
   return null;
 }

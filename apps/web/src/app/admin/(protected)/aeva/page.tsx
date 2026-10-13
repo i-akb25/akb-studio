@@ -12,30 +12,44 @@ export default async function AdminAevaPage() {
   const liveWebEnabled = process.env.AEVA_WEB_SEARCH_ENABLED === "true";
   const providerModel =
     process.env.AEVA_GEMINI_MODEL?.trim() || "gemini-3.8-flash";
-  const [memories, sources, gaps, incidents] = await Promise.all([
-    prisma.aevaMemory.findMany({
-      where: isOwner ? undefined : { visibility: "PUBLIC_AEVA" },
-      orderBy: [{ order: "asc" }, { updatedAt: "desc" }],
-    }),
-    prisma.aevaSource.findMany({
-      where: isOwner ? undefined : { publicAllowed: true },
-      orderBy: { updatedAt: "desc" },
-    }),
-    isOwner
-      ? prisma.aevaKnowledgeGap.findMany({
-          where: { status: "open" },
-          orderBy: { lastSeenAt: "desc" },
-          take: 100,
-        })
-      : Promise.resolve([]),
-    isOwner
-      ? prisma.aevaIncident.findMany({
-          where: { resolvedAt: null },
-          orderBy: { lastSeenAt: "desc" },
-          take: 50,
-        })
-      : Promise.resolve([]),
-  ]);
+  const configuredProviderLimit = Number(
+    process.env.AEVA_PROVIDER_DAILY_LIMIT ?? 100,
+  );
+  const providerLimit = Number.isFinite(configuredProviderLimit)
+    ? Math.max(1, Math.min(100, configuredProviderLimit))
+    : 100;
+  const [memories, sources, gaps, incidents, providerUsage] = await Promise.all(
+    [
+      prisma.aevaMemory.findMany({
+        where: isOwner ? undefined : { visibility: "PUBLIC_AEVA" },
+        orderBy: [{ order: "asc" }, { updatedAt: "desc" }],
+      }),
+      prisma.aevaSource.findMany({
+        where: isOwner ? undefined : { publicAllowed: true },
+        orderBy: { updatedAt: "desc" },
+      }),
+      isOwner
+        ? prisma.aevaKnowledgeGap.findMany({
+            where: { status: "open" },
+            orderBy: { lastSeenAt: "desc" },
+            take: 100,
+          })
+        : Promise.resolve([]),
+      isOwner
+        ? prisma.aevaIncident.findMany({
+            where: { resolvedAt: null },
+            orderBy: { lastSeenAt: "desc" },
+            take: 50,
+          })
+        : Promise.resolve([]),
+      isOwner
+        ? prisma.securityRateLimit.findFirst({
+            where: { scope: "aeva:provider:daily" },
+            orderBy: { windowStartedAt: "desc" },
+          })
+        : Promise.resolve(null),
+    ],
+  );
   return (
     <main className="akb-admin-page">
       <header className="akb-admin-page__header">
@@ -128,6 +142,14 @@ export default async function AdminAevaPage() {
             Gemini credential: {providerConfigured ? "configured" : "missing"}
             {" · "}Model: {providerModel}
             {" · "}Live web: {liveWebEnabled ? "enabled" : "disabled"}
+          </p>
+          <p>
+            Application provider gate: {providerUsage?.count ?? 0} /{" "}
+            {providerLimit} attempts
+            {providerUsage
+              ? ` · current window ends ${providerUsage.expiresAt.toISOString()}`
+              : ""}
+            . Google provider quotas are independent of this counter.
           </p>
           <p>
             Credential values are never shown. Live questions require both a

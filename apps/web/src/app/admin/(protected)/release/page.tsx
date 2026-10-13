@@ -40,7 +40,8 @@ export default async function ReleasePage() {
           retention and audit integrity. Keep a recoverable database backup.
         </p>
         <p>
-          Aeva remains read-only. Social ingestion, account access and
+          Public and private Aeva remain read-only. Social provider verification
+          can be enabled independently, but social ingestion, account access and
           autonomous external actions are not enabled by this release.
         </p>
       </section>

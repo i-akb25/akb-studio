@@ -1,3 +1,4 @@
+import { LiveAnalyticsRefresh } from "@/features/admin/components/live-analytics-refresh";
 import { requireAdmin } from "@/features/admin/server/admin-auth";
 import {
   failureAlert,
@@ -5,31 +6,65 @@ import {
 } from "@/features/analytics/server/thresholds";
 import { prisma } from "@/server/db/prisma";
 
+export const dynamic = "force-dynamic";
+
+function durationLabel(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}m ${seconds % 60}s`;
+}
+
 export default async function AnalyticsPage() {
   await requireAdmin("analytics:read");
   const now = new Date();
   const since24Hours = new Date(now.getTime() - 24 * 3_600_000);
   const since30Days = new Date(now.getTime() - 30 * 86_400_000);
-  const [metrics, services, aevaFailures, contactFailures, restore] =
-    await Promise.all([
-      prisma.analyticsMetric.findMany({
-        where: { capturedOn: { gte: since30Days } },
-        orderBy: [{ capturedOn: "desc" }, { count: "desc" }],
-        take: 500,
-      }),
-      prisma.operationalHealth.findMany({ orderBy: { key: "asc" } }),
-      prisma.aevaIncident.aggregate({
-        where: { resolvedAt: null, lastSeenAt: { gte: since24Hours } },
-        _sum: { occurrences: true },
-      }),
-      prisma.contactSubmission.count({
-        where: { deliveryStatus: "FAILED", createdAt: { gte: since24Hours } },
-      }),
-      prisma.recoveryVerification.findFirst({
-        where: { outcome: "PASS" },
-        orderBy: { restoreTestedAt: "desc" },
-      }),
-    ]);
+  const activeSince = new Date(now.getTime() - 90_000);
+  const [
+    metrics,
+    services,
+    aevaFailures,
+    contactFailures,
+    restore,
+    activeSessions,
+    sessions24Hours,
+    journeySummary,
+    recentJourneys,
+  ] = await Promise.all([
+    prisma.analyticsMetric.findMany({
+      where: { capturedOn: { gte: since30Days } },
+      orderBy: [{ capturedOn: "desc" }, { count: "desc" }],
+      take: 500,
+    }),
+    prisma.operationalHealth.findMany({ orderBy: { key: "asc" } }),
+    prisma.aevaIncident.aggregate({
+      where: { resolvedAt: null, lastSeenAt: { gte: since24Hours } },
+      _sum: { occurrences: true },
+    }),
+    prisma.contactSubmission.count({
+      where: { deliveryStatus: "FAILED", createdAt: { gte: since24Hours } },
+    }),
+    prisma.recoveryVerification.findFirst({
+      where: { outcome: "PASS" },
+      orderBy: { restoreTestedAt: "desc" },
+    }),
+    prisma.anonymousJourney.count({
+      where: { lastSeenAt: { gte: activeSince } },
+    }),
+    prisma.anonymousJourney.count({
+      where: { lastSeenAt: { gte: since24Hours } },
+    }),
+    prisma.anonymousJourney.aggregate({
+      where: { lastSeenAt: { gte: since30Days } },
+      _count: { _all: true },
+      _sum: { pageCount: true, totalSeconds: true },
+    }),
+    prisma.anonymousJourney.findMany({
+      where: { lastSeenAt: { gte: since24Hours } },
+      orderBy: { lastSeenAt: "desc" },
+      take: 50,
+    }),
+  ]);
   const totals = new Map<string, number>();
   for (const metric of metrics)
     totals.set(metric.kind, (totals.get(metric.kind) ?? 0) + metric.count);
@@ -87,6 +122,71 @@ export default async function AnalyticsPage() {
           replaced with guessed traffic.
         </p>
       </div>
+      <section aria-labelledby="live-visitors-heading">
+        <h2 id="live-visitors-heading">Anonymous visitor activity</h2>
+        <p>
+          These are consented browser sessions, not identified people. Session
+          hashes cannot be joined to contact, authentication or Aeva records.
+        </p>
+        <LiveAnalyticsRefresh />
+        <dl className="akb-ops-metrics">
+          <div className="akb-ops-metric">
+            <dt>Active now</dt>
+            <dd>{activeSessions}</dd>
+          </div>
+          <div className="akb-ops-metric">
+            <dt>Sessions in 24 hours</dt>
+            <dd>{sessions24Hours}</dd>
+          </div>
+          <div className="akb-ops-metric">
+            <dt>Sessions in 30 days</dt>
+            <dd>{journeySummary._count._all}</dd>
+          </div>
+          <div className="akb-ops-metric">
+            <dt>Page views in 30 days</dt>
+            <dd>{journeySummary._sum.pageCount ?? 0}</dd>
+          </div>
+          <div className="akb-ops-metric">
+            <dt>Attention in 30 days</dt>
+            <dd>{durationLabel(journeySummary._sum.totalSeconds ?? 0)}</dd>
+          </div>
+        </dl>
+        {recentJourneys.length ? (
+          <div className="akb-ops-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Anonymous session</th>
+                  <th>Latest area</th>
+                  <th>Journey</th>
+                  <th>Pages</th>
+                  <th>Attention</th>
+                  <th>Last active</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentJourneys.map((journey) => (
+                  <tr key={journey.id}>
+                    <th>{journey.sessionHash.slice(0, 8)}</th>
+                    <td>
+                      {journey.lastCategory ?? "—"}
+                      {journey.lastProjectSlug
+                        ? ` / ${journey.lastProjectSlug}`
+                        : ""}
+                    </td>
+                    <td>{journey.categories.join(" · ") || "—"}</td>
+                    <td>{journey.pageCount}</td>
+                    <td>{durationLabel(journey.totalSeconds)}</td>
+                    <td>{journey.lastSeenAt.toISOString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p>No consented visitor sessions were active in the last 24 hours.</p>
+        )}
+      </section>
       <section aria-labelledby="alerts-heading">
         <h2 id="alerts-heading">Alert thresholds</h2>
         <div className="akb-ops-grid">

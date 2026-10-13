@@ -7,23 +7,45 @@ export type GroundedExcerpt = {
   updatedAt?: string;
 };
 
+function conciseExcerpt(value: string, maxWords = 34): string {
+  const cleaned = value
+    .replace(/Related evidence:[\s\S]*$/i, "")
+    .replace(/https?:\/\/\S+/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!cleaned) return "Published evidence is available on the linked page.";
+  const sentence = cleaned.split(/(?<=[.!?])\s+/, 1)[0] ?? cleaned;
+  return clampWords(sentence, maxWords);
+}
+
 export function groundedFallbackAnswer(input: {
   sources: readonly GroundedExcerpt[];
   plan: AevaQueryPlan;
   maxWords: number;
 }): string {
-  const titles = [
-    ...new Set(input.sources.map((source) => source.title.trim())),
-  ]
-    .filter(Boolean)
-    .slice(0, 3);
-  const pages = new Intl.ListFormat("en", {
-    style: "long",
-    type: "conjunction",
-  }).format(titles);
+  const evidence = input.sources
+    .filter((source) => source.title.trim() && source.content.trim())
+    .filter(
+      (source, index, sources) =>
+        sources.findIndex((item) => item.title === source.title) === index,
+    )
+    .slice(0, input.plan.responseShape === "comparison" ? 2 : 3)
+    .map(
+      (source) => `• ${source.title.trim()}: ${conciseExcerpt(source.content)}`,
+    );
+
+  const introduction =
+    input.plan.responseShape === "comparison"
+      ? "Here is the comparison supported by the published portfolio:"
+      : input.plan.responseShape === "timeline"
+        ? "Here is the published evidence relevant to that timeline:"
+        : input.plan.responseShape === "technical"
+          ? "Here is the strongest published technical evidence:"
+          : "Here is what the published portfolio supports:";
+
   return clampWords(
-    pages
-      ? `I couldn’t prepare a reliable conversational answer. You can open the verified pages for ${pages} below, or try again shortly.`
+    evidence.length
+      ? `${introduction}\n\n${evidence.join("\n")}`
       : "I don’t have enough reliable published evidence to answer that without guessing. Try a more specific portfolio question or enable live web search for current public information.",
     input.maxWords,
   );

@@ -7,6 +7,17 @@ export function providerThinkingConfig(model: string) {
     : {};
 }
 
+export function providerMayTryFallback(status: number): boolean {
+  return (
+    status === 400 ||
+    status === 404 ||
+    status === 408 ||
+    status === 409 ||
+    status === 429 ||
+    status >= 500
+  );
+}
+
 const answerSchema = z
   .object({
     answer: z.string().trim().min(1).max(12_000),

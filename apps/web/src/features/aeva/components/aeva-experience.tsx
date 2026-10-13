@@ -32,6 +32,7 @@ const evidenceLabels: Record<AevaAnswer["evidenceState"], string> = {
   conversational: "Conversation",
   insufficient: "No reliable evidence",
 };
+const LIVE_WEB_FOLLOW_UP = "Should I search the live web instead?";
 
 export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -82,7 +83,10 @@ export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
     };
   }
 
-  async function ask(value: string) {
+  async function ask(
+    value: string,
+    options?: { allowWeb?: boolean; displayText?: string },
+  ) {
     const trimmed = value.trim();
     if (
       !trimmed ||
@@ -96,7 +100,10 @@ export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
     requestRef.current = abort;
     const timeout = window.setTimeout(() => abort.abort(), 60_000);
     setQuestion("");
-    setMessages((current) => [...current, { role: "user", text: trimmed }]);
+    setMessages((current) => [
+      ...current,
+      { role: "user", text: options?.displayText ?? trimmed },
+    ]);
     setStatus("Connecting to Aeva");
     setFollowUps([]);
     try {
@@ -107,7 +114,7 @@ export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
         body: JSON.stringify({
           question: trimmed,
           mode,
-          allowWeb,
+          allowWeb: options?.allowWeb ?? allowWeb,
           shareConversation,
           shareUnknownQuestion,
           conversationId,
@@ -437,7 +444,20 @@ export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
                   <button
                     key={item}
                     type="button"
-                    onClick={() => ask(item)}
+                    onClick={() => {
+                      if (item !== LIVE_WEB_FOLLOW_UP) {
+                        void ask(item);
+                        return;
+                      }
+                      const previousQuestion = messages.findLast(
+                        (message) => message.role === "user",
+                      )?.text;
+                      setAllowWeb(true);
+                      void ask(previousQuestion ?? item, {
+                        allowWeb: true,
+                        displayText: item,
+                      });
+                    }}
                     className="rounded-full border border-border px-4 py-2 text-left text-xs text-foreground hover:border-accent-warm"
                   >
                     {item}

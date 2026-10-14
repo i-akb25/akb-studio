@@ -137,6 +137,18 @@ const groups: Array<{ label: string; items: NavigationItem[] }> = [
     label: "Private operations",
     items: [
       {
+        href: "/admin/submissions",
+        label: "Submissions",
+        description: "Owner-only feedback, contacts and chats",
+        icon: MessageSquareText,
+      },
+      {
+        href: "/admin/service-health",
+        label: "Service health",
+        description: "Failures and last service checks",
+        icon: Activity,
+      },
+      {
         href: "/admin/aeva",
         label: "Aeva",
         description: "Approved memory and sources",

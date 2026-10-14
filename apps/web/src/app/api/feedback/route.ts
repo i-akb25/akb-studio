@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     );
   let input: z.infer<typeof schema>;
   try {
-    input = schema.parse(await readJsonBody(request, 12_000));
+    input = schema.parse(await readJsonBody(request, 32_768));
   } catch (error) {
     return Response.json(
       { error: "Invalid feedback" },

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { POLICY_VERSIONS } from "@/features/legal/policy-registry";
 import { boundedConversationHistory } from "../core/provider-contract";
 import type { AevaConversationTurn } from "../model";
@@ -38,6 +38,7 @@ export function ConversationFeedback({
   transcript: readonly AevaConversationTurn[];
   onClose?: () => void;
 }) {
+  const submitting = useRef(false);
   const [selected, setSelected] = useState<FeedbackReason>();
   const [comment, setComment] = useState("");
   const [includeTranscript, setIncludeTranscript] = useState(false);
@@ -46,7 +47,9 @@ export function ConversationFeedback({
   const reasons = variant === "report" ? reportReasons : feedbackReasons;
 
   async function submit() {
-    if (!selected || busy || status === "Received. Thank you.") return;
+    if (!selected || submitting.current || status === "Received. Thank you.")
+      return;
+    submitting.current = true;
     setBusy(true);
     setStatus("Sending…");
     try {
@@ -67,15 +70,27 @@ export function ConversationFeedback({
             : {}),
         }),
       });
+      const result = (await response.json().catch(() => null)) as {
+        ok?: unknown;
+      } | null;
       setStatus(
-        response.ok
+        response.ok && result?.ok === true
           ? "Received. Thank you."
-          : "This service is temporarily unavailable.",
+          : response.status === 429
+            ? "Too many attempts. Please wait 15 minutes before trying again."
+            : response.status === 400 || response.status === 413
+              ? "This feedback could not be accepted. Refresh the page and check the comment length."
+              : response.status === 403
+                ? "This request could not be verified. Reload the page before trying again."
+                : "Delivery could not be confirmed. Your feedback may already have arrived; please avoid repeated submissions.",
       );
     } catch {
-      setStatus("This service is temporarily unavailable.");
+      setStatus(
+        "Delivery could not be confirmed. Your feedback may already have arrived; please avoid repeated submissions.",
+      );
     } finally {
       setBusy(false);
+      submitting.current = false;
     }
   }
 

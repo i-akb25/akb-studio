@@ -1,3 +1,4 @@
+import { conversationRecall, visitorName } from "./core/conversation-context";
 import type {
   AevaConversationTurn,
   AevaIntent,
@@ -20,7 +21,7 @@ const EXPLAIN_PAGE =
 const PORTFOLIO =
   /\b(?:anurag|ace|akb|project|portfolio|experience|skill|work|journal|knowledge|pravaah|resume|electrical|automation|robotics|software|drone|adhayan|codevet)\b/i;
 const GREETING =
-  /^(?:hi|hello|hey|good (?:morning|afternoon|evening)|namaste)(?:[\s,!.'-]+.*)?$/i;
+  /^(?:hi|hello|hey|good (?:morning|afternoon|evening)|namaste)[\s,!.]*$/i;
 const VISITOR_INTRODUCTION =
   /^(?:i am|i'm|my name is)\s+[a-z][a-z'-]{1,30}[.!?\s]*$/i;
 const VISITOR_HERE =
@@ -28,7 +29,7 @@ const VISITOR_HERE =
 const AEVA_CAPABILITY =
   /^(?:what (?:do|can) you do|what you do|how can you help(?: me)?|what can you help(?: me)? with)[.!?\s]*$/i;
 const CASUAL =
-  /^(?:i(?:'m| am) (?:good|fine|great|okay|ok)|(?:hey[, ]+)?how are you|thanks?|thank you|nice to meet you|who are you)[.!?\s]*$/i;
+  /^(?:i(?:'m| am) (?:good|fine|great|okay|ok)(?:[,!. ]+(?:and |but )?(?:what about you|how about you|how are you|you))?|(?:hey[, ]+)?how are you|what about you|and you|thanks?|thank you|nice to meet you|who are you)[.!?\s]*$/i;
 const SKILL_EVIDENCE =
   /\b(?:where|which project|show|evidence|demonstrate[sd]?)\b.{0,60}\b(?:use[sd]?|skill|experience|react|next\.js|typescript|javascript|python|prisma|postgres(?:ql)?|neon|gemini|pixhawk|arduino|matlab)\b/i;
 const TIMELINE =
@@ -47,6 +48,7 @@ export function classifyAevaIntent(input: {
   history?: readonly AevaConversationTurn[];
 }): AevaIntent {
   const question = input.question.trim();
+  if (conversationRecall(question, input.history ?? [])) return "conversation";
   if (
     /^(?:yes|yeah|okay|ok|continue|go on|more|tell me more|explain more|what else|anything else|any ?thing you know)[.!?\s]*$/i.test(
       question,
@@ -68,6 +70,7 @@ export function classifyAevaIntent(input: {
     CASUAL.test(question) ||
     VISITOR_INTRODUCTION.test(question) ||
     VISITOR_HERE.test(question) ||
+    visitorName([{ role: "user", text: question }]) ||
     AEVA_CAPABILITY.test(question)
   )
     return "conversation";
@@ -77,13 +80,23 @@ export function classifyAevaIntent(input: {
       .find((turn) => turn.role === "user")?.text;
     if (
       previousQuestion &&
-      LIVE_INFORMATION.test(previousQuestion) &&
-      !LIVE_INFORMATION.test(question)
+      /\b(?:weather|temperature|forecast|time|timezone)\b/i.test(
+        previousQuestion,
+      ) &&
+      /^[\p{L} .'-]{2,60}$/u.test(question) &&
+      !/\b(?:he|his|she|her|who|what|where|why|how|work|education|experience|project|jsw|is|can|will)\b/i.test(
+        question,
+      )
     ) {
       return "live-information";
     }
   }
   if (isCurrentActivityQuestion(question)) return "portfolio";
+  if (
+    /\b(?:he|his|anurag|ace)\b/i.test(question) &&
+    /\b(?:president|prime minister|chief minister)\b/i.test(question)
+  )
+    return "portfolio";
   if (INTERVIEW.test(question)) return "interview";
   if (
     ROLE_FIT.test(question) ||
@@ -100,36 +113,24 @@ export function classifyAevaIntent(input: {
   return "general-knowledge";
 }
 
-function visitorName(
-  turns: readonly AevaConversationTurn[],
-): string | undefined {
-  for (const turn of [...turns].reverse()) {
-    if (turn.role !== "user") continue;
-    const match =
-      turn.text.match(/\b(?:i am|i'm|my name is)\s+([a-z][a-z'-]{1,30})\b/i) ??
-      turn.text.match(
-        /^(?:(?:hey|hi|hello)[, ]+)?([a-z][a-z'-]{1,30})\s+here[.!?\s]*$/i,
-      );
-    if (match?.[1])
-      return match[1][0].toUpperCase() + match[1].slice(1).toLowerCase();
-  }
-  return undefined;
-}
-
 export function conversationalReply(
   question: string,
   turns: readonly AevaConversationTurn[],
 ): string | undefined {
   const name = visitorName(turns);
+  const recall = conversationRecall(question, turns);
+  if (recall) return recall;
+  if (
+    CASUAL.test(question) &&
+    /\b(?:what about you|how about you|and you|how are you)\b/i.test(
+      question,
+    ) &&
+    !/^(?:hey[, ]+)?how are you[.!?\s]*$/i.test(question)
+  )
+    return `Good to hear${name ? `, ${name}` : ""}. I’m here and ready to chat. What’s on your mind?`;
   if (/^i(?:'m| am) (?:good|fine|great|okay|ok)[.!?\s]*$/i.test(question))
     return `Good to hear${name ? `, ${name}` : ""}. What brings you here today?`;
-  const nameInQuestion =
-    question.match(
-      /\b(?:i am|i'm|my name is)\s+([a-z][a-z'-]{1,30})\b/i,
-    )?.[1] ??
-    question.match(
-      /^(?:(?:hey|hi|hello)[, ]+)?([a-z][a-z'-]{1,30})\s+here[.!?\s]*$/i,
-    )?.[1];
+  const nameInQuestion = visitorName([{ role: "user", text: question }]);
   if (nameInQuestion) {
     const name =
       nameInQuestion[0].toUpperCase() + nameInQuestion.slice(1).toLowerCase();

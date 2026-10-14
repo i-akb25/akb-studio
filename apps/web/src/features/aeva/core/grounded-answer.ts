@@ -1,5 +1,6 @@
 import type { AevaQueryPlan } from "../model";
-import { clampWords } from "./response-contract";
+import { safeAevaAnswer } from "../security/output-guard";
+import { meaningfulTokens } from "./memory-retrieval";
 export type GroundedExcerpt = {
   title: string;
   content: string;
@@ -7,15 +8,29 @@ export type GroundedExcerpt = {
   updatedAt?: string;
 };
 
-function conciseExcerpt(value: string, maxWords = 34): string {
-  const cleaned = value
-    .replace(/Related evidence:[\s\S]*$/i, "")
-    .replace(/https?:\/\/\S+/gi, "")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!cleaned) return "Published evidence is available on the linked page.";
-  const sentence = cleaned.split(/(?<=[.!?])\s+/, 1)[0] ?? cleaned;
-  return clampWords(sentence, maxWords);
+export function approvedShortReply(
+  source: GroundedExcerpt,
+  maxWords: number,
+  question?: string,
+): string | null {
+  const text = source.content.trim();
+  if (
+    !source.title.trim().endsWith("?") ||
+    text.split(/\s+/).length > Math.min(maxWords, 65)
+  )
+    return null;
+  if (
+    /\b(?:Question|Sample reply|Answer)\s*:|\n\s*[•*-]|https?:\/\//i.test(text)
+  )
+    return null;
+  if (!/[.!?🙂😊😉]$/u.test(text)) return null;
+  if (question) {
+    const terms = meaningfulTokens(question);
+    const heading = meaningfulTokens(source.title);
+    if (!terms.length || !terms.every((term) => heading.includes(term)))
+      return null;
+  }
+  return safeAevaAnswer(text, maxWords);
 }
 
 export function groundedFallbackAnswer(input: {
@@ -23,30 +38,14 @@ export function groundedFallbackAnswer(input: {
   plan: AevaQueryPlan;
   maxWords: number;
 }): string {
-  const evidence = input.sources
-    .filter((source) => source.title.trim() && source.content.trim())
-    .filter(
-      (source, index, sources) =>
-        sources.findIndex((item) => item.title === source.title) === index,
-    )
-    .slice(0, input.plan.responseShape === "comparison" ? 2 : 3)
-    .map(
-      (source) => `• ${source.title.trim()}: ${conciseExcerpt(source.content)}`,
-    );
-
-  const introduction =
-    input.plan.responseShape === "comparison"
-      ? "Here is the comparison supported by the published portfolio:"
-      : input.plan.responseShape === "timeline"
-        ? "Here is the published evidence relevant to that timeline:"
-        : input.plan.responseShape === "technical"
-          ? "Here is the strongest published technical evidence:"
-          : "Here is what the published portfolio supports:";
-
-  return clampWords(
-    evidence.length
-      ? `${introduction}\n\n${evidence.join("\n")}`
-      : "I don’t have enough reliable published evidence to answer that without guessing. Try a more specific portfolio question or enable live web search for current public information.",
-    input.maxWords,
+  const source = input.sources[0];
+  return (
+    (source &&
+      approvedShortReply(
+        source,
+        input.maxWords,
+        input.plan.originalQuestion,
+      )) ||
+    "I found relevant published information, but I can’t turn it into a reliable answer right now. Please try again shortly. You can also check the sources below."
   );
 }

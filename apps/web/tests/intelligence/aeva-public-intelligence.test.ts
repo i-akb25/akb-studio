@@ -50,7 +50,7 @@ test("expands known entities and extracts requested technologies and years", () 
   assert.equal(plan.responseShape, "evidence-list");
 });
 
-test("deterministic grounded synthesis obeys its word budget", () => {
+test("provider fallback never dumps source titles or incomplete paragraphs", () => {
   const plan = understandAevaQuery({
     question: "Compare CodeVet and ADHAYAN",
     intent: "compare-projects",
@@ -58,7 +58,7 @@ test("deterministic grounded synthesis obeys its word budget", () => {
   });
   const answer = groundedFallbackAnswer({
     plan,
-    maxWords: 24,
+    maxWords: 110,
     sources: [
       {
         title: "CodeVet",
@@ -70,10 +70,9 @@ test("deterministic grounded synthesis obeys its word budget", () => {
       },
     ],
   });
-  assert.ok(answer.trim().split(/\s+/).length <= 24);
-  assert.match(answer, /published portfolio/);
-  assert.match(answer, /CodeVet/);
-  assert.doesNotMatch(answer, /couldn’t prepare/);
+  assert.ok(answer.trim().split(/\s+/).length <= 110);
+  assert.match(answer, /try again shortly/);
+  assert.doesNotMatch(answer, /CodeVet|ADHAYAN|detailed published|•/);
 });
 
 test("authority and freshness reorder relevant evidence but never admit irrelevant evidence", () => {

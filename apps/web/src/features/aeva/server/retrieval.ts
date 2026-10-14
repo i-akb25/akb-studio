@@ -1,11 +1,14 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
-import { searchPortfolioKnowledgeGraph } from "@/features/intelligence/model";
 import { getPortfolioKnowledgeGraph } from "@/features/intelligence/server/portfolio-knowledge-graph";
-import { publishedProjects } from "@/features/projects/data/project-registry";
 import { prisma } from "@/server/db/prisma";
 import { aevaServerConfig } from "../config/server-config";
+import {
+  chunkMemory,
+  isEmploymentQuestion,
+  memoryRelevance,
+} from "../core/memory-retrieval";
 import { rankRetrievalCandidate } from "../core/retrieval-ranking";
 import type { AevaCitation, AevaQueryPlan } from "../model";
 import {
@@ -20,53 +23,8 @@ export type RetrievalCandidate = AevaCitation & {
   provenance: AevaProvenance;
 };
 
-function tokens(value: string): string[] {
-  return [
-    ...new Set(
-      value.toLocaleLowerCase("en-IN").match(/[a-z0-9+#.-]{2,}/g) ?? [],
-    ),
-  ];
-}
-
 function contentHash(value: string): string {
   return createHash("sha256").update(value).digest("hex");
-}
-
-function lexicalScore(query: string[], title: string, content: string): number {
-  const heading = title.toLocaleLowerCase("en-IN");
-  const body = content.toLocaleLowerCase("en-IN");
-  return query.reduce(
-    (total, token) =>
-      total +
-      (heading.includes(token) ? 8 : 0) +
-      (body.includes(token) ? 2 : 0),
-    0,
-  );
-}
-
-function chunks(value: string, maxCharacters = 720): string[] {
-  const sentences = value
-    .replace(/\s+/g, " ")
-    .trim()
-    .split(/(?<=[.!?])\s+/)
-    .filter(Boolean);
-  const result: string[] = [];
-  let current = "";
-  for (const sentence of sentences) {
-    if (current && current.length + sentence.length + 1 > maxCharacters) {
-      result.push(current);
-      current = "";
-    }
-    if (sentence.length > maxCharacters) {
-      if (current) result.push(current);
-      result.push(sentence.slice(0, maxCharacters));
-      current = "";
-    } else {
-      current = [current, sentence].filter(Boolean).join(" ");
-    }
-  }
-  if (current) result.push(current);
-  return result;
 }
 
 function approvedCandidate(input: {
@@ -101,52 +59,40 @@ async function portfolioCandidates(
   question: string,
 ): Promise<RetrievalCandidate[]> {
   const graph = await getPortfolioKnowledgeGraph();
-  const projectPriority = new Map(
-    publishedProjects.map((project) => [
-      `project:${project.slug}`,
-      project.tier === "flagship" ? 12 : project.tier === "standard" ? 5 : 0,
-    ]),
-  );
-  const nodes = new Map(graph.nodes.map((node) => [node.id, node]));
-  return searchPortfolioKnowledgeGraph(graph, question, 10).flatMap((match) => {
-    const related = match.relatedNodeIds
-      .map((id) => nodes.get(id)?.title)
-      .filter((title): title is string => Boolean(title));
-    const text = [
-      match.node.body,
-      related.length ? `Related evidence: ${related.join(", ")}.` : "",
-    ]
-      .filter(Boolean)
-      .join(" ");
-    return chunks(text).flatMap((chunk, index) => {
-      const item = approvedCandidate({
-        id: `${match.node.id}:chunk:${index + 1}`,
-        title: match.node.title,
-        url: match.node.url ?? "/aeva",
-        kind: "portfolio",
-        content: chunk,
-        score:
-          match.score +
-          lexicalScore(tokens(question), match.node.title, chunk) +
-          (projectPriority.get(match.node.id) ?? 0),
-        provenance: {
-          sourceId: match.node.provenance?.sourceId ?? match.node.id,
-          route: match.node.url ?? "/aeva",
-          sourceType: "portfolio",
-          classification: "public",
-          allowedConsumers: ["public_aeva", "private_aeva"],
-          authority: "canonical",
-          published: true,
-          allowAeva: true,
-          sensitivity: "public",
-          ...(match.node.provenance?.updatedAt
-            ? { updatedAt: match.node.provenance.updatedAt }
-            : {}),
-        },
+  return graph.nodes
+    .filter((node) => node.document)
+    .filter(
+      (node) =>
+        !isEmploymentQuestion(question) ||
+        node.id.startsWith("profile:experience:"),
+    )
+    .flatMap((node) => {
+      return chunkMemory(node.body).flatMap((chunk, index) => {
+        const item = approvedCandidate({
+          id: `${node.id}:chunk:${index + 1}`,
+          title: node.title,
+          url: node.url ?? "",
+          kind: "portfolio",
+          content: chunk,
+          score: memoryRelevance(question, node.title, chunk),
+          provenance: {
+            sourceId: node.provenance?.sourceId ?? node.id,
+            route: node.url ?? "",
+            sourceType: "portfolio",
+            classification: "public",
+            allowedConsumers: ["public_aeva", "private_aeva"],
+            authority: "canonical",
+            published: true,
+            allowAeva: true,
+            sensitivity: "public",
+            ...(node.provenance?.updatedAt
+              ? { updatedAt: node.provenance.updatedAt }
+              : {}),
+          },
+        });
+        return item ? [item] : [];
       });
-      return item ? [item] : [];
     });
-  });
 }
 
 async function managedCandidates(
@@ -164,43 +110,44 @@ async function managedCandidates(
         orderBy: { updatedAt: "desc" },
       }),
     ]);
-    const query = tokens(question);
     return [
-      ...memories.flatMap((item) =>
-        chunks(item.content).flatMap((chunk, index) => {
-          const candidate = approvedCandidate({
-            id: `memory:${item.id}:chunk:${index + 1}`,
-            title: item.title,
-            url: item.sourceUrl ?? "/aeva",
-            kind: "memory",
-            content: chunk,
-            score: lexicalScore(query, item.title, chunk),
-            provenance: {
-              sourceId: `memory:${item.id}`,
-              route: item.sourceUrl ?? "/aeva",
-              sourceType: "managed_memory",
-              classification: "public",
-              allowedConsumers: ["public_aeva", "private_aeva"],
-              authority: "supporting",
-              published: item.state === "PUBLISHED",
-              allowAeva: item.visibility === "PUBLIC_AEVA",
-              sensitivity: "public",
-              updatedAt: item.updatedAt.toISOString(),
-            },
-          });
-          return candidate ? [candidate] : [];
-        }),
-      ),
+      ...memories
+        .filter((item) => !containsEmbeddedInstruction(item.content))
+        .flatMap((item) =>
+          chunkMemory(item.content).flatMap((chunk, index) => {
+            const candidate = approvedCandidate({
+              id: `memory:${item.id}:chunk:${index + 1}`,
+              title: item.title,
+              url: item.sourceUrl ?? "",
+              kind: "memory",
+              content: chunk,
+              score: memoryRelevance(question, item.title, chunk),
+              provenance: {
+                sourceId: `memory:${item.id}`,
+                route: item.sourceUrl ?? "",
+                sourceType: "managed_memory",
+                classification: "public",
+                allowedConsumers: ["public_aeva", "private_aeva"],
+                authority: "supporting",
+                published: item.state === "PUBLISHED",
+                allowAeva: item.visibility === "PUBLIC_AEVA",
+                sensitivity: "public",
+                updatedAt: item.updatedAt.toISOString(),
+              },
+            });
+            return candidate ? [candidate] : [];
+          }),
+        ),
       ...sources.flatMap((item) => {
         const text = item.notes?.trim() || item.title;
-        return chunks(text).flatMap((chunk, index) => {
+        return chunkMemory(text).flatMap((chunk, index) => {
           const candidate = approvedCandidate({
             id: `owner-url:${item.id}:chunk:${index + 1}`,
             title: item.title,
             url: item.url,
             kind: "owner-url",
             content: chunk,
-            score: lexicalScore(query, item.title, chunk),
+            score: memoryRelevance(question, item.title, chunk),
             provenance: {
               sourceId: `owner-url:${item.id}`,
               route: item.url,
@@ -243,7 +190,10 @@ export function deduplicateAevaCitations(
 ): AevaCitation[] {
   const seen = new Set<string>();
   return citations.filter((citation) => {
-    const key = `${citation.kind}:${citation.url.split("#", 1)[0]}`;
+    const key =
+      citation.kind === "memory"
+        ? (citation.sourceId ?? citation.id)
+        : `${citation.kind}:${citation.url.split("#", 1)[0]}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -254,7 +204,7 @@ export async function retrieveAevaContext(
   query: string | AevaQueryPlan,
   requestedLimit?: number,
 ) {
-  const question = typeof query === "string" ? query : query.expandedQuery;
+  const question = typeof query === "string" ? query : query.originalQuestion;
   const plan = typeof query === "string" ? undefined : query;
   const limit = Math.min(
     requestedLimit ?? aevaServerConfig.maxRetrievalChunks,

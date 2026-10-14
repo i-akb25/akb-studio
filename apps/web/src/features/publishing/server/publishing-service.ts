@@ -1,6 +1,7 @@
 import "server-only";
 
 import { recordOperationalHealth } from "@/server/analytics/metrics";
+import { publishingConfigurationError } from "./publishing-config";
 import { signedPublishingRequest } from "./publishing-signature";
 
 type PublishingAction =
@@ -14,7 +15,11 @@ type PublishingAction =
   | "admin_send_notifications"
   | "admin_vartalap_list"
   | "admin_vartalap_reply"
-  | "feedback_submit";
+  | "feedback_submit"
+  | "admin_feedback_list"
+  | "admin_feedback_get"
+  | "admin_feedback_update"
+  | "admin_feedback_delete";
 
 export type ServiceResponse<T> = {
   ok: boolean;
@@ -36,6 +41,18 @@ export async function callPublishingService<T>(
   action: PublishingAction,
   payload: Record<string, unknown> = {},
 ): Promise<ServiceResponse<T>> {
+  const configError = publishingConfigurationError(process.env);
+  if (configError) {
+    await recordOperationalHealth({
+      key: "publishing_service",
+      status: "disabled",
+      summary:
+        configError === "publishing_service_invalid_url"
+          ? "Publishing service URL is invalid"
+          : "Publishing service configuration is incomplete",
+    });
+    return { ok: false, error: configError };
+  }
   const url = requireEnv("AKB_PUBLISHING_SERVICE_URL");
   const serviceToken = requireEnv("AKB_PUBLISHING_SERVICE_TOKEN");
   const signingSecret = requireEnv("APPS_SCRIPT_SIGNING_SECRET");
@@ -98,18 +115,37 @@ export async function callPublishingService<T>(
     return { ok: false, error: "publishing_service_invalid_response" };
   }
 
+  const allowedErrors = new Set([
+    "unauthorized",
+    "unsupported_action",
+    "invalid_feedback",
+    "invalid_identifier",
+    "invalid_text",
+    "internal_error",
+    "required_sheet_missing",
+    "sheet_header_mismatch",
+    "publishing_service_not_initialized",
+    "service_busy",
+    "record_not_found",
+    "record_changed",
+    "invalid_confirmation",
+  ]);
+  const safeCode =
+    typeof result.error === "string" && allowedErrors.has(result.error)
+      ? result.error
+      : "publishing_service_error";
   await recordOperationalHealth({
     key: "publishing_service",
     status: result.ok ? "healthy" : "degraded",
     summary: result.ok
       ? "Publishing service responded successfully"
-      : "Publishing service reported a controlled error",
+      : `Publishing service rejected request: ${safeCode}`,
   });
 
   return result.ok
     ? result
     : {
         ok: false,
-        error: result.error ?? "publishing_service_error",
+        error: safeCode,
       };
 }

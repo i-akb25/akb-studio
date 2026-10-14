@@ -7,6 +7,7 @@ import { hasTrustedOrigin } from "@/server/security/request";
 
 export type AdminRole = "owner" | "editor" | "moderator" | "viewer";
 export type AdminPermission =
+  | "submissions:manage"
   | "content:read"
   | "content:write"
   | "content:publish"
@@ -18,6 +19,7 @@ export type AdminPermission =
 
 const ROLE_PERMISSIONS: Record<AdminRole, readonly AdminPermission[]> = {
   owner: [
+    "submissions:manage",
     "content:read",
     "content:write",
     "content:publish",

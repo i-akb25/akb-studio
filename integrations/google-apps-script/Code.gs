@@ -48,6 +48,9 @@ const AKB = Object.freeze({
       "kind",
       "transcriptConsented",
       "reportExcerpt",
+      "status",
+      "ownerNote",
+      "updatedAt",
     ]),
     PublicationEvents: Object.freeze([
       "eventId",
@@ -98,64 +101,69 @@ const AKB = Object.freeze({
   }),
 });
 function initializePublishingService() {
-  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  if (!spreadsheet) throw new Error("bound_spreadsheet_required");
   const properties = PropertiesService.getScriptProperties();
-  properties.setProperty(AKB.properties.spreadsheetId, spreadsheet.getId());
-  if (!properties.getProperty(AKB.properties.serviceToken)) {
-    properties.setProperty(AKB.properties.serviceToken, generateSecret_());
+  const configuredId = properties.getProperty(AKB.properties.spreadsheetId);
+  const spreadsheet = configuredId
+    ? SpreadsheetApp.openById(configuredId)
+    : SpreadsheetApp.getActiveSpreadsheet();
+  if (!spreadsheet) throw new Error("spreadsheet_not_configured");
+  if (!configuredId)
+    properties.setProperty(AKB.properties.spreadsheetId, spreadsheet.getId());
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(3000)) throw new Error("service_busy");
+  try {
+    Object.entries(AKB.sheets).forEach(([name, headers]) => {
+      if (name === "AevaFeedback") {
+        ensureFeedbackSheet_(spreadsheet);
+        return;
+      }
+      const sheet = spreadsheet.getSheetByName(name);
+      if (!sheet) throw new Error("required_sheet_missing");
+      if (sheet.getLastRow() === 0) sheet.appendRow(headers);
+      validateHeaders_(sheet, headers);
+    });
+    initializeDefaultSettings_();
+    return { ok: true };
+  } finally {
+    lock.releaseLock();
   }
-  Object.entries(AKB.sheets).forEach(([name, headers]) => {
-    let sheet = spreadsheet.getSheetByName(name);
-    if (!sheet && name === "AevaFeedback") {
-      sheet = spreadsheet.insertSheet(name);
-    }
-    if (!sheet) throw new Error(`Missing required sheet: ${name}`);
-    if (sheet.getLastRow() === 0) {
-      sheet.appendRow(headers);
-    } else if (
-      name === "AevaFeedback" &&
-      sheet.getLastColumn() < headers.length
-    ) {
-      const existingHeaders = sheet
-        .getRange(1, 1, 1, sheet.getLastColumn())
-        .getDisplayValues()[0]
-        .map((value) => value.trim());
-      existingHeaders.forEach((existing, index) => {
-        if (existing !== headers[index]) {
-          throw new Error(`Invalid header in ${name} column ${index + 1}`);
-        }
-      });
-      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-    }
-    validateHeaders_(sheet, headers);
-  });
-  initializeDefaultSettings_();
-  return { ok: true };
 }
+
 function runFoundationCheck() {
-  initializePublishingService();
-  const properties = PropertiesService.getScriptProperties();
-  const spreadsheetConfigured = Boolean(
-    properties.getProperty(AKB.properties.spreadsheetId),
-  );
-  const serviceTokenConfigured = Boolean(
-    properties.getProperty(AKB.properties.serviceToken),
-  );
-  const signingSecretConfigured = Boolean(
-    properties.getProperty(AKB.properties.signingSecret),
-  );
-  if (!spreadsheetConfigured) throw new Error("spreadsheet_not_configured");
-  if (!serviceTokenConfigured) throw new Error("service_token_not_configured");
-  if (!signingSecretConfigured)
-    throw new Error("signing_secret_not_configured");
-  return {
-    ok: true,
-    spreadsheetConfigured,
-    serviceTokenConfigured,
-    signingSecretConfigured,
-  };
+  let stage = "configuration";
+  try {
+    const properties = PropertiesService.getScriptProperties();
+    for (const name of [
+      AKB.properties.spreadsheetId,
+      AKB.properties.serviceToken,
+      AKB.properties.signingSecret,
+    ]) {
+      if (!properties.getProperty(name))
+        throw new Error("configuration_missing");
+    }
+    stage = "spreadsheet";
+    const spreadsheet = getSpreadsheet_();
+    stage = "sheet_headers";
+    Object.entries(AKB.sheets).forEach(([name, headers]) => {
+      const sheet = spreadsheet.getSheetByName(name);
+      if (!sheet) throw new Error("required_sheet_missing");
+      validateHeaders_(sheet, headers);
+    });
+    const result = { ok: true, check: "foundation", status: "ready" };
+    console.info(JSON.stringify(result));
+    return result;
+  } catch (error) {
+    const result = {
+      ok: false,
+      check: "foundation",
+      stage,
+      code: safeErrorCode_(error),
+    };
+    console.error(JSON.stringify(result));
+    return result;
+  }
 }
+
 function rotateServiceToken() {
   const token = generateSecret_();
   PropertiesService.getScriptProperties().setProperty(
@@ -172,11 +180,28 @@ function doGet() {
   });
 }
 function doPost(e) {
+  let stage = "request_parse";
+  let action = "unknown";
   try {
     const payload = parseRequest_(e);
+    stage = "service_token";
     requireServiceToken_(payload.serviceToken);
+    stage = "request_signature";
     requireSignedRequest_(payload);
-    const action = normalizeIdentifier_(payload.action, 64);
+    action = normalizeIdentifier_(payload.action, 64);
+    stage = "action_handler";
+    if (action === "admin_feedback_list")
+      return jsonResponse_({ ok: true, data: listFeedback_(payload) });
+    if (action === "admin_feedback_get")
+      return jsonResponse_({ ok: true, data: getFeedback_(payload) });
+    if (
+      action === "admin_feedback_update" ||
+      action === "admin_feedback_delete"
+    )
+      return jsonResponse_({
+        ok: true,
+        data: changeFeedback_(payload, action),
+      });
     if (action === "health") return jsonResponse_({ ok: true });
     if (action === "subscribe")
       return jsonResponse_({ ok: true, data: subscribe_(payload) });
@@ -204,9 +229,36 @@ function doPost(e) {
       return jsonResponse_({ ok: true, data: adminVartalapList_() });
     if (action === "admin_vartalap_reply")
       return jsonResponse_({ ok: true, data: adminVartalapReply_(payload) });
-    return jsonResponse_({ ok: false, error: "unsupported_action" });
+    throw new Error("unsupported_action");
   } catch (error) {
-    return jsonResponse_({ ok: false, error: safeErrorCode_(error) });
+    const code = safeErrorCode_(error);
+    const knownActions = [
+      "health",
+      "subscribe",
+      "vartalap_submit",
+      "vartalap_public",
+      "feedback_submit",
+      "publication_event",
+      "notification_status",
+      "admin_notification_state",
+      "admin_set_setting",
+      "admin_send_notifications",
+      "admin_vartalap_list",
+      "admin_vartalap_reply",
+      "admin_feedback_list",
+      "admin_feedback_get",
+      "admin_feedback_update",
+      "admin_feedback_delete",
+    ];
+    console.error(
+      JSON.stringify({
+        event: "publishing_request_failed",
+        stage,
+        action: knownActions.includes(action) ? action : "unknown",
+        code,
+      }),
+    );
+    return jsonResponse_({ ok: false, error: code });
   }
 }
 function subscribe_(payload) {
@@ -297,7 +349,7 @@ function submitAevaFeedback_(payload) {
   const priority = ["privacy-concern", "unsafe"].includes(reason)
     ? "urgent"
     : "normal";
-  appendPrivateRow_("AevaFeedback", {
+  const record = {
     feedbackId: generateId_("fdb"),
     rating,
     message: normalizeOptionalText_(payload.message, 500),
@@ -311,8 +363,20 @@ function submitAevaFeedback_(payload) {
     kind,
     transcriptConsented,
     reportExcerpt,
-  });
-  return { status: "submitted" };
+  };
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(3000)) throw new Error("service_busy");
+  try {
+    const sheet = ensureFeedbackSheet_(getSpreadsheet_());
+    sheet.appendRow(
+      AKB.sheets.AevaFeedback.map((header) =>
+        privateSheetCell_(record[header] == null ? "" : record[header]),
+      ),
+    );
+    return { status: "submitted" };
+  } finally {
+    lock.releaseLock();
+  }
 }
 function getPublicVartalap_(payload) {
   if (!settingBoolean_("vartalap.publicRepliesEnabled")) return [];
@@ -635,17 +699,17 @@ function getSheet_(name) {
   return sheet;
 }
 function validateHeaders_(sheet, expectedHeaders) {
+  if (sheet.getMaxColumns() < expectedHeaders.length)
+    throw new Error("sheet_header_mismatch");
   const actual = sheet
     .getRange(1, 1, 1, expectedHeaders.length)
     .getDisplayValues()[0]
     .map((value) => value.trim());
   expectedHeaders.forEach((expected, index) => {
-    if (actual[index] !== expected)
-      throw new Error(
-        `Invalid header in ${sheet.getName()} column ${index + 1}`,
-      );
+    if (actual[index] !== expected) throw new Error("sheet_header_mismatch");
   });
 }
+
 function initializeDefaultSettings_() {
   const sheet = getSheet_("Settings");
   const existingKeys = new Set(
@@ -703,7 +767,7 @@ function appendPrivateRow_(sheetName, record) {
 }
 function privateSheetCell_(value) {
   if (typeof value !== "string") return value;
-  return /^[=+\-@]/.test(value) ? `'${value}` : value;
+  return /^[=+@-]/.test(value) ? `'${value}` : value;
 }
 function updateRowById_(sheet, idHeader, idValue, values) {
   const headers = AKB.sheets[sheet.getName()];
@@ -718,7 +782,8 @@ function updateRowById_(sheet, idHeader, idValue, values) {
   if (index < 0) return false;
   Object.entries(values).forEach(([key, value]) => {
     const column = headers.indexOf(key);
-    if (column >= 0) sheet.getRange(index + 2, column + 1).setValue(value);
+    if (column >= 0)
+      sheet.getRange(index + 2, column + 1).setValue(privateSheetCell_(value));
   });
   return true;
 }
@@ -737,7 +802,8 @@ function updateRowByCompoundKey_(sheet, keyHeaders, keyValues, values) {
   if (index < 0) return false;
   Object.entries(values).forEach(([key, value]) => {
     const column = headers.indexOf(key);
-    if (column >= 0) sheet.getRange(index + 2, column + 1).setValue(value);
+    if (column >= 0)
+      sheet.getRange(index + 2, column + 1).setValue(privateSheetCell_(value));
   });
   return true;
 }
@@ -901,6 +967,16 @@ function nowIso_() {
 }
 function safeErrorCode_(error) {
   const allowed = new Set([
+    "record_not_found",
+    "record_changed",
+    "invalid_confirmation",
+    "configuration_missing",
+    "spreadsheet_not_configured",
+    "publishing_service_not_initialized",
+    "required_sheet_missing",
+    "required_setting_missing",
+    "sheet_header_mismatch",
+    "service_busy",
     "invalid_request",
     "request_too_large",
     "invalid_payload",
@@ -929,4 +1005,185 @@ function jsonResponse_(payload) {
   return ContentService.createTextOutput(JSON.stringify(payload)).setMimeType(
     ContentService.MimeType.JSON,
   );
+}
+
+function ensureFeedbackSheet_(spreadsheet) {
+  const name = "AevaFeedback";
+  const headers = AKB.sheets.AevaFeedback;
+  let sheet = spreadsheet.getSheetByName(name);
+  if (!sheet) sheet = spreadsheet.insertSheet(name);
+  if (sheet.getLastRow() === 0) {
+    if (sheet.getMaxColumns() < headers.length)
+      sheet.insertColumnsAfter(
+        sheet.getMaxColumns(),
+        headers.length - sheet.getMaxColumns(),
+      );
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    return sheet;
+  }
+  const width = sheet.getLastColumn();
+  const actual = sheet
+    .getRange(1, 1, 1, width)
+    .getDisplayValues()[0]
+    .map((value) => value.trim());
+  const shared = Math.min(width, headers.length);
+  for (let index = 0; index < shared; index++) {
+    if (actual[index] !== headers[index])
+      throw new Error("sheet_header_mismatch");
+  }
+  if (width < headers.length) {
+    if (sheet.getMaxColumns() < headers.length)
+      sheet.insertColumnsAfter(
+        sheet.getMaxColumns(),
+        headers.length - sheet.getMaxColumns(),
+      );
+    sheet
+      .getRange(1, width + 1, 1, headers.length - width)
+      .setValues([headers.slice(width)]);
+  }
+  validateHeaders_(sheet, headers);
+  return sheet;
+}
+
+function feedbackRevision_(values) {
+  return Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256,
+    JSON.stringify(values),
+    Utilities.Charset.UTF_8,
+  )
+    .map((byte) => (byte < 0 ? byte + 256 : byte).toString(16).padStart(2, "0"))
+    .join("");
+}
+function feedbackRecord_(values, includeExcerpt) {
+  const headers = AKB.sheets.AevaFeedback;
+  const record = {};
+  headers.forEach((header, index) => {
+    record[header] = values[index] == null ? "" : values[index];
+  });
+  record.status = record.status || "new";
+  record.kind = record.kind || "feedback";
+  record.transcriptConsented =
+    String(record.transcriptConsented).toLowerCase() === "true";
+  if (
+    !includeExcerpt ||
+    record.kind !== "report" ||
+    !record.transcriptConsented
+  )
+    delete record.reportExcerpt;
+  record.revision = feedbackRevision_(values);
+  return record;
+}
+function withFeedbackLock_(operation) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(3000)) throw new Error("service_busy");
+  try {
+    return operation(ensureFeedbackSheet_(getSpreadsheet_()));
+  } finally {
+    lock.releaseLock();
+  }
+}
+function listFeedback_(payload) {
+  const limit = 25;
+  return withFeedbackLock_((sheet) => {
+    const cursor =
+      payload.cursor == null ? sheet.getLastRow() + 1 : Number(payload.cursor);
+    if (!Number.isSafeInteger(cursor) || cursor < 2)
+      throw new Error("invalid_request");
+    const end = Math.min(cursor - 1, sheet.getLastRow());
+    if (end < 2) return { items: [], nextCursor: null };
+    const start = Math.max(2, end - limit + 1);
+    const rows = sheet
+      .getRange(start, 1, end - start + 1, AKB.sheets.AevaFeedback.length)
+      .getValues();
+    return {
+      items: rows
+        .reverse()
+        .filter((row) => row[0])
+        .map((row) => feedbackRecord_(row, false)),
+      nextCursor: start > 2 ? start : null,
+    };
+  });
+}
+function findFeedback_(sheet, id) {
+  const feedbackId = normalizeIdentifier_(id, 100);
+  if (sheet.getLastRow() < 2) throw new Error("record_not_found");
+  const match = sheet
+    .getRange(2, 1, sheet.getLastRow() - 1, 1)
+    .createTextFinder(feedbackId)
+    .matchEntireCell(true)
+    .useRegularExpression(false)
+    .findNext();
+  if (!match) throw new Error("record_not_found");
+  const row = match.getRow();
+  const values = sheet
+    .getRange(row, 1, 1, AKB.sheets.AevaFeedback.length)
+    .getValues()[0];
+  return { row, values };
+}
+function getFeedback_(payload) {
+  return withFeedbackLock_((sheet) =>
+    feedbackRecord_(findFeedback_(sheet, payload.id).values, true),
+  );
+}
+function changeFeedback_(payload, action) {
+  const id = normalizeIdentifier_(payload.id, 100);
+  const revision = normalizeIdentifier_(payload.revision, 64);
+  const operationId = normalizeIdentifier_(payload.operationId, 100);
+  const actorId = normalizeIdentifier_(payload.actorId, 100);
+  const isDelete = action === "admin_feedback_delete";
+  if (isDelete && payload.confirmation !== id)
+    throw new Error("invalid_confirmation");
+  if (
+    !isDelete &&
+    !["new", "reviewed", "resolved", "archived"].includes(payload.status)
+  )
+    throw new Error("invalid_feedback");
+  const note = isDelete ? "" : normalizeOptionalText_(payload.ownerNote, 2000);
+  return withFeedbackLock_((sheet) => {
+    const found = findFeedback_(sheet, id);
+    if (feedbackRevision_(found.values) !== revision)
+      throw new Error("record_changed");
+    // Keep an audit trail in the same private spreadsheet, without submission text.
+    const auditHeaders = [
+      "operationId",
+      "feedbackId",
+      "actorId",
+      "action",
+      "outcome",
+      "at",
+    ];
+    const spreadsheet = getSpreadsheet_();
+    let audit = spreadsheet.getSheetByName("AevaFeedbackAudit");
+    if (!audit) audit = spreadsheet.insertSheet("AevaFeedbackAudit");
+    if (audit.getLastRow() === 0) audit.appendRow(auditHeaders);
+    validateHeaders_(audit, auditHeaders);
+    audit.appendRow(
+      [
+        operationId,
+        id,
+        actorId,
+        isDelete ? "delete" : "update",
+        "requested",
+        nowIso_(),
+      ].map(privateSheetCell_),
+    );
+    if (isDelete) sheet.deleteRow(found.row);
+    else {
+      const start = AKB.sheets.AevaFeedback.indexOf("status") + 1;
+      sheet
+        .getRange(found.row, start, 1, 3)
+        .setValues([[payload.status, privateSheetCell_(note), nowIso_()]]);
+    }
+    audit.appendRow(
+      [
+        operationId,
+        id,
+        actorId,
+        isDelete ? "delete" : "update",
+        "completed",
+        nowIso_(),
+      ].map(privateSheetCell_),
+    );
+    return { status: isDelete ? "deleted" : "updated" };
+  });
 }

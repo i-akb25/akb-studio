@@ -1,8 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { aevaServerConfig } from "@/features/aeva/config/server-config";
+import { selectConversationContext } from "@/features/aeva/core/conversation-context";
 import { directAevaResponse } from "@/features/aeva/core/direct-response";
-import { groundedFallbackAnswer } from "@/features/aeva/core/grounded-answer";
+import {
+  approvedShortReply,
+  groundedFallbackAnswer,
+} from "@/features/aeva/core/grounded-answer";
+import { missingAnswer } from "@/features/aeva/core/missing-answer";
 import { evidenceNextQuestions } from "@/features/aeva/core/next-questions";
 import { understandAevaQuery } from "@/features/aeva/core/query-understanding";
 import {
@@ -26,6 +31,7 @@ import {
   type AevaIntent,
   type AevaMode,
 } from "@/features/aeva/model";
+import { safeAevaAnswer } from "@/features/aeva/security/output-guard";
 import {
   acceptAevaRequest,
   hasValidAevaOrigin,
@@ -59,6 +65,7 @@ const inputSchema = z
     shareConversation: z.boolean().default(false),
     shareUnknownQuestion: z.boolean().default(false),
     conversationId: z.string().uuid().optional(),
+    conversationSummary: z.string().max(4_000).default(""),
     history: z
       .array(
         z
@@ -68,11 +75,8 @@ const inputSchema = z
           })
           .strict(),
       )
-      .max(12)
-      .default([])
-      .transform((history) =>
-        history.slice(-aevaServerConfig.maxConversationTurns),
-      ),
+      .max(24)
+      .default([]),
     pageContext: z
       .object({
         path: z.string().trim().startsWith("/").max(300),
@@ -171,7 +175,12 @@ export async function POST(request: Request) {
     });
   let input: z.infer<typeof inputSchema>;
   try {
-    input = inputSchema.parse(await readJsonBody(request, 24_000));
+    input = inputSchema.parse(await readJsonBody(request, 160_000));
+    input.history = selectConversationContext(
+      input.history,
+      input.question,
+      aevaServerConfig.maxConversationTurns,
+    );
   } catch (error) {
     return new Response("Invalid request", {
       status: error instanceof RequestSecurityError ? error.status : 400,
@@ -200,6 +209,8 @@ export async function POST(request: Request) {
         let grounded = false;
         let usedWeb = false;
         let usedVerifiedSourceFallback = false;
+        let suggestedActions: AevaAnswer["actions"] | undefined;
+        let needsClarification = false;
         const pageContext = normalizeAevaPageContext(input.pageContext);
         const intent = classifyAevaIntent({
           question: input.question,
@@ -219,15 +230,57 @@ export async function POST(request: Request) {
         });
         const promptInjection = isPromptInjection(input.question);
         const privateLifeQuestion = isPrivateLifeQuestion(input.question);
-        const blockedRequest = promptInjection || privateLifeQuestion;
+        const blockedRequest = promptInjection;
         const directResponse = directAevaResponse(input.question);
 
         if (promptInjection) {
           answer =
             "I can’t share private instructions, credentials or admin records. I can help with Anurag’s published work.";
         } else if (privateLifeQuestion) {
-          answer =
-            "I don’t have permission to discuss Anurag’s unpublished personal information. I can help with his published work and interests.";
+          // Only explicitly published PUBLIC_AEVA records are eligible. Never
+          // broaden a personal question to web results or owner-only records.
+          const sources = (
+            await retrieveAevaContext(queryPlan, contract.retrievalLimit)
+          ).filter((source) => source.kind === "memory");
+          const readyReply =
+            sources[0] &&
+            approvedShortReply(sources[0], contract.maxWords, input.question);
+          const provider =
+            !readyReply && sources.length
+              ? await generateProviderAnswer({
+                  question: resolvedQuestion,
+                  mode: input.mode,
+                  intent: "portfolio",
+                  allowWeb: false,
+                  sources,
+                  history: input.history,
+                  conversationSummary: input.conversationSummary,
+                  contract,
+                  queryPlan,
+                  signal: request.signal,
+                })
+              : null;
+          if (readyReply) {
+            answer = readyReply;
+            citations = [citationFromCandidate(sources[0])];
+            grounded = true;
+          } else if (provider) {
+            answer = provider.answer;
+            citations = provider.citations;
+            grounded = true;
+          } else if (sources.length) {
+            answer = groundedFallbackAnswer({
+              sources,
+              plan: queryPlan,
+              maxWords: contract.maxWords,
+            });
+            citations = sources.map(citationFromCandidate);
+            usedVerifiedSourceFallback = true;
+          } else {
+            const missing = missingAnswer(input.question);
+            answer = missing.answer;
+            suggestedActions = missing.actions;
+          }
         } else if (directResponse) {
           answer = directResponse.answer;
         } else if (intent === "conversation") {
@@ -284,19 +337,27 @@ export async function POST(request: Request) {
               ? "Grounding the answer"
               : "Preparing the answer",
           });
-          const provider = await generateProviderAnswer({
-            question: resolvedQuestion,
-            mode: input.mode,
-            intent,
-            allowWeb: input.allowWeb,
-            sources,
-            history: input.history,
-            pageContext,
-            jobDescription: input.jobDescription,
-            contract,
-            queryPlan,
-            signal: request.signal,
-          });
+          const unknownOwnerOrPerson =
+            !sources.length &&
+            intent !== "live-information" &&
+            (/\b(?:anurag|ace|he|his)\b/i.test(input.question) ||
+              /^who (?:is|was)\b/i.test(input.question));
+          const provider = unknownOwnerOrPerson
+            ? null
+            : await generateProviderAnswer({
+                question: resolvedQuestion,
+                mode: input.mode,
+                intent,
+                allowWeb: input.allowWeb,
+                sources,
+                history: input.history,
+                conversationSummary: input.conversationSummary,
+                pageContext,
+                jobDescription: input.jobDescription,
+                contract,
+                queryPlan,
+                signal: request.signal,
+              });
           if (provider) {
             answer = provider.answer;
             citations = provider.citations;
@@ -318,8 +379,10 @@ export async function POST(request: Request) {
             grounded = false;
             usedWeb = sources.some((source) => source.kind === "web");
           } else {
-            answer =
-              "I don’t have enough published evidence to answer that. Try a more specific question, or enable live web for a topic outside the portfolio.";
+            const missing = missingAnswer(input.question);
+            answer = missing.answer;
+            suggestedActions = missing.actions;
+            needsClarification = answer.startsWith("Which ");
             await recordKnowledgeGap(
               input.question,
               input.shareUnknownQuestion,
@@ -328,6 +391,9 @@ export async function POST(request: Request) {
           }
         }
 
+        answer =
+          safeAevaAnswer(answer, contract.maxWords) ??
+          "I can’t safely answer that from the available information.";
         citations = deduplicateAevaCitations(citations).slice(
           0,
           contract.maxCitations,
@@ -347,19 +413,26 @@ export async function POST(request: Request) {
           ok: true,
           answer,
           citations,
-          followUps: directResponse
-            ? []
-            : evidenceNextQuestions(queryPlan, grounded).length
-              ? evidenceNextQuestions(queryPlan, grounded)
-              : followUps(intent, input.mode, grounded, input.allowWeb),
+          followUps:
+            directResponse ||
+            blockedRequest ||
+            privateLifeQuestion ||
+            needsClarification ||
+            intent === "conversation" ||
+            !grounded
+              ? []
+              : evidenceNextQuestions(queryPlan, grounded).length
+                ? evidenceNextQuestions(queryPlan, grounded)
+                : followUps(intent, input.mode, grounded, input.allowWeb),
           actions: blockedRequest
             ? []
-            : createAevaActions({
+            : (suggestedActions ??
+              createAevaActions({
                 question: input.question,
                 intent,
                 citations,
                 pageContext,
-              }),
+              })),
           intent,
           evidenceState: usedWeb
             ? "live-grounded"

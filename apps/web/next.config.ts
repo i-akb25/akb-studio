@@ -44,6 +44,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  agentRules: false,
   poweredByHeader: false,
   compress: true,
   images: {

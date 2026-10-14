@@ -8,6 +8,7 @@ import {
 } from "@/features/content/server/content-source";
 import { getPublishedFeatureItems } from "@/features/pravaah/server/feature-source";
 import { publishedProjects } from "@/features/projects/data/project-registry";
+import { getResumeProfile } from "@/features/resume/server/resume-profile";
 import { prisma } from "@/server/db/prisma";
 import {
   createPortfolioKnowledgeGraph,
@@ -54,7 +55,7 @@ function internalPravaahRelation(
 }
 
 export const getPortfolioKnowledgeGraph = cache(async () => {
-  const [about, managedProjects, journal, knowledge, pravaah] =
+  const [about, managedProjects, journal, knowledge, pravaah, resume] =
     await Promise.all([
       getManagedAboutProfile().catch(() => null),
       process.env.DATABASE_URL
@@ -69,8 +70,39 @@ export const getPortfolioKnowledgeGraph = cache(async () => {
       getPublishedJournal().catch(() => []),
       getPublishedKnowledge().catch(() => []),
       getPublishedFeatureItems().catch(() => []),
+      getResumeProfile().catch(() => null),
     ]);
   const documents: KnowledgeDocument[] = [];
+
+  if (resume) {
+    documents.push({
+      id: "profile:education",
+      kind: "profile",
+      title: `Education: ${resume.education.institution}`,
+      summary: `${resume.name} completed ${resume.education.qualification} at ${resume.education.institution} (${resume.education.period}).`,
+      body: "",
+      url: "/resume",
+      facets: [],
+      relations: [],
+      provenance: { owner: "akb-studio", sourceId: "public-resume:education" },
+    });
+    for (const item of resume.experiences) {
+      documents.push({
+        id: `profile:experience:${item.id}`,
+        kind: "profile",
+        title: `Work experience: ${item.organization}`,
+        summary: `${resume.name} worked as ${item.role} at ${item.organization}, ${item.location} (${item.period}).`,
+        body: item.focus,
+        url: "/resume",
+        facets: facets("discipline", item.disciplines),
+        relations: [],
+        provenance: {
+          owner: "akb-studio",
+          sourceId: `public-resume:experience:${item.id}`,
+        },
+      });
+    }
+  }
 
   if (about) {
     documents.push({
@@ -87,6 +119,22 @@ export const getPortfolioKnowledgeGraph = cache(async () => {
       relations: [],
       provenance: { owner: "akb-studio", sourceId: "about-profile" },
     });
+    for (const interest of about.interests) {
+      documents.push({
+        id: `profile:interest:${interest.id}`,
+        kind: "profile",
+        title: `Interests: ${interest.title}`,
+        summary: interest.note,
+        body: "",
+        url: "/about",
+        facets: [],
+        relations: [],
+        provenance: {
+          owner: "akb-studio",
+          sourceId: `about-interest:${interest.id}`,
+        },
+      });
+    }
   }
 
   for (const project of managedProjects) {

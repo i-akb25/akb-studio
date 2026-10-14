@@ -3,11 +3,13 @@ import { PrivateAevaConsole } from "@/features/admin/components/private-aeva-con
 import { requireAdmin } from "@/features/admin/server/admin-auth";
 import { aevaServerConfig } from "@/features/aeva/config/server-config";
 import { decryptAevaText } from "@/features/aeva/server/encryption";
+import { getPortfolioKnowledgeGraph } from "@/features/intelligence/server/portfolio-knowledge-graph";
 import { prisma } from "@/server/db/prisma";
 
 export default async function AdminAevaPage() {
   const session = await requireAdmin("content:write");
   const isOwner = session.role === "owner";
+  const publicKnowledge = await getPortfolioKnowledgeGraph();
   const providerConfigured = Boolean(process.env.GEMINI_API_KEY?.trim());
   const liveWebEnabled = process.env.AEVA_WEB_SEARCH_ENABLED === "true";
   const providerModel =
@@ -83,6 +85,27 @@ export default async function AdminAevaPage() {
           publicAllowed: item.publicAllowed,
         }))}
       />
+      <section>
+        <h2>Published website knowledge</h2>
+        <p>
+          These sources are read from your existing published website. Edit the
+          original source to update Aeva; a duplicate memory entry is not
+          needed. Additional memories stay separate below.
+        </p>
+        {publicKnowledge.nodes
+          .filter((node) => node.document)
+          .map((node) => (
+            <details key={node.id}>
+              <summary>{node.title}</summary>
+              <p>{node.body}</p>
+              {node.url ? (
+                <a href={node.url} target="_blank" rel="noreferrer">
+                  Open published source
+                </a>
+              ) : null}
+            </details>
+          ))}
+      </section>
       <section>
         <h2>Current memory entries</h2>
         {memories.length ? (

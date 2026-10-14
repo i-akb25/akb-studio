@@ -40,6 +40,27 @@ export function parseProviderAnswer(
   }
 }
 
+export function isSourceFragmentDump(
+  answer: string,
+  sources: readonly { title: string }[],
+): boolean {
+  if (/\b(?:Question|Sample reply)\s*:/i.test(answer)) return true;
+  const lines = answer.split("\n").map((line) =>
+    line
+      .replace(/^[\s•*\-\d.)]+/, "")
+      .trim()
+      .toLowerCase(),
+  );
+  return sources.some(({ title }) => {
+    const heading = title.trim().toLowerCase();
+    return lines.some(
+      (line) =>
+        line.startsWith(`${heading}:`) ||
+        (heading.endsWith("?") && line.startsWith(heading)),
+    );
+  });
+}
+
 export function boundedConversationHistory(
   turns: readonly AevaConversationTurn[],
   limit = 8,

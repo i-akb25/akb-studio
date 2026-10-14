@@ -1,12 +1,12 @@
 export const LEGAL_EFFECTIVE_DATE = "20 September 2026";
 
 export const POLICY_VERSIONS = {
-  privacy: "2026-09-20.3",
+  privacy: "2026-10-14.1",
   terms: "2026-09-20.2",
-  cookies: "2026-09-20.1",
+  cookies: "2026-10-14.1",
   data: "2026-09-17.1",
   contact: "2026-09-20.2",
-  aeva: "2026-10-08.1",
+  aeva: "2026-10-14.1",
   vartalap: "2026-09-17.1",
   subscription: "2026-09-17.1",
   privacyRequest: "2026-09-17.1",
@@ -117,7 +117,7 @@ export const PROVIDER_INVENTORY = [
   {
     provider: "Configured AI provider",
     purpose: "Aeva answer generation and optional live-web grounding",
-    data: "Question, optional job description and minimum approved public context needed for an answer",
+    data: "Question, relevant conversation turns, optional job description and minimum approved public context needed for an answer",
     location: "Depends on the production provider and its subprocessors",
   },
 ] as const;

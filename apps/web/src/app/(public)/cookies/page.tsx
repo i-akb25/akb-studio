@@ -45,9 +45,10 @@ const sections: readonly LegalSection[] = [
     content: (
       <p>
         The theme choice and the preference below are stored locally in your
-        browser. Unshared Aeva conversation state exists only in the current
-        page session. Clearing site data removes these local choices. No name,
-        email or contact message is placed in local storage.
+        browser. Aeva uses session storage in the current tab to restore an
+        active chat after a refresh. End chat clears that saved conversation.
+        Clearing site data also removes these local choices. No name, email or
+        contact message is placed in local storage.
       </p>
     ),
   },

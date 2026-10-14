@@ -60,11 +60,11 @@ test("chat clients bound history and detect incomplete or duplicate streams", as
   const route = await source("app/api/aeva/route.ts");
   assert.match(
     route,
-    /history\.slice\(-aevaServerConfig\.maxConversationTurns\)/,
+    /selectConversationContext\([\s\S]*aevaServerConfig\.maxConversationTurns/,
   );
-  assert.match(route, /\.max\(12\)/);
+  assert.match(route, /\.max\(24\)/);
   const chat = await source("features/aeva/components/aeva-experience.tsx");
-  assert.match(chat, /boundedConversationHistory\(messages\)/);
+  assert.match(chat, /selectConversationContext\(messages, trimmed\)/);
   assert.match(chat, /if \(receivedAnswer\) continue/);
   assert.match(
     chat,

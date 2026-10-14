@@ -50,13 +50,16 @@ const sections: readonly LegalSection[] = [
     content: (
       <p>
         Aeva is an AI assistant. Questions may be processed with relevant public
-        portfolio material to prepare an answer. Live web search is optional and
-        clearly identified before use. Conversation text is kept only when you
-        deliberately choose to share it. A job description pasted into the
-        recruiter tools is processed for that response and is not stored by the
-        recruiter subsystem. If you request an AI-generated interview, the job
-        description may be sent to the configured AI provider with the minimum
-        relevant public portfolio context.
+        portfolio material and relevant turns from this chat to prepare an
+        answer. Live web search is optional and clearly identified before use.
+        Your active chat is kept in this tab’s session storage to recover after
+        a refresh, and is cleared when you select End chat. Server-side
+        conversation text is kept only when you deliberately choose to share it.
+        A job description pasted into the recruiter tools is processed for that
+        response and is not stored by the recruiter subsystem. If you request an
+        AI-generated interview, the job description may be sent to the
+        configured AI provider with the minimum relevant public portfolio
+        context.
       </p>
     ),
   },

@@ -11,7 +11,8 @@ function looksLikeLocation(value: string): boolean {
     normalized.length <= 60 &&
     normalized.split(/\s+/).length <= 5 &&
     /^[\p{L}\p{M} .,'-]+$/u.test(normalized) &&
-    !QUESTION_LIKE.test(normalized)
+    !QUESTION_LIKE.test(normalized) &&
+    !/\b(?:his|her|work|education|experience|projects?|jsw)\b/i.test(normalized)
   );
 }
 
@@ -38,6 +39,14 @@ export function resolveFollowUpQuestion(
     !/\b(?:weather|temperature|forecast|time|timezone)\b/i.test(question)
   ) {
     return `${previousQuestion.text} Location clarification: ${question.trim()}`;
+  }
+  if (
+    previousQuestion &&
+    /\b(?:there|that (?:role|job|project)|(?:what|how) (?:did|does) he (?:do|work)|tell me about it)\b/i.test(
+      question,
+    )
+  ) {
+    return `${question.trim()} Previous subject: ${previousQuestion.text}`;
   }
   if (!VAGUE_FOLLOW_UP.test(question.trim())) return question;
   return previousQuestion

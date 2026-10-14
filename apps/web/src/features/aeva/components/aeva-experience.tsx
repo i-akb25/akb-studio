@@ -6,19 +6,22 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { trackConversion } from "@/features/analytics/components/conversion-tracker";
 import { POLICY_VERSIONS } from "@/features/legal/policy-registry";
-import { boundedConversationHistory } from "../core/provider-contract";
-import type { AevaAction, AevaAnswer, AevaCitation, AevaMode } from "../model";
+import {
+  type ChatMessage,
+  citationHref,
+  restoreChatSession,
+} from "../core/chat-session";
+import {
+  CHAT_STORAGE_KEY,
+  conversationClosing,
+  earlierConversationSummary,
+  MAX_SESSION_MESSAGES,
+  selectConversationContext,
+} from "../core/conversation-context";
+import type { AevaAnswer, AevaMode } from "../model";
 import { ConversationFeedback } from "./conversation-feedback";
 import { VoiceControls } from "./voice-controls";
 
-type Message = {
-  role: "user" | "assistant";
-  text: string;
-  citations?: AevaCitation[];
-  evidenceState?: AevaAnswer["evidenceState"];
-  actions?: AevaAction[];
-  responseId?: string;
-};
 const starters = [
   "Which projects best show production engineering?",
   "How does Anurag connect electrical engineering and software?",
@@ -35,7 +38,9 @@ const evidenceLabels: Record<AevaAnswer["evidenceState"], string> = {
 const LIVE_WEB_FOLLOW_UP = "Should I search the live web instead?";
 
 export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [sessionReady, setSessionReady] = useState(false);
+  const [storageNotice, setStorageNotice] = useState("");
   const [question, setQuestion] = useState("");
   const [mode, setMode] = useState<AevaMode>("explore");
   const [jobDescription, setJobDescription] = useState("");
@@ -52,6 +57,48 @@ export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
   const requestRef = useRef<AbortController | null>(null);
 
   useEffect(() => () => requestRef.current?.abort(), []);
+
+  useEffect(() => {
+    try {
+      const saved = restoreChatSession(
+        sessionStorage.getItem(CHAT_STORAGE_KEY),
+      );
+      if (saved) {
+        setMessages(saved.messages);
+        setMode(saved.mode);
+        setConversationId(saved.conversationId);
+      }
+    } catch {
+      setStorageNotice(
+        "This browser cannot restore the chat after a refresh. You can continue on this page.",
+      );
+    }
+    setSessionReady(true);
+    const marker = "akb:aeva:console-signature";
+    if (!document.documentElement.hasAttribute(marker)) {
+      document.documentElement.setAttribute(marker, "");
+      console.info(
+        "AKB Studio · Aeva\nBuilt by Anurag Kumar Bharti.\nCuriosity welcome. Your conversation stays yours unless you choose to share it.",
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!sessionReady) return;
+    try {
+      if (ended || !messages.length)
+        sessionStorage.removeItem(CHAT_STORAGE_KEY);
+      else
+        sessionStorage.setItem(
+          CHAT_STORAGE_KEY,
+          JSON.stringify({ version: 1, messages, mode, conversationId }),
+        );
+    } catch {
+      setStorageNotice(
+        "Chat continues on this page, but browser storage is unavailable. Refreshing may lose it.",
+      );
+    }
+  }, [messages, mode, conversationId, ended, sessionReady]);
 
   useEffect(() => {
     if (!messages.length) return;
@@ -92,8 +139,9 @@ export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
       !trimmed ||
       status ||
       requestRef.current ||
+      !sessionReady ||
       ended ||
-      messages.length >= 40
+      messages.length >= MAX_SESSION_MESSAGES
     )
       return;
     const abort = new AbortController();
@@ -118,7 +166,8 @@ export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
           shareConversation,
           shareUnknownQuestion,
           conversationId,
-          history: boundedConversationHistory(messages),
+          history: selectConversationContext(messages, trimmed),
+          conversationSummary: earlierConversationSummary(messages),
           pageContext: pageContext(),
           ...(mode === "recruiter" && jobDescription.trim().length >= 40
             ? { jobDescription: jobDescription.trim() }
@@ -146,6 +195,7 @@ export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
             const payload = JSON.parse(line.slice(6)) as
               | { type: "status"; message: string }
               | { type: "answer"; result: AevaAnswer };
+            if (requestRef.current !== abort || abort.signal.aborted) return;
             if (payload.type === "status") setStatus(payload.message);
             else {
               if (receivedAnswer) continue;
@@ -179,6 +229,7 @@ export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
         reader.releaseLock();
       }
     } catch {
+      if (requestRef.current !== abort) return;
       trackConversion("aeva_failure");
       setMessages((current) => [
         ...current,
@@ -189,14 +240,23 @@ export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
       ]);
     } finally {
       window.clearTimeout(timeout);
-      if (requestRef.current === abort) requestRef.current = null;
-      setStatus("");
+      if (requestRef.current === abort) {
+        requestRef.current = null;
+        setStatus("");
+      }
     }
   }
 
   async function endChat() {
+    requestRef.current?.abort();
+    requestRef.current = null;
+    setStatus("");
+    setFollowUps([]);
     setShowReport(false);
     setEnded(true);
+    try {
+      sessionStorage.removeItem(CHAT_STORAGE_KEY);
+    } catch {}
     if (!conversationId) return;
     await fetch("/api/aeva/end", {
       method: "POST",
@@ -204,6 +264,24 @@ export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
       signal: AbortSignal.timeout(8_000),
       body: JSON.stringify({ conversationId }),
     }).catch(() => undefined);
+  }
+
+  function startNewChat() {
+    setMessages([]);
+    setQuestion("");
+    setJobDescription("");
+    setConversationId(undefined);
+    setFollowUps([]);
+    setShareConversation(false);
+    setShareUnknownQuestion(false);
+    setAllowWeb(false);
+    setShowReport(false);
+    setEnded(false);
+    setStorageNotice("");
+    try {
+      sessionStorage.removeItem(CHAT_STORAGE_KEY);
+    } catch {}
+    questionRef.current?.focus();
   }
 
   const latestResponseId = messages.findLast(
@@ -366,32 +444,42 @@ export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
                       <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-2">
                         {message.citations.map((citation) => (
                           <li key={citation.id}>
-                            <a
-                              href={citation.url}
-                              target={
-                                citation.url.startsWith("http")
-                                  ? "_blank"
-                                  : undefined
-                              }
-                              rel={
-                                citation.url.startsWith("http")
-                                  ? "noreferrer"
-                                  : undefined
-                              }
-                              className="inline-flex items-center gap-1 text-xs font-medium text-accent-warm underline underline-offset-4"
-                            >
-                              {citation.title}
-                              {citation.url.startsWith("http") ? (
-                                <span className="sr-only">
-                                  {" "}
-                                  (opens in a new tab)
-                                </span>
-                              ) : null}
-                              <ArrowUpRight
-                                className="size-3"
-                                aria-hidden="true"
-                              />
-                            </a>
+                            {citationHref(citation.url) ? (
+                              <a
+                                href={citationHref(citation.url)}
+                                target={
+                                  citation.url.startsWith("http")
+                                    ? "_blank"
+                                    : undefined
+                                }
+                                rel={
+                                  citation.url.startsWith("http")
+                                    ? "noreferrer"
+                                    : undefined
+                                }
+                                className="inline-flex items-center gap-1 text-xs font-medium text-accent-warm underline underline-offset-4"
+                              >
+                                {citation.kind === "memory"
+                                  ? "Owner-approved memory"
+                                  : citation.title}
+                                {citation.url.startsWith("http") ? (
+                                  <span className="sr-only">
+                                    {" "}
+                                    (opens in a new tab)
+                                  </span>
+                                ) : null}
+                                <ArrowUpRight
+                                  className="size-3"
+                                  aria-hidden="true"
+                                />
+                              </a>
+                            ) : (
+                              <span className="text-xs text-muted">
+                                {citation.kind === "memory"
+                                  ? "Owner-approved memory"
+                                  : citation.title}
+                              </span>
+                            )}
                             {citation.updatedAt ? (
                               <span className="ml-2 text-[0.65rem] text-muted">
                                 Updated {citation.updatedAt.slice(0, 10)}
@@ -467,6 +555,32 @@ export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
             ) : null}
           </div>
 
+          {ended ? (
+            <section
+              className="shrink-0 border-t border-border py-4"
+              aria-live="polite"
+            >
+              <p className="text-sm text-foreground">
+                {conversationClosing(messages)}
+              </p>
+              <button
+                type="button"
+                onClick={startNewChat}
+                className="mt-3 text-sm text-accent-warm underline underline-offset-4"
+              >
+                Start new chat
+              </button>
+            </section>
+          ) : null}
+          {storageNotice ? (
+            <output className="text-xs text-muted">{storageNotice}</output>
+          ) : null}
+          {messages.length >= MAX_SESSION_MESSAGES && !ended ? (
+            <output className="text-sm text-muted">
+              This chat has reached its session limit. End chat and start a new
+              one to continue.
+            </output>
+          ) : null}
           {showReport && latestResponseId ? (
             <ConversationFeedback
               responseId={latestResponseId}
@@ -480,11 +594,7 @@ export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
               variant="feedback"
               transcript={reportTranscript}
             />
-          ) : ended ? (
-            <section className="shrink-0 border-t border-border pt-6">
-              <p className="text-sm text-muted">Conversation ended.</p>
-            </section>
-          ) : (
+          ) : ended ? null : (
             <footer className="shrink-0 border-t border-border bg-background pt-5">
               <form
                 onSubmit={(event) => {
@@ -522,7 +632,12 @@ export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
                   />
                   <button
                     type="submit"
-                    disabled={Boolean(status) || !question.trim()}
+                    disabled={
+                      !sessionReady ||
+                      Boolean(status) ||
+                      !question.trim() ||
+                      messages.length >= MAX_SESSION_MESSAGES
+                    }
                     aria-label="Send question"
                     className="inline-flex size-12 shrink-0 items-center justify-center rounded-full bg-foreground text-background disabled:opacity-40"
                   >
@@ -600,10 +715,12 @@ export function AevaExperience({ voiceEnabled }: { voiceEnabled: boolean }) {
                     </span>
                   </label>
                   <p>
-                    Without consent, conversation history stays only in this
-                    page and is not written to Neon. Aeva is intended for
-                    adults; an under-18 visitor should use the contact route and
-                    complete its safety declaration instead.
+                    Chat history stays in this browser tab until End chat and
+                    survives a refresh when browser storage is available.
+                    Relevant turns are sent to Gemini to answer your question.
+                    Without sharing consent, it is not written to Neon. Aeva is
+                    intended for adults; an under-18 visitor should use the
+                    contact route and complete its safety declaration instead.
                   </p>
                 </div>
               </details>
